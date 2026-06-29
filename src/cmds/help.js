@@ -1,0 +1,40 @@
+const cmds = require("../data/commands.json")
+
+module.exports = (app, meta) => {
+    app.command(meta.cmd, async ({ ack, respond }) => {
+        await ack()
+
+        const groups = {}
+
+        Object.values(cmds).forEach(cmd => {
+            const category = cmd.category || "other"
+
+            if (!groups[category]) {
+                groups[category] = []
+            }
+
+            groups[category].push(cmd)
+        })
+
+        const categoryNames = {
+            core: "⚙️ core",
+            utility: "🛠️ utility",
+            entertainment: "🎉 entertainment",
+            other: "📦 other"
+        }
+
+        let msg = "yo chat, here's everything i can do:\n"
+
+        for (const [category, list] of Object.entries(groups)) {
+            msg += `\n${categoryNames[category] || category}\n`
+
+            list.forEach(cmd => {
+                msg += `\* ${cmd.cmd} - ${cmd.description}\n`
+            })
+        }
+
+        msg += "\ntry one, worst case an inf while loop happens and ill explode or smth idk"
+
+        await respond(msg)
+    })
+}

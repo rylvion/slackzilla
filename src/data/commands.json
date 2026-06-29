@@ -1,0 +1,44 @@
+{
+    "ping": {
+        "cmd": "/sz-ping",
+        "description": "idk js 'pongs' ig",
+        "category": "core",
+        "file": "ping.js"
+    },
+    "help": {
+        "cmd": "/sz-help",
+        "description": "displays all cmds and their desc",
+        "category": "core",
+        "file": "help.js"
+    },
+    "info": {
+        "cmd": "/sz-info",
+        "description": "displays the bots metadata and info",
+        "category": "core",
+        "file": "info.js"
+    },
+    "quote": {
+        "cmd": "/sz-quote",
+        "description": "displays a random quote",
+        "category": "entertainment",
+        "file": "quote.js"
+    },
+    "jokes": {
+        "cmd": "/sz-joke",
+        "description": "displays a random joke",
+        "category": "entertainment",
+        "file": "jokes.js"
+    },
+    "fact": {
+        "cmd": "/sz-fact",
+        "description": "displays a fun fact",
+        "category": "entertainment",
+        "file": "fact.js"
+    },
+    "hug": {
+        "cmd": "/sz-hug",
+        "description": "sends a hug to a user",
+        "category": "entertainment",
+        "file": "hug.js"
+    }
+}
