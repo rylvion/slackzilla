@@ -1,4 +1,5 @@
 // api from https://uselessfacts.jsph.pl
+const { log, red, green, cyan } = require("../utils/logger")
 
 const excuses = [
     "i was literlally just about to fetch a fun fact but then i got distracted by a squirrel outside my window and now im late",
@@ -26,10 +27,20 @@ async function fetchWithTimeout(url, timeout = 5000) {
 }
 
 module.exports = (app, meta) => {
-    app.command(meta.cmd, async ({ ack, respond }) => {
+    app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
+        log.info(
+            "{user} used {cmd}",
+            command
+        )
+
         try {
+            log.info(
+                "{user} is fetching API: {cmd}",
+                command
+            )
+
             const res = await fetchWithTimeout("https://uselessfacts.jsph.pl/random.json?language=en")
 
             if (!res.ok) {
@@ -37,17 +48,26 @@ module.exports = (app, meta) => {
             }
 
             const data = await res.json()
+
+            log.success(
+                "{user} fetched fact from API {0} ({1})",
+                command,
+                cyan(res.url),
+                cyan(res.status)
+            )
+
             const fact = data.text
 
             await respond(`🧠 did you know that ${fact}`)
+
         } catch (err) {
-            console.error("funfact error:", err)
-
-            const excuse = excuses[Math.floor(Math.random() * excuses.length)]
-
-            await respond(
-                `❌ couldn't fetch a fun fact right now\n\nHere's an excuse instead: ${excuse}`
+            log.error(
+                "{user} failed {cmd}: {0}",
+                command,
+                red(err.message)
             )
+
+            await respond(`❌ couldn't fetch a fun fact right now\n\nHere's an excuse instead: ${excuses[Math.floor(Math.random() * excuses.length)]}`)
         }
     })
 }

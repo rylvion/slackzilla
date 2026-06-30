@@ -1,7 +1,8 @@
+const { log } = require("../utils/logger")
 const cmds = require("../data/commands.json")
 
 module.exports = (app, meta) => {
-    app.command(meta.cmd, async ({ ack, respond }) => {
+    app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
         const groups = {}
@@ -29,11 +30,14 @@ module.exports = (app, meta) => {
             msg += `\n${categoryNames[category] || category}\n`
 
             list.forEach(cmd => {
-                msg += `\* ${cmd.cmd} - ${cmd.description}\n`
+                msg += `* ${cmd.cmd} - ${cmd.description}\n`
             })
         }
 
         msg += "\ntry one, worst case an inf while loop happens and ill explode or smth idk"
+
+        log.info("{user} used {cmd}", command)
+        log.success("{user} viewed command list", command)
 
         await respond(msg)
     })

@@ -1,11 +1,14 @@
 // from https://jokeapi.dev/
+const { log, red } = require("../utils/logger.js")
 
 module.exports = (app, meta) => {
-    app.command(meta.cmd, async ({ ack, respond }) => {
+    app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
+        log.info("{user} used {cmd}", command)
+
         try {
-            const res = await fetch("https://v2.jokeapi.dev/joke/Any")
+            const res = await fetch("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,religious,political,racist,sexist,explicit")
 
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}`)
@@ -14,7 +17,7 @@ module.exports = (app, meta) => {
             const data = await res.json()
 
             if (data.error) {
-                throw new Error("API returned error: ", data)
+                throw new Error(`API returned error: ${JSON.stringify(data)}`)
             }
 
             let joke
@@ -25,12 +28,18 @@ module.exports = (app, meta) => {
                 joke = `${data.setup}\n\n${data.delivery}`
             }
 
+            log.success("{user} fetched a joke", command)
+
             await respond(`😂 ${joke}`)
 
         } catch (err) {
-            console.error("joke error:", err)
-
             await respond("❌ couldn't fetch a joke right now... the humour engine broke")
+
+            log.error(
+                "{user} failed {cmd}: {0}",
+                command,
+                red(err.message)
+            )
         }
     })
 }

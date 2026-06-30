@@ -1,3 +1,5 @@
+const { log } = require("../utils/logger.js")
+
 const hugArt = `
 \`\`\`
              ___                   ____                  ___
@@ -5,7 +7,7 @@ const hugArt = `
         (____     \\_____       /  (O  O)  \\       _____/     ____)
         (____            \`-----(      )     )-----'            ____)
         (____     _____________\\  .____.  /_____________     ____)
-        (______/                \`-.____.-'              \\______)
+        (______/                \`-.____.-'              \\______ )
 \`\`\`
 `
 
@@ -13,11 +15,8 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        const userId = command.user_id
+        await respond(`${hugArt}\n<@${command.user_id}> gets a giant Slackzilla hug! 🤗`)
 
-        await respond(
-            `${hugArt}
-            <@${userId}> gets a giant Slackzilla hug! 🤗`
-        )
+        log.info("{user} used {cmd}", command)
     })
 }

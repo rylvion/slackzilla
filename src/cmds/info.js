@@ -1,3 +1,5 @@
+const { log } = require("../utils/logger.js")
+
 module.exports = (app, meta) => {
     const formatUptime = ms => {
         const seconds = Math.floor(ms / 1000)
@@ -11,26 +13,36 @@ module.exports = (app, meta) => {
         return `${h}h ${m}m ${s}s`
     }
 
-    app.command(meta.cmd, async ({ ack, respond }) => {
+    app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        const meta = global.botMeta
+        const botMeta = global.botMeta
 
-        const uptime = formatUptime(Date.now() - meta.startedAt)
-        const memory = (meta.memory() / 1024 / 1024).toFixed(1)
+        const uptime = formatUptime(Date.now() - botMeta.startedAt)
+        const memory = (botMeta.memory() / 1024 / 1024).toFixed(1)
+
+        log.info("{user} used {cmd}", command)
+
+        log.success(
+            "{user} checked bot status (uptime: {0}, memory: {1}MB)",
+            command,
+            uptime,
+            memory
+        )
 
         await respond(
             `
-            🤖 Slackzilla status
+🤖 Slackzilla status
 
-            version: ${meta.version}
-            node: ${meta.nodeVersion}
-            platform: ${meta.platform}
+version: ${botMeta.version}
+node: ${botMeta.nodeVersion}
+platform: ${botMeta.platform}
 
-            uptime: ${uptime}
-            memory: ${memory}mb
+uptime: ${uptime}
+memory: ${memory}mb
 
-            started: ${new Date(meta.startedAt).toLocaleString()}`
+started: ${new Date(botMeta.startedAt).toLocaleString()}
+            `
         )
     })
 }

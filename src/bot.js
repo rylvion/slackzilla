@@ -1,15 +1,16 @@
 const path = require('path')
 const fs = require('fs')
-require('dotenv').config({path: path.resolve(__dirname, '.env')})
+require('dotenv').config({ path: path.resolve(__dirname, '.env') })
 
-const { App } = require('@slack/bolt');
+const { App } = require('@slack/bolt')
+const { log } = require('./utils/logger')
 
 const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
     appToken: process.env.SLACK_APP_TOKEN,
     signingSecret: process.env.SLACK_SIGNING_SECRET,
     socketMode: true
-});
+})
 
 global.botMeta = {
     startedAt: Date.now(),
@@ -19,13 +20,15 @@ global.botMeta = {
     version: "[alpha] but idk what version im on rn"
 }
 
-const cmds = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'commands.json'), 'utf8'))
+const cmds = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'data', 'commands.json'), 'utf8')
+)
 
 for (const [name, meta] of Object.entries(cmds)) {
     const file = path.join(__dirname, 'cmds', meta.file)
 
     if (!fs.existsSync(file)) {
-        console.log(`Missing command file: ${meta.file}`)
+        log.error("Missing command file: {0}", null, meta.file)
         continue
     }
 
@@ -34,20 +37,15 @@ for (const [name, meta] of Object.entries(cmds)) {
     if (typeof cmd === 'function') {
         cmd(app, meta)
     } else {
-        console.log(`Command ${meta.file} does not export a function`)
+        log.error("Command {0} does not export a function", null, meta.file)
     }
 }
 
-// require('./src/cmds/ping.js')(app)
-// require('./src/cmds/help.js')(app)
-// require('./src/cmds/info.js')(app)
-// require('./src/cmds/quote.js')(app)
-// require('./src/cmds/jokes.js')(app)
-// require('./src/cmds/funfact.js')(app)
-// require('./src/cmds/hug.js')(app)
-
 (async () => {
     await app.start(process.env.PORT || 3000)
-    console.log('All systems initialised')
-    console.log('Ready for launch in T minus 3... 2... 1...')
-})();
+
+    log.info("All systems initialised")
+    log.info('Ready for launch in T minus 3... 2... 1...')
+
+    log.success("BOOM! Slackzilla is now online and ready to serve your commands")
+})()

@@ -1,6 +1,10 @@
+const { log, red } = require("../utils/logger.js")
+
 module.exports = (app, meta) => {
-    app.command(meta.cmd, async ({ ack, respond }) => {
+    app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
+
+        log.info("{user} used {cmd}", command)
 
         try {
             const res = await fetch("https://zenquotes.io/api/random")
@@ -11,12 +15,18 @@ module.exports = (app, meta) => {
 
             const data = await res.json()
 
+            log.success("{user} fetched a quote", command)
+
             await respond(
-            `💬 "${data[0].q}" ||| ${data[0].a}"`
+                `💬 "${data[0].q}" - ${data[0].a}`
             )
 
         } catch (err) {
-            console.error("quote error:", err)
+            log.error(
+                "{user} failed {cmd}: {0}",
+                command,
+                red(err.message)
+            )
 
             await respond("❌ couldn't fetch a quote right now... wisdom is temporarily offline")
         }
