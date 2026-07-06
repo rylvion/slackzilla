@@ -30,11 +30,37 @@ module.exports = (app, meta) => {
                 cyan(res.status)
             )
 
-            await respond(`🤣 *${data.title}*\n${data.url}`)
+            await respond({
+                blocks: [
+                    {
+                        type: "section",
+                        text: {
+                            type: "mrkdwn",
+                            text: `🤣 *${data.title}*`
+                        }
+                    },
+                    {
+                        type: "image",
+                        image_url: data.url,
+                        alt_text: data.title
+                    }
+                ]
+            })
 
         } catch (err) {
             log.error("{user} failed {cmd}: {0}", command, red(err.message))
-            await respond(`❌ couldn't fetch a meme right now\n\nHere's an excuse instead: ${excuses[Math.floor(Math.random() * excuses.length)]}`)
+
+            await respond({
+                blocks: [
+                    {
+                        type: "section",
+                        text: {
+                            type: "mrkdwn",
+                            text: `❌ couldn't fetch a meme right now\n\nHere's an excuse instead: *${excuses[Math.floor(Math.random() * excuses.length)]}*`
+                        }
+                    }
+                ]
+            })
         }
     })
 }
