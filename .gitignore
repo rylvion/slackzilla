@@ -1,3 +1,5 @@
 node_modules/
 .env
 priv/
+# devlog 3 still in progress :D, stay tuned for the next devlog!
+assets/devlogs/devlog3.md 

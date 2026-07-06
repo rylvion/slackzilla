@@ -2,7 +2,7 @@
   "name": "slackzilla",
   "version": "1.0.0",
   "description": "",
-  "main": "bot.js",
+  "main": "src/bot.js",
   "scripts": {
     "start": "node src/bot.js",
     "dev": "node src/bot.js"
@@ -15,4 +15,4 @@
     "@slack/bolt": "^4.7.3",
     "dotenv": "^17.4.2"
   }
-}
+} 

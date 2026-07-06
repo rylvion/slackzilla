@@ -1,0 +1,39 @@
+name: Deploy Slackzilla
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  dispatch-webhook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send deployment webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK_URL:-}" ] || [ -z "${WEBHOOK_SECRET:-}" ]; then
+            echo "Missing WEBHOOK_URL or WEBHOOK_SECRET"
+            exit 1
+          fi
+
+          payload=$(python -c 'import json, os; print(json.dumps({"ref": os.environ["GITHUB_REF"], "after": os.environ["GITHUB_SHA"], "repository": {"full_name": os.environ["GITHUB_REPOSITORY"], "default_branch": "main"}, "sender": {"login": "github-actions"}}))')
+
+          signature="sha256=$(printf '%s' "$payload" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -hex | awk '{print $2}')"
+
+          curl -fsS -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -H "X-GitHub-Delivery: ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            -H "X-Hub-Signature-256: $signature" \
+            --data "$payload"

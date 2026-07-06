@@ -1,5 +1,6 @@
 # Devlog 2 - server setup & modular command system & more [03/07/2026]
 time logged: 10hr 45 min
+---
 
 so since the last devlog, i've have worked on LOADS of things including behind the scene (this doesnt get tracked on hacaktime :( ), i dont even know if this will hit the char limit, but anyways, here are the logs
 
@@ -76,10 +77,7 @@ find more info in the setup guide on Step 7 out of 8 in https://stardance.hackcl
 i had to apply for nest, log in 
 and hten got ssh access to the server
 the specs include:
-* **OS:** Ubuntu 25.10 (GNU/Linux 7.0.12-1-pve x86_64)
-* **VMID:** 1109 (dont ask what that idk what it is myself)
-* **private IPV4:** idk if its safe to share it but its 10.60.3.226
-* **public IPV6:** 2a01:4f9:3a:276e::1109
+* **OS:** Ubuntu 26.04 LTS (GNU/Linux 7.0.12-1-pve x86_64)
 * **CPU:** 2 Cores 
 * **RAM (Memory):** 2048 MB
 * **Disk (Storage):** 16 GB
@@ -115,3 +113,23 @@ WantedBy=multi-user.target
 
 TL;DR: i got the bot running 24/7 in the server and it works perfectly fine, and i can now add new commands without having to touch the main bot.js file, and also, and added detailed server logging with time & user
 aight y'all i spent an ENTIRE HOUR writing this dev log y'all better rate me 9/9 for story telling, rylvion signing out 🫡 
+
+---
+
+
+<a href="devlog1.md">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png">
+    <img align="left" width="70" src="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png" alt="Back Button" />
+  </picture>
+</a>
+
+<p align="right">
+  <em>
+    <b>
+      <a href="devlog3.md">
+        visit devlog 3
+      </a>
+    </b>
+  </em>
+</p>

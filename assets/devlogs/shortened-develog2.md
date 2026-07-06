@@ -35,4 +35,4 @@ after installing everything, setting up the environment variables and creating a
 TL;DR: i got the bot running 24/7 in the server and it works perfectly fine, and i can now add new commands without having to touch the main bot.js file, and also, and added detailed server logging with time & user
 
 aight y'all i spent an ENTIRE HOUR writing this devlog and THEN i had to rewrite a shortened down version, y'all better rate me 9/9 for story telling, rylvion signing out 🫡 
-pls see my full devlog version
+pls see my [full devlog version](./devlog2.md)

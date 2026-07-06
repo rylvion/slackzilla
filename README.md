@@ -58,6 +58,7 @@ you can view this in https://stardance.hackclub.com/missions/slack-bot/guide#ste
 
 #### server setup
 you can also view this setup guide in Step 7 out of 8 in https://stardance.hackclub.com/missions/slack-bot/guide#step-7
+also you can check out the [server setup guide](./server/server-setup.md) for more details on how to setup the bot on a server and run it 24/7.
 
 if you want to run the bot in the server and on the background through `ssh` access do:
 
@@ -94,21 +95,21 @@ journalctl -u slackbot.service -f
 
 
 err i think thats it idk.. what to write here tbh, id leave the rest to FUTURE ME 🫡
-
+---
 
 ### TODO (aka. future me's problems)
-![troll meme face](https://avatars.slack-edge.com/2026-06-02/11263859131749_09e589f8ab70488b9f33_96.png)
+<img align="center" width="100%" src="https://avatars.slack-edge.com/2026-06-02/11263859131749_09e589f8ab70488b9f33_96.png" alt="troll meme face" />
 - add `/sz-meme` command
 
 - add `/echo [string]` command
-- add `.github/deploy.yml` file to deploy automatically with GitHub Actions because i'm lazy
+- add `.github/workflows/deploy.yml` file to deploy automatically with GitHub Actions because i'm lazy
 - add some contributing guidelines and a code of conduct
 - fix some bugs and improve the code quality
 
 any other improvements or suggestions are welcome, just open an issue and ill see what i can do.
 
 ## License
-![License](https://img.shields.io/badge/license-MIT-blue)(https://github.com/rylvion/slackzilla/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/rylvion/slackzilla/blob/main/LICENSE)
 also btw this has an MIT license so do whatever you want with it, free of credits, but i'd love to see what you do with it so if you make something cool with it, please share it with me! (also if you find any bugs or have any suggestions for improvements, please let me know!)
 
 

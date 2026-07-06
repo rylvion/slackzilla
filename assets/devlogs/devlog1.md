@@ -10,3 +10,22 @@ after countless testing of figuring out why my bot isnt working, i found out the
 [66eb775434c871f063fd57daf0bdfc7bd66501f1](https://github.com/rylvion/slackzilla/commit/66eb775434c871f063fd57daf0bdfc7bd66501f1) - add launch.json, .env.example (like formats), README.md, add stuff to bot.js
 
 btw this isnt hosted (will host soon) or anything and to use it you have to use the cmd prefix (sc-) e.g., /sc-ping  
+
+---
+
+<a href="/README.md">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png">
+    <img align="left" width="70" src="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png" alt="Back Button" />
+  </picture>
+</a>
+
+<p align="right">
+  <em>
+    <b>
+      <a href="/assets/devlogs/devlog2.md">
+        devlog 1
+      </a>
+    </b>
+  </em>
+</p>
