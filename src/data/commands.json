@@ -40,5 +40,11 @@
         "description": "sends a hug to a user",
         "category": "entertainment",
         "file": "hug.js"
+    },
+    "meme": {
+        "cmd": "/sz-meme",
+        "description": "displays a random meme",
+        "category": "entertainment",
+        "file": "meme.js"
     }
 }

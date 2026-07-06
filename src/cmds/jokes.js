@@ -1,5 +1,6 @@
 // from https://jokeapi.dev/
 const { log, red } = require("../utils/logger.js")
+const { fetchWithTimeout } = require("../utils/fetcher.js")
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
@@ -8,11 +9,9 @@ module.exports = (app, meta) => {
         log.info("{user} used {cmd}", command)
 
         try {
-            const res = await fetch("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,religious,political,racist,sexist,explicit")
-
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`)
-            }
+            const res = await fetchWithTimeout(
+                "https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,religious,political,racist,sexist,explicit"
+            )
 
             const data = await res.json()
 

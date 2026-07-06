@@ -98,7 +98,10 @@ err i think thats it idk.. what to write here tbh, id leave the rest to FUTURE M
 ---
 
 ### TODO (aka. future me's problems)
-<img align="center" width="100%" src="https://avatars.slack-edge.com/2026-06-02/11263859131749_09e589f8ab70488b9f33_96.png" alt="troll meme face" />
+<div align="center">
+    <img width="150px" src="https://avatars.slack-edge.com/2026-06-02/11263859131749_09e589f8ab70488b9f33_96.png" alt="troll meme face" />
+</div>
+
 - add `/sz-meme` command
 
 - add `/echo [string]` command
@@ -110,6 +113,7 @@ any other improvements or suggestions are welcome, just open an issue and ill se
 
 ## License
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/rylvion/slackzilla/blob/main/LICENSE)
+
 also btw this has an MIT license so do whatever you want with it, free of credits, but i'd love to see what you do with it so if you make something cool with it, please share it with me! (also if you find any bugs or have any suggestions for improvements, please let me know!)
 
 

@@ -1,4 +1,5 @@
 const { log, red } = require("../utils/logger.js")
+const { fetchWithTimeout } = require("../utils/fetcher.js")
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
@@ -7,11 +8,7 @@ module.exports = (app, meta) => {
         log.info("{user} used {cmd}", command)
 
         try {
-            const res = await fetch("https://zenquotes.io/api/random")
-
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`)
-            }
+            const res = await fetchWithTimeout("https://zenquotes.io/api/random")
 
             const data = await res.json()
 
