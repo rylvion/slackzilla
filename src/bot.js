@@ -25,6 +25,9 @@ const cmds = JSON.parse(
 )
 
 for (const [name, meta] of Object.entries(cmds)) {
+    if (typeof meta !== 'object' || meta === null)
+        continue
+    
     const file = path.join(__dirname, 'cmds', meta.file)
 
     if (!fs.existsSync(file)) {

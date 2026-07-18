@@ -28,3 +28,33 @@ jobs:
           npx ajv validate \
             -s src/data/command.schema.json \
             -d src/data/commands.json
+
+      - name: Verify command files exist
+        run: |
+          node <<'EOF'
+          const fs = require('fs')
+          const path = require('path')
+
+          const commands = JSON.parse(
+            fs.readFileSync('src/data/commands.json', 'utf8')
+          )
+
+          let failed = false
+
+          for (const [name, meta] of Object.entries(commands)) {
+            if (name === '$schema')
+              continue
+
+            const file = path.join('src', 'cmds', meta.file)
+
+            if (!fs.existsSync(file)) {
+              console.error(`${name}: "${meta.file}" does not exist`)
+              failed = true
+            }
+          }
+
+          if (failed)
+            process.exit(1)
+
+          console.log('All command files exist')
+          EOF
