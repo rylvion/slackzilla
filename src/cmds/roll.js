@@ -1,4 +1,4 @@
-import { log } from '../utils/logger'
+const { log } = require("../utils/logger")
 
 function rollDice(sides = 6) {
     return Math.floor(Math.random() * sides) + 1
