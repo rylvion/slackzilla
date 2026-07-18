@@ -1,5 +1,5 @@
 # Devlog 2 - server setup & modular command system & more [03/07/2026]
-time logged: 10hr 45 min
+time logged: 10hr 59 min
 ---
 
 so since the last devlog, i've have worked on LOADS of things including behind the scene (this doesnt get tracked on hacaktime :( ), i dont even know if this will hit the char limit, but anyways, here are the logs
@@ -120,9 +120,19 @@ aight y'all i spent an ENTIRE HOUR writing this dev log y'all better rate me 9/9
 <a href="devlog1.md">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png">
-    <img align="left" width="70" src="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png" alt="Back Button" />
+    <img align="left" width="70" src="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png" alt="Back Button" aria-label="Visit Devlog 1" />
   </picture>
 </a>
+
+<p align="center">
+  <em>
+    <b>
+      <a href="shortened-devlog2.md">
+        view shortened devlog
+      </a>
+    </b>
+  </em>
+</p>
 
 <p align="right">
   <em>

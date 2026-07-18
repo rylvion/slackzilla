@@ -1,0 +1,30 @@
+name: Validate Commands
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-commands:
+    name: Validate commands.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate commands.json against schema
+        run: |
+          npx ajv validate \
+            -s src/data/command.schema.json \
+            -d src/data/commands.json

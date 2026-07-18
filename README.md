@@ -21,6 +21,8 @@ its prefixed with `/sz-` and the commands are as follows:
 - `/sz-joke` - sends a random joke from api
 - `/sz-fact`- sends a random fact from api, shows an 'excuse' if the fact is not found
 - `/sz-ping` - it shows latency
+- `/sz-calc` - it evaluates mathematical expressions and returns the result. It supports multi-digit numbers, decimals, unary minus, and exponentiation.
+- `/sz-roll` - it simulates dice rolls and returns the result. It supports normal dice notation like `d6`, custom dice sizes like `d20`, multiple dice such as `2d6`, and modifiers like `2d20+5`.
 
 ### you can add sum of ur commands tooo:
 i recently made this into a modular system, so go on [src/data/commands.json](https://github.com/rylvion/slackzilla/tree/main/src/data/commands.json) (this is the source of truth)
@@ -33,7 +35,7 @@ e.g. if you want to add a new command, you can add it to the commands.json file 
         "file": "hug.js"                        // JS file in `/src/cmds` that contains the logic for the command
     }
 ```
-*dont ask why i picked this `hug` cmd out of all other commands, *i just did it for the sake of example*.
+*dont ask why i picked this `hug` cmd out of all other commands, i just did it for the sake of example*.
 
 add logic in the actual file in the [src/cmds](https://github.com/rylvion/slackzilla/tree/main/src/cmds) folder.
 ALSO its core that you have to register the command in https://api.slack.com/apps/[your-app-id]/slash-commands and add the command there too, otherwise it wont work, the bot will just ignore it. see more info also in the [Slack API docs](https://api.slack.com/interactivity/slash-commands) on how to register slash commands. 
@@ -102,12 +104,10 @@ err i think thats it idk.. what to write here tbh, id leave the rest to FUTURE M
     <img width="150px" src="https://avatars.slack-edge.com/2026-06-02/11263859131749_09e589f8ab70488b9f33_96.png" alt="troll meme face" />
 </div>
 
-- add `/sz-meme` command
-
-- add `/echo [string]` command
-- add `.github/workflows/deploy.yml` file to deploy automatically with GitHub Actions because i'm lazy
 - add some contributing guidelines and a code of conduct
 - fix some bugs and improve the code quality
+- add more documentation
+- add release tags and versioning
 
 any other improvements or suggestions are welcome, just open an issue and ill see what i can do.
 

@@ -1,4 +1,4 @@
-const { log, red, green, cyan } = require("../utils/logger")
+const { log, cyan } = require("../utils/logger")
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
@@ -15,20 +15,14 @@ module.exports = (app, meta) => {
                 return
             }
 
-            log.success("{user} echoed text via {cmd}", command)
+            log.success("{user} echoed text via {cmd}: '{0}'", command, cyan(text))
 
-            await respond(`🔁 ${text}`)
+            await respond(`${text}`)
 
         } catch (err) {
-            log.error(
-                "{user} failed {cmd}: {0}",
-                command,
-                red(err.message)
-            )
+            log.error("{user} failed {cmd}: {0}", command, err.message)
 
-            await respond(
-                `❌ something went wrong trying to echo your message`
-            )
+            await respond(`❌ something went wrong trying to echo your message`)
         }
     })
 }

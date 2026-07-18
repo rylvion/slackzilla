@@ -1,0 +1,43 @@
+{
+  "type": "object",
+
+  "properties": {
+    "$schema": {
+      "type": "string"
+    }
+  },
+
+  "patternProperties": {
+    "^[a-z0-9-]+$": {
+      "type": "object",
+      "required": ["cmd", "description", "category", "file"],
+      "properties": {
+        "cmd": {
+          "type": "string",
+          "pattern": "^/sz-[a-z0-9-]+$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "core",
+            "utility",
+            "entertainment",
+            "fun",
+            "other"
+          ]
+        },
+        "file": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.js$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "additionalProperties": false
+}
