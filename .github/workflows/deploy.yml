@@ -66,7 +66,17 @@ jobs:
 
           response=$(curl -sS -X POST https://slack.com/api/apps.manifest.update \
             -H "Content-Type: application/json; charset=utf-8" \
-            --data "$request_body")
+            -H "Authorization: Bearer ${SLACK_MANIFEST_TOKEN}" \
+            --data "$(node -e "
+              const fs = require('fs')
+
+              const manifest = fs.readFileSync('manifest.json', 'utf8')
+
+              process.stdout.write(JSON.stringify({
+                app_id: process.env.SLACK_APP_ID,
+                manifest
+              }))
+            ")")
 
           echo "$response"
 
