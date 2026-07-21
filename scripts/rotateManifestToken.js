@@ -113,6 +113,19 @@ async function main() {
 
     const tokens = await rotateSlackToken()
 
+    console.log('slack token rotation successful')
+
+    if (!tokens.refreshToken) {
+        fail('slack did not return a new refresh token')
+    }
+
+    if (process.env.GITHUB_ENV) {
+        fs.appendFileSync(
+            process.env.GITHUB_ENV,
+            `SLACK_MANIFEST_TOKEN=${tokens.accessToken}\n`
+        )
+    }
+
     const octokit = new Octokit({
         auth: githubToken
     })
