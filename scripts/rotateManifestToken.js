@@ -114,16 +114,18 @@ async function main() {
 
     const tokens = await rotateSlackToken()
 
-    console.log('slack token rotation successful')
-
     if (!tokens.refreshToken) {
         fail('slack did not return a new refresh token')
     }
 
-    if (process.env.GITHUB_ENV) {
+    console.log(`::add-mask::${tokens.accessToken}`)
+
+    console.log('slack token rotation successful')
+
+    if (process.env.GITHUB_OUTPUT) {
         fs.appendFileSync(
-            process.env.GITHUB_ENV,
-            `SLACK_MANIFEST_TOKEN=${tokens.accessToken}\n`
+            process.env.GITHUB_OUTPUT,
+            `slack_manifest_token=${tokens.accessToken}\n`
         )
     }
 

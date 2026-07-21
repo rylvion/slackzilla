@@ -48,11 +48,21 @@ jobs:
           set -euo pipefail
 
           if [ -z "${SLACK_MANIFEST_TOKEN:-}" ] || [ -z "${SLACK_APP_ID:-}" ]; then
-            echo "Missing SLACK_MANIFEST_TOKEN or SLACK_APP_ID, please set them in the repository secrets."
+            echo "Missing SLACK_MANIFEST_TOKEN or SLACK_APP_ID"
             exit 1
           fi
 
-          request_body=$(node -e "const fs=require('fs');const manifest=fs.readFileSync('manifest.json','utf8');process.stdout.write(JSON.stringify({token:process.env.SLACK_MANIFEST_TOKEN,app_id:process.env.SLACK_APP_ID,manifest}))")
+          request_body=$(node -e "
+            const fs = require('fs')
+
+            const manifest = fs.readFileSync('manifest.json', 'utf8')
+
+            process.stdout.write(JSON.stringify({
+              token: process.env.SLACK_MANIFEST_TOKEN,
+              app_id: process.env.SLACK_APP_ID,
+              manifest
+            }))
+          ")
 
           response=$(curl -sS -X POST https://slack.com/api/apps.manifest.update \
             -H "Content-Type: application/json; charset=utf-8" \
@@ -60,7 +70,12 @@ jobs:
 
           echo "$response"
 
-          ok=$(node -e "const input=process.argv[1];let parsed={ok:false};try{parsed=JSON.parse(input)}catch{};process.stdout.write(String(Boolean(parsed.ok)));" "$response")
+          ok=$(node -e "
+            const input = process.argv[1]
+            const parsed = JSON.parse(input)
+
+            process.stdout.write(String(parsed.ok))
+          " "$response")
 
           if [ "$ok" != "true" ]; then
             echo "Slack manifest update failed"
