@@ -1,3 +1,4 @@
+const fs = require('fs')
 const sodium = require('sodium-native')
 const { Octokit } = require('@octokit/rest')
 
