@@ -42,6 +42,7 @@ async function rotateSlackToken() {
     const data = await response.json()
 
     if (!data.ok) {
+        console.error(JSON.stringify(data, null, 2))
         fail(`Slack rotation failed: ${data.error}`)
     }
 
