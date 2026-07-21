@@ -105,9 +105,9 @@ module.exports = (app, meta) => {
 
         await respond({
             text: ( 
-            `🎲 rolled *${expression}*\n` +
+            `🎲 rolled **${expression}**\n` +
             `Rolls: ${res.rolls.join(', ')}${modifierText}\n` +
-            `Total: *${res.total}*`
+            `Total: **${res.total}**`
             )
         })
 

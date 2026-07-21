@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "./manifest.schema.json",
+  "type": "object",
+  "required": [
+    "display_information",
+    "features",
+    "oauth_config",
+    "settings"
+  ],
+  "properties": {
+    "display_information": {
+      "type": "object",
+      "required": ["name", "description", "background_color"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 35
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "long_description": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "background_color": {
+          "type": "string",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "features": {
+      "type": "object",
+      "required": ["bot_user", "slash_commands"],
+      "properties": {
+        "bot_user": {
+          "type": "object",
+          "required": ["display_name", "always_online"],
+          "properties": {
+            "display_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "always_online": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "slash_commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["command", "description", "should_escape"],
+            "properties": {
+              "command": {
+                "type": "string",
+                "pattern": "^/[a-z0-9-]+$"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "usage_hint": {
+                "type": "string"
+              },
+              "should_escape": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "oauth_config": {
+      "type": "object",
+      "required": ["scopes"],
+      "properties": {
+        "scopes": {
+          "type": "object",
+          "required": ["bot"],
+          "properties": {
+            "bot": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "pkce_enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "settings": {
+      "type": "object",
+      "required": ["socket_mode_enabled", "org_deploy_enabled", "is_hosted"],
+      "properties": {
+        "socket_mode_enabled": {
+          "type": "boolean"
+        },
+        "org_deploy_enabled": {
+          "type": "boolean"
+        },
+        "is_hosted": {
+          "type": "boolean"
+        },
+        "token_rotation_enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

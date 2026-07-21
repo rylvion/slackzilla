@@ -10,7 +10,7 @@
   "patternProperties": {
     "^[a-z0-9-]+$": {
       "type": "object",
-      "required": ["cmd", "description", "category", "file"],
+      "required": ["cmd", "description", "category", "file", "usage_hint"],
       "properties": {
         "cmd": {
           "type": "string",
@@ -18,7 +18,8 @@
         },
         "description": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 60
         },
         "category": {
           "type": "string",
@@ -33,6 +34,10 @@
         "file": {
           "type": "string",
           "pattern": "^[a-z0-9-]+\\.js$"
+        },
+        "usage_hint": {
+          "type": "string",
+          "maxLength": 100
         }
       },
       "additionalProperties": false

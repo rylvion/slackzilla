@@ -109,9 +109,9 @@ module.exports = (app, meta) => {
             )
 
             await respond(
-                `- *Expression:* \`${text}\`\n` +
-                `- *Result:* \`${result}\`\n` +
-                `- Computed within *${seconds} seconds*`
+                `**Result:** \`${result}\`\n` +
+                `**Expression:** \`${text}\`\n` +
+                `Computed within **${seconds}** *seconds*`
             )
 
         } catch (err) {

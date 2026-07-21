@@ -1,5 +1,7 @@
+<img src="../attachments/d4/calc-behind-the-scenes.png">
+
 # Devlog 4: calc and roll commands
-time logged: 2 hr 15 minutes
+time logged: 2hrs 20mins 42s
 date: 17/07/2026
 
 today i spent some time reading the [Java Shunting Yard Algorithm implementation on GeeksforGeeks](https://www.geeksforgeeks.org/java/java-program-to-implement-shunting-yard-algorithm/). The example focuses entirely on converting an infix expression into postfix form. It scans the expression character by character, places operands directly into the output string, and uses a stack to manage operators based on precedence and associativity. Once the scan is complete, any remaining operators are appended to produce a postfix expression like 5238-52^^/+. The Java version supports operators including `+`, `-`, `*`, `/`, and `^`, and it handles parentheses, but it stops after producing the postfix representation. It does not evaluate the numerical result. 
@@ -30,7 +32,7 @@ also ill add way more devlogs from now on since most of my last devlogs were maj
 <p align="right">
   <em>
     <b>
-      <a href="">
+      <a href="devlog5.md">
         visit devlog 5
       </a>
     </b>

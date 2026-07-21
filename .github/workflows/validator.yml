@@ -58,3 +58,9 @@ jobs:
 
           console.log('All command files exist')
           EOF
+
+      - name: Generate manifest
+        run: npm run generate-manifest
+
+      - name: Validate generated manifest
+        run: npm run validate-manifest

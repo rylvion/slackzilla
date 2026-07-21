@@ -1,70 +1,81 @@
 {
-    "$schema": "./command.schema.json",
+    "$schema": "../../schemas/command.schema.json",
     "ping": {
         "cmd": "/sz-ping",
-        "description": "idk js 'pongs' ig",
+        "description": "idk js pongs ig",
         "category": "core",
-        "file": "ping.js"
+        "file": "ping.js",
+        "usage_hint": ""
     },
     "help": {
         "cmd": "/sz-help",
-        "description": "displays all cmds and their desc",
+        "description": "displays all commands and their descriptions",
         "category": "core",
-        "file": "help.js"
+        "file": "help.js",
+        "usage_hint": ""
     },
     "info": {
         "cmd": "/sz-info",
-        "description": "displays the bots metadata and info",
+        "description": "displays info about the bot (e.g. ver no., author, etc.)",
         "category": "core",
-        "file": "info.js"
+        "file": "info.js",
+        "usage_hint": ""
     },
     "quote": {
         "cmd": "/sz-quote",
         "description": "displays a random quote",
         "category": "entertainment",
-        "file": "quote.js"
+        "file": "quote.js",
+        "usage_hint": ""
     },
     "jokes": {
         "cmd": "/sz-joke",
-        "description": "displays a random joke",
+        "description": "😜sends a random joke",
         "category": "entertainment",
-        "file": "jokes.js"
+        "file": "jokes.js",
+        "usage_hint": ""
     },
     "fact": {
         "cmd": "/sz-fact",
         "description": "displays a fun fact",
         "category": "entertainment",
-        "file": "fact.js"
+        "file": "fact.js",
+        "usage_hint": ""
     },
     "hug": {
         "cmd": "/sz-hug",
-        "description": "sends a hug to a user",
+        "description": "HUG ME 🤗",
         "category": "entertainment",
-        "file": "hug.js"
+        "file": "hug.js",
+        "usage_hint": ""
     },
     "meme": {
         "cmd": "/sz-meme",
-        "description": "displays a random meme",
+        "description": "shows a random meme",
         "category": "entertainment",
-        "file": "meme.js"
+        "file": "meme.js",
+        "usage_hint": ""
     },
     "echo": {
         "cmd": "/sz-echo",
-        "description": "echoes back the message you send",
+        "description": "echoes the message you sent",
         "category": "core",
-        "file": "echo.js"
+        "file": "echo.js",
+        "usage_hint": "<message>"
     },
     "calculator": {
         "cmd": "/sz-calc",
-        "description": "calculates a math expression",
+        "description": "calculates a mathematical expression",
         "category": "utility",
-        "file": "calc.js"
+        "file": "calc.js",
+        "usage_hint": "<expression>"
     },
     
     "roll": {
         "cmd": "/sz-roll",
-        "description": "rolls a dice with the specified number of sides (default: 6)",
+        "description": "rolls a dice",
         "category": "utility",
-        "file": "roll.js"
+        "file": "roll.js",
+        "usage_hint": "[side][n][rolls]+[modifier]"
     }
 }

@@ -1,0 +1,91 @@
+{
+  "display_information": {
+    "name": "slackzilla",
+    "description": "slackatron mega 1x1x1x1 edition",
+    "long_description": "a fun slack bot that can do loads of things, from useful tools to random commands. type /help and see what slackzilla can do, with more commands and upgrades being added over time",
+    "background_color": "#101f4d"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Slackzilla",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/sz-calc",
+        "description": "calculates a mathematical expression",
+        "should_escape": false,
+        "usage_hint": "<expression>"
+      },
+      {
+        "command": "/sz-echo",
+        "description": "echoes the message you sent",
+        "should_escape": false,
+        "usage_hint": "<message>"
+      },
+      {
+        "command": "/sz-fact",
+        "description": "displays a fun fact",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-help",
+        "description": "displays all commands and their descriptions",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-hug",
+        "description": "HUG ME 🤗",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-info",
+        "description": "displays info about the bot (e.g. ver no., author, etc.)",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-joke",
+        "description": "😜sends a random joke",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-meme",
+        "description": "shows a random meme",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-ping",
+        "description": "idk js pongs ig",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-quote",
+        "description": "displays a random quote",
+        "should_escape": false
+      },
+      {
+        "command": "/sz-roll",
+        "description": "rolls a dice",
+        "should_escape": false,
+        "usage_hint": "[side][n][rolls]+[modifier]"
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "channels:history",
+        "chat:write",
+        "commands"
+      ]
+    },
+    "pkce_enabled": false
+  },
+  "settings": {
+    "socket_mode_enabled": true,
+    "org_deploy_enabled": false,
+    "is_hosted": false,
+    "token_rotation_enabled": false
+  }
+}

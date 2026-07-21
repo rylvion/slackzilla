@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../attachments/d1/image.jpg" height=700px>
+</div>
+
 # Devlog 1 - slackzilla
 time logged: 1hr 48m 54s logged
 smwhere around the 3rd june 2026

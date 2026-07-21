@@ -6,10 +6,66 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: slackzilla-deploy
+  cancel-in-progress: false
+
 jobs:
-  dispatch-webhook:
+  deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate manifest
+        run: npm run generate-manifest
+
+      - name: Validate generated manifest
+        run: npm run validate-manifest
+
+      - name: Rotate Slack manifest token
+        env:
+          SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
+          GH_SECRET_PAT: ${{ secrets.GH_SECRET_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/rotateManifestToken.js
+
+      - name: Sync manifest to Slack
+        env:
+          SLACK_MANIFEST_TOKEN: ${{ env.SLACK_MANIFEST_TOKEN }}
+          SLACK_APP_ID: ${{ secrets.SLACK_APP_ID }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SLACK_MANIFEST_TOKEN:-}" ] || [ -z "${SLACK_APP_ID:-}" ]; then
+            echo "Missing SLACK_MANIFEST_TOKEN or SLACK_APP_ID, please set them in the repository secrets."
+            exit 1
+          fi
+
+          request_body=$(node -e "const fs=require('fs');const manifest=fs.readFileSync('manifest.json','utf8');process.stdout.write(JSON.stringify({token:process.env.SLACK_MANIFEST_TOKEN,app_id:process.env.SLACK_APP_ID,manifest}))")
+
+          response=$(curl -sS -X POST https://slack.com/api/apps.manifest.update \
+            -H "Content-Type: application/json; charset=utf-8" \
+            --data "$request_body")
+
+          echo "$response"
+
+          ok=$(node -e "const input=process.argv[1];let parsed={ok:false};try{parsed=JSON.parse(input)}catch{};process.stdout.write(String(Boolean(parsed.ok)));" "$response")
+
+          if [ "$ok" != "true" ]; then
+            echo "Slack manifest update failed"
+            exit 1
+          fi
+
       - name: Send deployment webhook
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
@@ -23,7 +79,7 @@ jobs:
           set -euo pipefail
 
           if [ -z "${WEBHOOK_URL:-}" ] || [ -z "${WEBHOOK_SECRET:-}" ]; then
-            echo "Missing WEBHOOK_URL or WEBHOOK_SECRET"
+            echo "Missing WEBHOOK_URL or WEBHOOK_SECRET, please set them in the repository secrets."
             exit 1
           fi
 

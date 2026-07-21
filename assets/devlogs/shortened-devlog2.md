@@ -36,3 +36,29 @@ TL;DR: i got the bot running 24/7 in the server and it works perfectly fine, and
 
 aight y'all i spent an ENTIRE HOUR writing this devlog and THEN i had to rewrite a shortened down version, y'all better rate me 9/9 for story telling, rylvion signing out 🫡 
 pls see my [full devlog version](./devlog2.md)
+
+---
+
+<a href="devlog1.md">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png">
+    <img align="left" width="70" src="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png" alt="Back Button" aria-label="Visit Devlog 1" />
+  </picture>
+</a>
+
+<p align="right">
+  <em><b>
+    <a href="devlog3.md">
+      visit devlog 3
+    </a>
+  </b></em>
+</p>
+
+<p align="center">
+  <em><b>
+    <a href="devlog2.md">
+      view full devlog
+    </a>
+  </b></em>
+</p>
+

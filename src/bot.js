@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') })
 
 const { App } = require('@slack/bolt')
 const { log } = require('./utils/logger')
+const staticMeta = require('./meta')
 
 const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
@@ -13,11 +14,12 @@ const app = new App({
 })
 
 global.botMeta = {
+    ...staticMeta,
     startedAt: Date.now(),
     nodeVersion: process.version,
     platform: process.platform,
     memory: () => process.memoryUsage().rss,
-    version: "[alpha] but idk what version im on rn"
+    scopes: [...staticMeta.oauthScopes]
 }
 
 const cmds = JSON.parse(
