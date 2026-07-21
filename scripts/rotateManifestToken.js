@@ -29,19 +29,30 @@ if (!owner || !repo) {
 }
 
 async function rotateSlackToken() {
+    const body = new URLSearchParams()
+    body.append('refresh_token', slackRefreshToken)
+
     const response = await fetch('https://slack.com/api/tooling.tokens.rotate', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: JSON.stringify({
-            refresh_token: slackRefreshToken
-        })
+        body: body.toString()
     })
 
-    const data = await response.json()
+    const text = await response.text()
+    console.log(`HTTP ${response.status}`)
+
+    let data
+
+    try {
+        data = JSON.parse(text)
+    } catch {
+        fail(`Slack returned invalid JSON:\n${text}`)
+    }
 
     if (!data.ok) {
+        console.error(`HTTP ${response.status}`)
         console.error(JSON.stringify(data, null, 2))
         fail(`Slack rotation failed: ${data.error}`)
     }
