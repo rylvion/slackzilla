@@ -33,6 +33,7 @@ jobs:
         run: npm run validate-manifest
 
       - name: Rotate Slack manifest token
+        id: rotate-token
         env:
           SLACK_REFRESH_TOKEN: ${{ secrets.SLACK_REFRESH_TOKEN }}
           GH_SECRET_PAT: ${{ secrets.GH_SECRET_PAT }}
@@ -41,7 +42,7 @@ jobs:
 
       - name: Sync manifest to Slack
         env:
-          SLACK_MANIFEST_TOKEN: ${{ env.SLACK_MANIFEST_TOKEN }}
+          SLACK_MANIFEST_TOKEN: ${{ steps.rotate-token.outputs.slack_manifest_token }}
           SLACK_APP_ID: ${{ secrets.SLACK_APP_ID }}
         run: |
           set -euo pipefail
