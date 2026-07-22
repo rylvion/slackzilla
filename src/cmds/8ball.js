@@ -42,7 +42,6 @@ module.exports = (app, meta) => {
 
         log.success("{user} asked the 8ball via {cmd}", command)
 
-        await respond(`🎱 *question:* ${question}
-*answer:* ${answer}`)
+        await respond(answer)
     })
 }

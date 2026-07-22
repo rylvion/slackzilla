@@ -13,7 +13,7 @@ function getHelp() {
 }
 
 function parseRange(text) {
-    const parts = text.trim().split(/\s+/)
+    const parts = text.replace(/,/g, " ").trim().split(/\s+/)
 
     if (parts.length < 2) {
         return null
