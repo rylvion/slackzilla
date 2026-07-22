@@ -1,5 +1,5 @@
 // api from https://uselessfacts.jsph.pl
-const { log, red, green, cyan } = require("../utils/logger")
+const { log, cyan } = require("../utils/logger")
 const { fetchWithTimeout } = require("../utils/fetcher")
 
 const excuses = [
@@ -43,7 +43,7 @@ module.exports = (app, meta) => {
             log.error(
                 "{user} failed {cmd}: {0}",
                 command,
-                red(err.message)
+                err.message
             )
 
             await respond(

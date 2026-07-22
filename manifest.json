@@ -12,10 +12,34 @@
     },
     "slash_commands": [
       {
+        "command": "/sz-8ball",
+        "description": "ask the magic 8ball a question",
+        "should_escape": false,
+        "usage_hint": "<question>"
+      },
+      {
+        "command": "/sz-base64",
+        "description": "generates a base64 encoded string",
+        "should_escape": false,
+        "usage_hint": "<string>"
+      },
+      {
         "command": "/sz-calc",
         "description": "calculates a mathematical expression",
         "should_escape": false,
         "usage_hint": "<expression>"
+      },
+      {
+        "command": "/sz-case",
+        "description": "converts between text cases",
+        "should_escape": false,
+        "usage_hint": "<camel|pascal|snake|kebab> <text>"
+      },
+      {
+        "command": "/sz-count",
+        "description": "counts characters, words and lines",
+        "should_escape": false,
+        "usage_hint": "<text>"
       },
       {
         "command": "/sz-echo",
@@ -27,6 +51,12 @@
         "command": "/sz-fact",
         "description": "displays a fun fact",
         "should_escape": false
+      },
+      {
+        "command": "/sz-hash",
+        "description": "generates a hash of a string, default: sha256",
+        "should_escape": false,
+        "usage_hint": "<algorithm e.g. sha256, BLAKE3 etc.> <string>"
       },
       {
         "command": "/sz-help",
@@ -64,10 +94,39 @@
         "should_escape": false
       },
       {
+        "command": "/sz-random",
+        "description": "generates a random number between two numbers",
+        "should_escape": false,
+        "usage_hint": "<min> <max>"
+      },
+      {
         "command": "/sz-roll",
         "description": "rolls a dice",
         "should_escape": false,
         "usage_hint": "[side][n][rolls]+[modifier]"
+      },
+      {
+        "command": "/sz-rps",
+        "description": "play rock paper scissors with the bot",
+        "should_escape": false,
+        "usage_hint": "<rock|1 /paper|2 /scissors|3>"
+      },
+      {
+        "command": "/sz-token",
+        "description": "generates a secure random token",
+        "should_escape": false,
+        "usage_hint": "<length (default: 32)>"
+      },
+      {
+        "command": "/sz-unix",
+        "description": "converts between unix timestamp and human readable date",
+        "should_escape": false,
+        "usage_hint": "<timestamp|date>"
+      },
+      {
+        "command": "/sz-uuid",
+        "description": "generates a random uuid v4",
+        "should_escape": false
       }
     ]
   },

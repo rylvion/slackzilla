@@ -83,7 +83,6 @@ module.exports = (app, meta) => {
                 await respond(
                     "> *Available commands:*\n" +
                     ">  help        Show this help menu\n" +
-                    ">  exit        Quit the calculator (not needed in Slack)\n\n" +
                     "> *You can enter expressions like:*\n" +
                     ">  1 + 2 * 3\n" +
                     ">  (10 - 4) / 2\n" +

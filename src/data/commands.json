@@ -77,5 +77,83 @@
         "category": "utility",
         "file": "roll.js",
         "usage_hint": "[side][n][rolls]+[modifier]"
+    },
+
+    "base64": {
+        "cmd": "/sz-base64",
+        "description": "generates a base64 encoded string",
+        "category": "utility",
+        "file": "base64.js",
+        "usage_hint": "<string>"
+    },
+
+    "hash": {
+        "cmd": "/sz-hash",
+        "description": "generates a hash of a string, default: sha256",
+        "category": "utility",
+        "file": "hash.js",
+        "usage_hint": "<algorithm e.g. sha256, BLAKE3 etc.> <string>"
+    },
+    "8ball": {
+        "cmd": "/sz-8ball",
+        "description": "ask the magic 8ball a question",
+        "category": "entertainment",
+        "file": "8ball.js",
+        "usage_hint": "<question>"
+    },
+
+    "rps": {
+        "cmd": "/sz-rps",
+        "description": "play rock paper scissors with the bot",
+        "category": "entertainment",
+        "file": "rps.js",
+        "usage_hint": "<rock|1 /paper|2 /scissors|3>"
+    },
+
+    "uuid": {
+        "cmd": "/sz-uuid",
+        "description": "generates a random uuid v4",
+        "category": "utility",
+        "file": "uuid.js",
+        "usage_hint": ""
+    },
+
+    "token": {
+        "cmd": "/sz-token",
+        "description": "generates a secure random token",
+        "category": "utility",
+        "file": "token.js",
+        "usage_hint": "<length (default: 32)>"
+    },
+
+    "random": {
+        "cmd": "/sz-random",
+        "description": "generates a random number between two numbers",
+        "category": "utility",
+        "file": "random.js",
+        "usage_hint": "<min> <max>"
+    },
+
+    "case": {
+        "cmd": "/sz-case",
+        "description": "converts between text cases",
+        "category": "utility",
+        "file": "case.js",
+        "usage_hint": "<camel|pascal|snake|kebab> <text>"
+    },
+    "unix": {
+        "cmd": "/sz-unix",
+        "description": "converts between unix timestamp and human readable date",
+        "category": "utility",
+        "file": "unix.js",
+        "usage_hint": "<timestamp|date>"
+    },
+
+    "count": {
+        "cmd": "/sz-count",
+        "description": "counts characters, words and lines",
+        "category": "utility",
+        "file": "count.js",
+        "usage_hint": "<text>"
     }
 }

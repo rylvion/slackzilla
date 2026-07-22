@@ -37,7 +37,7 @@ module.exports = (app, meta) => {
             log.error(
                 "{user} failed {cmd}: {0}",
                 command,
-                red(err.message)
+                err.message
             )
         }
     })

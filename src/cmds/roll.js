@@ -44,18 +44,17 @@ function rollExpression(amount, sides, modifier) {
 
 function getHelp() {
     return `
-🎲 *roll command help*
+> 🎲 *roll command help*
+>  **Usage:**
+> \`/sz-roll\` - rolls a d6 (default)
+> \`/sz-roll 20\` - rolls a d20 (up to 20 sides)
+> \`/sz-roll 2d6\` - rolls two d6 dice
+> \`/sz-roll 2d20+5\` - rolls two d20 dice and add 5
 
-Usage:
-\`/sz-roll\` - rolls a d6 (default)
-\`/sz-roll 20\` - rolls a d20 (up to 20 sides)
-\`/sz-roll 2d6\` - rolls two d6 dice
-\`/sz-roll 2d20+5\` - rolls two d20 dice and add 5
-
-Examples:
-• /sz-roll d8
-• /sz-roll 3d10
-• /sz-roll 1d20+10
+> **Examples:**
+> • /sz-roll d8
+> • /sz-roll 3d10
+> • /sz-roll 1d20+10
 `
 }
 

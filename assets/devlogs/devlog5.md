@@ -27,8 +27,8 @@ TL;DR slackzilla now auto generates its slack manifest validates everything with
 <p align="right">
   <em>
     <b>
-      <a href="#">
-        visit non existent devlog 6 (coming soon)
+      <a href="devlog6.md">
+        visit devlog 6
       </a>
     </b>
   </em>

@@ -15,7 +15,6 @@ TL;DR whenever i commit the server automatically receives it and slackzilla upda
 
 ---
 
-
 <a href="devlog2.md">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://cdn.hackclub.com/019c1b78-0beb-7c82-9479-51e12c90a5b4/image.png">
