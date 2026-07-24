@@ -87,13 +87,6 @@
         "usage_hint": "<string>"
     },
 
-    "hash": {
-        "cmd": "/sz-hash",
-        "description": "generates a hash of a string, default: sha256",
-        "category": "utility",
-        "file": "hash.js",
-        "usage_hint": "<algorithm e.g. sha256, BLAKE3 etc.> <string>"
-    },
     "8ball": {
         "cmd": "/sz-8ball",
         "description": "ask the magic 8ball a question",
@@ -155,5 +148,21 @@
         "category": "utility",
         "file": "count.js",
         "usage_hint": "<text>"
+    },
+
+    "hash": {
+        "cmd": "/sz-hash",
+        "description": "generates a hash of a string, default: sha256",
+        "category": "utility",
+        "file": "hasher.js",
+        "usage_hint": "<algorithm> <string>"
+    },
+
+    "decode": {
+        "cmd": "/sz-decode",
+        "description": "decodes a base64 encoded string",
+        "category": "utility",
+        "file": "decoder.js",
+        "usage_hint": "<algorithm> <string>"
     }
 }

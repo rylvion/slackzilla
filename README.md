@@ -9,10 +9,9 @@ now nerdy stuff for those devs that wanna 'skim & **scam**' my beautiful README 
 - `commands`
 
 ## so... what does it actually do?
-For those of you who are too lazy to read the code, here's a list of what the bot can do:
 
 ## features
-It has 7 pre-defined commands that can be used in any channel the bot is in, and it also has a few other features that are not commands but are still useful.
+It has 22 pre-defined commands that can be used in any channel the bot is in, and it also has a few other features that are not commands but are still useful.
 its prefixed with `/sz-` and the commands are as follows:
 - `/sz-help` - displays a list of all the commands and their descriptions.
 - `/sz-info`- shows some meta data about the bot, such as its version, uptime, what platform and memory its running on.
@@ -23,9 +22,10 @@ its prefixed with `/sz-` and the commands are as follows:
 - `/sz-ping` - it shows latency
 - `/sz-calc` - it evaluates mathematical expressions and returns the result. It supports multi-digit numbers, decimals, unary minus, and exponentiation.
 - `/sz-roll` - it simulates dice rolls and returns the result. It supports normal dice notation like `d6`, custom dice sizes like `d20`, multiple dice such as `2d6`, and modifiers like `2d20+5`.
+and many more commands,
 
 ### you can add sum of ur commands tooo:
-i recently made this into a modular system, so go on [src/data/commands.json](https://github.com/rylvion/slackzilla/tree/main/src/data/commands.json) (this is the source of truth)
+i also made a scalable modular system out of this, so go on [src/data/commands.json](https://github.com/rylvion/slackzilla/tree/main/src/data/commands.json) (this is the source of truth) 
 e.g. if you want to add a new command, you can add it to the commands.json file like this:
 ```js
 "hug": { // this is the name of the command it doesnt has to match the name of the file, but it should be unique
@@ -33,6 +33,7 @@ e.g. if you want to add a new command, you can add it to the commands.json file 
         "description": "sends a hug to a user", // shown in /sz-help
         "category": "entertainment",            // replace or create your own category
         "file": "hug.js"                        // JS file in `/src/cmds` that contains the logic for the command
+        "usage_hint": ""                        // optional, if you want to show a usage hint in /sz-help leave an empty string if not needed
     }
 ```
 *dont ask why i picked this `hug` cmd out of all other commands, i just did it for the sake of example*.
@@ -55,10 +56,14 @@ you can view this in https://stardance.hackclub.com/missions/slack-bot/guide#ste
     `SLACK_APP_TOKEN=your-app-level-token`
     `SLACK_SIGNING_SECRET=your-signing-secret`
 8. setup the bot using `npm install` to install the dependencies.
-9. run the bot using `node src/bot.js` and it should connect to Slack and start listening for events.
+9. run the bot using `npm start`.
 
 
-#### server setup
+however if you want to run the bot then you have to fill in all the 22 slash commands in the "Slash Commands" section in https://api.slack.com/apps/[your-app-id]/slash-commands, otherwise the bot will just ignore the command and not respond to it, so the other option is copying the contents of `manifest.json` and pasting it in the "App Manifest" section in https://api.slack.com/apps/[your-team-id]/[your-app-id]/app-manifest, then click on "Update Manifest" and it will automatically create all the slash commands for you. that'll be way more easier 
+
+
+
+### server setup
 you can also view this setup guide in Step 7 out of 8 in https://stardance.hackclub.com/missions/slack-bot/guide#step-7
 also you can check out the [server setup guide](./server/server-setup.md) for more details on how to setup the bot on a server and run it 24/7.
 

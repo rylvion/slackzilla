@@ -42,6 +42,12 @@
         "usage_hint": "<text>"
       },
       {
+        "command": "/sz-decode",
+        "description": "decodes a base64 encoded string",
+        "should_escape": false,
+        "usage_hint": "<algorithm> <string>"
+      },
+      {
         "command": "/sz-echo",
         "description": "echoes the message you sent",
         "should_escape": false,
@@ -56,7 +62,7 @@
         "command": "/sz-hash",
         "description": "generates a hash of a string, default: sha256",
         "should_escape": false,
-        "usage_hint": "<algorithm e.g. sha256, BLAKE3 etc.> <string>"
+        "usage_hint": "<algorithm> <string>"
       },
       {
         "command": "/sz-help",

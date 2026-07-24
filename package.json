@@ -7,9 +7,11 @@
     "start": "node src/bot.js",
     "dev": "node src/bot.js",
     "generate-manifest": "node scripts/generateManifest.js",
-    "validate-manifest": "ajv validate -s schemas/manifest.schema.json -d manifest.json"
+    "validate-manifest": "ajv validate -s schemas/manifest.schema.json -d manifest.json",
+    "validate-commands": "ajv validate -s schemas/command.schema.json -d src/data/commands.json",
+    "count-commands": "node scripts/countCommands.js"
   },
-  "keywords": [],
+  "keywords": ["slack", "bot", "slackbot", "slackzilla"],
   "author": "@rylvion",
   "license": "MIT",
   "type": "commonjs",

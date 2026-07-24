@@ -27,7 +27,8 @@ module.exports = (app, meta) => {
         let msg = "yo chat, here's everything i can do:\n"
 
         for (const [category, list] of Object.entries(groups)) {
-            msg += `\n${categoryNames[category] || category}\n`
+            const count = list.length
+            msg += `\n${categoryNames[category] || category} (${count} cmds)\n`
 
             list.forEach(cmd => {
                 msg += `* ${cmd.cmd} - ${cmd.description}\n`
