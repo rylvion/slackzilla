@@ -3,4 +3,14 @@ node_modules/
 priv/
 *.dtmp
 *.bkp
+
+# web server stuff (that will break the bot/server if added to git)
+src/cmds/feedback.js
+server/database
+server/lib
+server/logs
+server/public
+local/
 devlog7.md
+src/utils/metrics.js
+*.log
