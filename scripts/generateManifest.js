@@ -2,6 +2,8 @@ const fs = require('fs')
 const path = require('path')
 const Ajv = require('ajv')
 const addFormats = require('ajv-formats')
+const { buildStats } = require('./stats')
+
 
 const rootDir = path.join(__dirname, '..')
 
@@ -182,10 +184,6 @@ fs.writeFileSync(
     'utf8'
 )
 
-console.log(
-    `generated manifest.json with ${manifest.features.slash_commands.length} commands`
-)
-
-console.log(
-    `manifest source version: ${packageJson.version}`
-)
+console.log(`generated manifest.json with ${manifest.features.slash_commands.length} commands`)
+console.log(`manifest source version: ${packageJson.version}`)
+console.log(buildStats())

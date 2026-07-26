@@ -20,7 +20,8 @@ const col2 = 10
 const col3 = 10
 
 const getTotal = () => total
-const getCategoryCount = () => categoryCounts
+const getCategoryCounts = () => categoryCounts
+const getTotalCategoryCount = () => Object.keys(categoryCounts).length
 
 const getDict = () => {
     const dict = {}
@@ -61,6 +62,7 @@ function buildStats() {
 module.exports = {
     buildStats,
     getTotal,
-    getCategoryCount,
+    getTotalCategoryCount,
+    getCategoryCounts,
     getDict 
 }

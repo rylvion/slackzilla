@@ -1,5 +1,5 @@
 const { log } = require("../utils/logger.js")
-const { getTotal, getCategoryCount } = require("../../scripts/stats.js")
+const { getTotal, getCategoryCounts, getTotalCategoryCount } = require("../../scripts/stats.js")
 
 module.exports = (app, meta) => {
     const formatUptime = ms => {
@@ -44,7 +44,8 @@ memory: ${memory}mb
 
 started: ${new Date(botMeta.startedAt).toLocaleString()}
 
-commands: ${getTotal()} total (${getCategoryCount()} categories)
+commands: ${getTotal()} total (${getTotalCategoryCount()} categories, avg ${(getTotal() / getTotalCategoryCount()).toFixed(1)} cmds per category)
+categories: ${Object.entries(getCategoryCounts()).map(([cat, count]) => `${cat}: ${count}`).join(", ")}
             `
         )
     })
