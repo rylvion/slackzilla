@@ -40,7 +40,7 @@ so all of it has a 2nd argument for help, so for example `/sz-hash help` will sh
 i also added on `package.json`, 2 new scripts 
 ```json
     "validate-commands": "ajv validate -s schemas/command.schema.json -d src/data/commands.json",
-    "count-commands": "node scripts/countCommands.js"
+    "cmd-stats": "node scripts/stats.js"
 ```
 
 one to validate the `commands.json` file against the `command.schema.json` file, and another to count the number of commands in the `commands.json` file. this will help me keep track of how many commands are in the bot and also make sure that the `commands.json` file is valid before a pull request is merged.
