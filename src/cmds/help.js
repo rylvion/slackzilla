@@ -1,4 +1,5 @@
 const { log } = require("../utils/logger")
+const { buildStats } = require("../../scripts/stats")
 const cmds = require("../data/commands.json")
 
 module.exports = (app, meta) => {
@@ -41,5 +42,6 @@ module.exports = (app, meta) => {
         log.success("{user} viewed command list", command)
 
         await respond(msg)
+        await respond(`\n\n\`\`\`${buildStats()}\`\`\``)
     })
 }

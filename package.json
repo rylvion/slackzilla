@@ -9,7 +9,7 @@
     "generate-manifest": "node scripts/generateManifest.js",
     "validate-manifest": "ajv validate -s schemas/manifest.schema.json -d manifest.json",
     "validate-commands": "ajv validate -s schemas/command.schema.json -d src/data/commands.json",
-    "count-commands": "node scripts/countCommands.js"
+    "cmd-stats": "node scripts/stats.js"
   },
   "keywords": ["slack", "bot", "slackbot", "slackzilla"],
   "author": "@rylvion",
