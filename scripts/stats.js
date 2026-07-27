@@ -59,6 +59,10 @@ function buildStats() {
     return output
 }
 
+if (require.main === module) {
+    console.log(buildStats())
+}
+
 module.exports = {
     buildStats,
     getTotal,

@@ -43,9 +43,9 @@ i also added on `package.json`, 2 new scripts
     "cmd-stats": "node scripts/stats.js"
 ```
 
-one to validate the `commands.json` file against the `command.schema.json` file, and another to count the number of commands in the `commands.json` file. this will help me keep track of how many commands are in the bot and also make sure that the `commands.json` file is valid before a pull request is merged.
+one to validate the `commands.json` file against the `command.schema.json` file, and another to provide statistics about the number of commands in the `commands.json` file. this will help me keep track of how many commands are in the bot and also make sure that the `commands.json` file is valid before a pull request is merged.
 
-currently, the bot has 22 commands in total, and 11 of them are utility commands.
+currently, the bot has 22 commands in total, and 11 of them are utility commands (10 of them got added into this devlog (excluding the `/sz-8ball` that also was added in this devlog, but is an entertainment command)). the other 11 commands are the ones that were already in the bot before this devlog.
 
 i need some feedback on what other commands i should add to the bot, so if you have any ideas, please let me know. (im running out of ideas \*sighs\*)
 
