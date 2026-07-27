@@ -1,5 +1,9 @@
+<div align="center">
+	<img src="../attachments/d6/terminal-output.png" alt="terminal output of running npm scripts" height="800" />
+</div>
+
 # Devlog 6 - command buffet
-time logged: (still progressing :D stay tuned)
+time logged: 6hr 37m 19s
 date: 22/07/2026
 
 okay since most of the major architectural refactors are done, i can finally focus on adding more commands to Slackzilla. this devlog is about the new commands that i added to the bot, which are mostly utility commands that can be used for various purposes.
