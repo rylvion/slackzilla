@@ -31,9 +31,6 @@ const redirect = `<!doctype html>
 </body>
 </html>`
 
-await fs.writeFile(path.join(DIST, "index.html"), redirect)
-
-console.log("ROOT  index.html")
 
 async function removeDist() {
     await fs.rm(DIST, {
@@ -165,6 +162,10 @@ async function main() {
     console.log("Building GitHub Pages...")
 
     await removeDist()
+
+    await fs.writeFile(path.join(DIST, "index.html"), redirect)
+
+    console.log("ROOT  index.html")
 
     await Promise.all([
         buildHTML(),
