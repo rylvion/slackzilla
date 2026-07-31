@@ -9,8 +9,6 @@ i also added 2 more commands
 - `/sz-meme` - this makes a meme
 - `/sz-echo [str]` - this echoes the string
 
-you can see the flowchart below and see the full [devlog 3 here](https://github.com/rylvion/slackzilla/assets/devlogs/devlog3.md) (hyperlinked)
-
 TL;DR whenever i commit the server automatically receives it and slackzilla updates to the latest version
 
 ---

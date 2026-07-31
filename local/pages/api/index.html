@@ -65,7 +65,7 @@
                         minute.
                     </p>
 
-                    <p class="error">NOTE: THERE IS NO AUTHENTICATION AND THIS IS THE PLAN</p>
+                    <p class="error">there wont be any authentication required, but if it has lots of users THEN the below plan MIGHT be implemented</p>
                     <p>
                         The Slackzilla API Bearer Token will use Slack OAuth 2.0 in order to verify
                         your identity and will recieve the token, (this is to stop these hackers from spamming the api and to keep it secure)
@@ -82,31 +82,11 @@
                 <section class="panel" id="status">
                     <h2>API STATUS</h2>
                     <table>
-                        <tr>
-                            <td>Status</td>
-                            <td><span class="online">Online</span></td>
-                        </tr>
-
-                        <tr>
-                            <td>Version</td>
-                            <td>beta</td>
-                        </tr>
-
-                        <tr>
-                            <td>Base URL</td>
-                            <td>https://rylvion.hackclub.app/api/</td>
-                        </tr>
-
-                        <tr>
-                            <td>Authentication</td>
-                            <td>None (Rate Limited)</td>
-                        </tr>
-
-                        <tr>
-                            <td>Rate Limit</td>
-                            <td>20 requests/minutes/ip</td>
-                        </tr>
-
+                        <tr><td>Status</td><td><span class="online">Online</span></td></tr>
+                        <tr><td>Version</td><td>beta</td></tr>
+                        <tr><td>Base URL</td><td>https://rylvion.hackclub.app/api/</td></tr>
+                        <tr><td>Authentication</td><td>None (Rate Limited)</td></tr>
+                        <tr><td>Rate Limit</td><td>20 requests / minutes / ip</td></tr>
                         <tr>
                             <td>API Status</td>
                             <td>#̴̗͉͉͎̻̭̈́͗̀̆̏̎̄̚#̸̡͉͍̲̞̣̰̤̹͙̠͓̪̦̻̘͎̝͔̪̼͇̖̖̮͕̤̑̍͌̒͑̌̀̈͗̅͜#̸̱̳̱̺̰̗̘̥͔̖̥̤͈͍̘͈̜̮̖͈̼̫͓̝̳̲͔̀͛̈́̒̅͒͗̊̐̓͂̏̅̆̀͝ͅ#̸̛̭̟̝̯̘̩̮̦͉̮̜͓̓́͆̇̓̈́̿̒̇̽͑̀͋̓̀͑̑̋̚͝͝#̸̧̢̡̡̢̨̛͚̘̹̦̱̺̱̳̰͚̬̞͔̟̣̙̺͍̟̙̤̙͕̘̬̈́͐̓͊͌͑͑́̏͆̓̄̿́̎̆̑̀̐͠͠</td>
@@ -119,12 +99,22 @@
                     <h2>Error Codes</h2>
                     <table>
 
-                        <tr><td>200</td><td>Request successful</td></tr>
-                        <tr><td>400</td><td>Invalid request</td></tr>
-                        <tr><td>401</td><td>Authentication required</td></tr>
-                        <tr><td>404</td><td>Endpoint not found</td></tr>
+                        <tr><td>200</td><td>OK</td></tr>
+                        <tr><td>201</td><td>Created</td></tr>
+                        <tr><td>204</td><td>No Content</td></tr>
+                        <tr><td>400</td><td>Bad Request</td></tr>
+                        <tr><td>401</td><td>Unauthorised</td></tr>
+                        <tr><td>403</td><td>Forbidden</td></tr>
+                        <tr><td>404</td><td>Not Found</td></tr>
+                        <tr><td>405</td><td>Method Not Allowed</td></tr>
+                        <tr><td>409</td><td>Conflict</td></tr>
+                        <tr><td>422</td><td>Unprocessable Content</td></tr>
                         <tr><td>429</td><td>Rate limit exceeded</td></tr>
                         <tr><td>500</td><td>Internal server error</td></tr>
+                        <tr><td>502</td><td>Bad Gateway</td></tr>
+                        <tr><td>503</td><td>Service unavailable</td></tr>
+                        <tr><td>504</td><td>Gateway timeout</td></tr>
+
                     </table>
                 </section>
 
@@ -218,7 +208,7 @@
                                 <table>
                                     <tr>    <td>Type</td>       <td>string</td>   </tr>
                                     <tr>    <td>Required</td>   <td>No    </td>   </tr>
-                                    <tr>    <td>Example</td>   <td>ping   </td>   </tr>
+                                    <tr>    <td>Example</td>    <td>ping  </td>   </tr>
                                 </table>
 
                             </div>
@@ -230,9 +220,8 @@
                             <h3>Example Request</h3>
 
                             <pre>
-                            <code>
-curl \
-https://rylvion.hackclub.app/api/commands</code></pre>
+                            <code>curl \
+"https://rylvion.hackclub.app/api/commands"</code></pre>
 
                         </div>
 
@@ -259,7 +248,7 @@ https://rylvion.hackclub.app/api/commands</code></pre>
                             <h3>Successful Response</h3>
 
                             <pre><code>{
-    "success": true,
+    "ok": true,
     "version": "v0.7.1-beta",
     "generatedAt": "2026-07-29T13:10:42.123Z",
     "count": 22,
@@ -288,7 +277,7 @@ https://rylvion.hackclub.app/api/commands</code></pre>
                             <h3>Search Result</h3>
 
                             <pre><code>{
-    "success": true,
+    "ok": true,
     "count": 1,
     "commands": [
         {
@@ -324,7 +313,7 @@ https://rylvion.hackclub.app/api/commands</code></pre>
                             <pre>
                                 <code>
 {
-    "success": true,
+    "ok": true,
     "command": {
         "name": "ping",
         "cmd": "/sz-ping",
@@ -351,7 +340,7 @@ https://rylvion.hackclub.app/api/commands</code></pre>
                             </div>
 
                             <pre><code>{
-    "success": false,
+    "ok": false,
     "error": {
         "code": 404,
         "code_name": "COMMAND_NOT_FOUND",
@@ -390,7 +379,6 @@ https://rylvion.hackclub.app/api/commands</code></pre>
 
                 </section>
 
-                <!--TODO: maybe add an example request section, so ppl can actually see how to use the API --> 
             </main>
         </div>
 

@@ -1,187 +1,574 @@
 main {
     flex: 1;
+    min-width: 0;
+    min-height: 0;
     overflow-y: auto;
-    padding: 30px;
+    background: #050505;
+    color: #b7bdb7;
 }
 
-.panel {
-    margin-bottom: 42px;
-    padding: 24px;
-    background: #090909;
-    border: 1px solid #1c1c1c;
+main > nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 18px;
+    margin: 0;
+    background: rgba(8, 10, 8, 0.97);
+    border-bottom: 1px solid #202820;
+    z-index: 100;
 }
 
-.panel h2 {
-    margin: 0 0 22px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #1f1f1f;
+main > nav::before {
+    content: "api:";
+    margin-right: 8px;
+    color: #318b31;
+    font-size: 12px;
+}
+
+main > nav a {
+    padding: 5px 10px;
+    color: #6f766f;
+    border: 1px solid transparent;
+    text-decoration: none;
+    font-size: 12px;
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease;
+}
+
+main > nav a::before {
+    content: "./";
+    color: transparent;
+}
+
+main > nav a:hover {
+    background: #0c110c;
+    border-color: #1d291d;
+    color: #c7cec7;
+}
+
+main > nav a:hover::before {
+    color: #318b31;
+}
+
+main > nav a.active {
+    background: #102010;
+    border-color: #315b31;
     color: #59ff59;
-    letter-spacing: 2px;
-    font-size: 16px;
+    text-shadow: 0 0 7px rgba(89, 255, 89, 0.2);
+}
+
+main > nav a.active::before {
+    color: #59ff59;
+}
+
+main > section {
+    max-width: 1050px;
+    margin: 0 auto;
+    padding: 34px 32px;
+    border-bottom: 1px solid #161c16;
+    scroll-margin-top: 58px;
+}
+
+main > section:last-child {
+    border-bottom: 0;
+}
+
+
+main h2 {
+    position: relative;
+    margin: 0 0 20px;
+    padding-bottom: 10px;
+    color: #e0e5e0;
+    font-size: 20px;
+    font-weight: normal;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #202820;
+}
+
+main h2::before {
+    content: "## ";
+    color: #318b31;
+}
+
+main h2::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 90px;
+    height: 1px;
+    background: #59ff59;
+    opacity: 0.65;
+}
+
+main h3 {
+    margin: 26px 0 12px;
+    color: #59ff59;
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 1px;
+}
+
+main h3::before {
+    content: "/// ";
+    color: #318b31;
+}
+
+main p {
+    max-width: 920px;
+    margin: 0 0 16px;
+    color: #9da39d;
+    font-size: 13px;
+    line-height: 1.75;
+}
+
+main p:last-child {
+    margin-bottom: 0;
+}
+
+main code {
+    padding: 2px 5px;
+    background: #0a100a;
+    border: 1px solid #182218;
+    color: #72ff72;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
 }
 
 .error {
-    font-size: 19px;
-    color: red !important;
+    padding: 10px 12px;
+    background: #180b0b;
+    border: 1px solid #3a1c1c;
+    border-left: 3px solid #ff5959;
+    color: #ff8585 !important;
+    font-family: Consolas, "Courier New", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
-.panel p {
-    line-height: 1.7;
-    color: #a8a8a8;
-    max-width: 80ch;
+.error::before {
+    content: "[WARN] ";
+    color: #ff5959;
 }
 
-table {
-    border-collapse: collapse;
+main table {
     width: 100%;
-    max-width: 700px;
+    border-collapse: collapse;
+    background: #080b08;
+    border: 1px solid #1c251c;
+    font-size: 12px;
 }
 
-td {
-    padding: 8px 0;
-    border-bottom: 1px solid #1d1d1d;
+main table tr {
+    border-bottom: 1px solid #151b15;
+    transition: background 100ms ease;
 }
 
-td:first-child {
+main table tr:last-child {
+    border-bottom: 0;
+}
+
+main table tr:hover {
+    background: #0c110c;
+}
+
+main table td {
+    padding: 9px 12px;
+    vertical-align: top;
+    border-right: 1px solid #151b15;
+    color: #9ba19b;
+}
+
+main table td:last-child {
+    border-right: 0;
+}
+
+main table td:first-child {
     width: 180px;
-    color: #7d7d7d;
+    color: #686f68;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.8px;
 }
 
-#error-codes td:first-child {
-    width: 70px;
-    color: #59ff59;
+main table td:last-child {
+    color: #c4cac4;
 }
 
 .online {
     color: #59ff59;
+    text-shadow: 0 0 6px rgba(89, 255, 89, 0.35);
+}
+
+.online::before {
+    content: "● ";
+    font-size: 9px;
 }
 
 .endpoint {
-    display: block;
-    margin: 18px 0;
-    padding: 18px;
-    border: 1px solid #1f1f1f;
-    background: #070707;
-    border-radius: 5px;
-    transition: .18s;
-}
-
-.endpoint:hover {
-    border-color: #2f8f2f;
-    background: #0b0b0b;
+    position: relative;
+    margin-top: 26px;
+    background: #080a08;
+    border: 1px solid #202820;
+    box-shadow: inset 0 0 30px rgba(30, 255, 30, 0.015);
 }
 
 .endpoint-header {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #0b100b;
+    border-bottom: 1px solid #202820;
+}
+
+.endpoint-url {
+    color: #cfd6cf;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
 }
 
 .method {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 70px;
-    height: 30px;
+    display: inline-block;
+    min-width: 52px;
+    padding: 3px 7px;
+    text-align: center;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10px;
     font-weight: bold;
+    letter-spacing: 1px;
     border: 1px solid;
-    border-radius: 4px;
-    flex-shrink: 0;
 }
 
-.get {
-    color: #50d7ff;
-    border-color: #50d7ff55;
-    background: #06151b;
+.method.get {
+    background: #0b1a0b;
+    border-color: #2d7d2d;
+    color: #59ff59;
 }
 
-.post {
-    color: #ffd75f;
-    border-color: #ffd75f55;
-    background: #1d1705;
+.method.post {
+    background: #10150a;
+    border-color: #77752c;
+    color: #d6d45a;
 }
 
-pre {
-    position: relative;
-    background-color: #000011;
-
+.method.put {
+    background: #0b1118;
+    border-color: #315b7d;
+    color: #6db8ff;
 }
 
-pre::before {
-    content: "response.json";
-    display: block;
-    color: #6d6d6d;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #1a1a1a;
+.method.delete {
+    background: #180b0b;
+    border-color: #7d3030;
+    color: #ff6868;
 }
 
-code {
-    font-family: inherit;
-    color: #d5d5d5;
+.description {
+    padding: 16px 18px;
+    border-bottom: 1px solid #171e17;
+}
+
+.description p {
+    margin-bottom: 8px;
+}
+
+.parameters {
+    padding: 0 18px 18px;
 }
 
 .parameter {
-    margin: 18px 0;
-    padding: 16px;
-    border-left: 3px solid #59ff59;
-    background: #0b0b0b;
+    margin-top: 16px;
+    padding: 14px;
+    background: #070907;
+    border: 1px solid #182018;
+    border-left: 2px solid #294329;
 }
 
 .parameter-name {
     display: inline-block;
-    padding: 3px 10px;
     margin-bottom: 8px;
-    border: 1px solid #333;
-    background: #101010;
-    color: #59ff59;
-    cursor: pointer;
+    color: #72ff72;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
 }
 
-.code-block {
-    position: relative;
+.parameter-name::before {
+    content: "$ ";
+    color: #318b31;
 }
 
-.copy-code {
-    position: absolute;
-    top: 10px;
-    right: 10px;
+.parameter-description {
+    margin-bottom: 12px !important;
+    color: #858c85 !important;
+    font-size: 12px !important;
+}
 
-    cursor: pointer;
+.parameter table {
+    margin-top: 10px;
+    border: 0;
+    background: transparent;
+}
 
-    padding: 4px 10px;
+.parameter table tr {
+    border: 0;
+}
 
-    border: 1px solid #2b2b2b;
-    background: #101010;
+.parameter table tr:hover {
+    background: transparent;
+}
 
-    color: #8d8d8d;
-    font-family: inherit;
+.parameter table td {
+    padding: 3px 8px;
+    border: 0;
+    font-size: 11px;
+}
+
+.parameter table td:first-child {
+    width: 90px;
+    color: #525952;
+    font-size: 10px;
+}
+
+.parameter table td:last-child {
+    color: #8c938c;
+}
+
+.example-request,
+.endpoint-response {
+    margin: 0 18px 20px;
+}
+
+.example-request h3,
+.endpoint-response h3 {
+    margin-top: 20px;
+}
+
+
+pre {
+    margin: 10px 0 0;
+    padding: 16px;
+    overflow-x: auto;
+    background: #030503;
+    border: 1px solid #182018;
+    border-left: 2px solid #315b31;
+    color: #aeb8ae;
+    font-family: Consolas, "Courier New", monospace;
     font-size: 12px;
-
-    transition: .15s;
+    line-height: 1.65;
+    tab-size: 4;
+    box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.4);
 }
 
-.copy-code:hover {
-    color: #59ff59;
-    border-color: #59ff59;
+pre::before {
+    content: "OUTPUT";
+    display: block;
+    margin-bottom: 10px;
+    color: #318b31;
+    font-size: 9px;
+    letter-spacing: 1.5px;
 }
 
-.copy-code.copied {
+.example-request pre::before {
+    content: "REQUEST";
+}
+
+pre code {
+    display: block;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: #aeb8ae;
+    font-size: 12px;
+    white-space: pre;
+}
+
+.example-request pre code {
+    color: #72ff72;
+}
+
+.example-request pre code::first-line {
     color: #59ff59;
 }
 
 [data-endpoint] {
     cursor: pointer;
-    font-family: inherit;
-    color: #dedede;
-    transition: .15s;
+    color: #72ff72;
+    font-family: Consolas, "Courier New", monospace;
+    transition:
+        color 120ms ease,
+        text-shadow 120ms ease;
 }
 
 [data-endpoint]:hover {
+    color: #a0ffa0;
+    text-shadow: 0 0 8px rgba(89, 255, 89, 0.35);
+}
+
+.endpoint > .method {
+    margin: 12px 8px 12px 14px;
+}
+
+.endpoint > [data-endpoint] {
+    font-size: 13px;
+}
+
+
+main > section + section::before {
+    content: "------------------------------------------------------------";
+    display: block;
+    margin: -8px 0 30px;
+    overflow: hidden;
+    color: #1b241b;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+#overview {
+    padding-top: 40px;
+}
+
+#overview h2 {
     color: #59ff59;
+    text-shadow:
+        0 0 8px rgba(89, 255, 89, 0.15);
+}
+
+#overview h2::before {
+    content: "$ ";
+}
+
+#status,
+#error-codes,
+#endpoints {
+    scroll-margin-top: 58px;
 }
 
 [data-endpoint].copied {
+    color: #9aff9a;
+    text-shadow: 0 0 6px rgba(89, 255, 89, 0.5);
+    animation: copy-flash 800ms ease;
+}
+
+[data-endpoint].copied::after {
+    content: " [COPIED]";
     color: #59ff59;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+
+pre {
+    position: relative;
+}
+
+.copy-code {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 9px;
+    cursor: pointer;
+    background: #080d08;
+    border: 1px solid #263526;
+    color: #4caa4c;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.copy-code::before {
+    content: "> ";
+    color: #286b28;
+}
+
+.copy-code:hover {
+    background: #102010;
+    border-color: #bbcabb;
+    color: #59ff59;
+    box-shadow: 0 0 8px rgba(89, 255, 89, 0.12);
+
+    text-shadow: 0 0 6px rgba(89, 255, 89, 0.3);
+}
+
+.copy-code:active {
+    background: #142814;
+    border-color: #8aff8a;
+    color: #8aff8a;
+}
+
+.copy-code.copied {
+    border-color: #59ff59;
+    color: #59ff59;
+}
+
+@keyframes copy-flash {
+    0% { opacity: 0.5; }
+    35% { opacity: 1; }
+    100% { opacity: 1; }
+}
+
+
+@media (max-width: 700px) {
+    main > nav {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    main > nav::before {
+        display: none;
+    }
+
+    main > section {
+        padding: 28px 20px;
+    }
+
+    main table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .endpoint-header {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 520px) {
+    main > section {
+        padding: 24px 14px;
+    }
+
+    main h2 {
+        font-size: 18px;
+    }
+
+    main table td:first-child {
+        width: 120px;
+    }
+
+    .example-request,
+    .endpoint-response {
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+
+    pre {
+        padding: 12px;
+        font-size: 11px;
+    }
+
+    pre code {
+        font-size: 11px;
+    }
+
+    main section + section::before {
+        content: "------------------------------";
+    }
 }

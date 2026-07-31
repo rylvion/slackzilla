@@ -1,6 +1,6 @@
 {
   "name": "slackzilla",
-  "version": "v0.7.1-beta",
+  "version": "v0.7.5-beta",
   "description": "slackatron mega 1x1x1x1 edition",
   "main": "src/bot.js",
   "scripts": {
@@ -23,6 +23,7 @@
   "type": "commonjs",
   "dependencies": {
     "@octokit/rest": "^22.0.1",
+    "@openrouter/sdk": "^1.2.4",
     "@slack/bolt": "^4.7.3",
     "dotenv": "^17.4.2",
     "octokit": "^5.0.5",

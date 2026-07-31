@@ -9,12 +9,9 @@ module.exports = (app, meta) => {
         const groups = {}
 
         Object.values(cmds).forEach(cmd => {
+            if (typeof cmd !== "object") return; // ignore $schema
             const category = cmd.category || "other"
-
-            if (!groups[category]) {
-                groups[category] = []
-            }
-
+            groups[category] = groups[category] || [];
             groups[category].push(cmd)
         })
 

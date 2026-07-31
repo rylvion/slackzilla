@@ -59,6 +59,12 @@
         "should_escape": false
       },
       {
+        "command": "/sz-feedback",
+        "description": "sends feedback to the bot author",
+        "should_escape": false,
+        "usage_hint": "<message>"
+      },
+      {
         "command": "/sz-hash",
         "description": "generates a hash of a string, default: sha256",
         "should_escape": false,

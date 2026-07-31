@@ -2,7 +2,7 @@ const crypto = require("crypto")
 const { log } = require("../utils/logger")
 
 function getHelp() {
-    const algorithms = crypto.getHashes().slice(0, 8).join(", ")
+    const algorithms = "base64, hex, rand, pbkdf2"
 
     return (
         "🔓 *decode command help*\n" +
@@ -11,9 +11,8 @@ function getHelp() {
         "> *Examples:*\n" +
         "> `/sz-decode base64 aGVsbG8gd29ybGQ=`\n" +
         "> `/sz-decode hex 68656c6c6f`\n" +
-        "> `/sz-decode pbkdf2 pbkdf2$sha512$600000$salt$abcdef...`\n" +
-        "> `/sz-decode sha256 68656c6c6f...`\n\n" +
-        `> *Supported algorithms:* ${algorithms}, rand, pbkdf2, base64, hex`
+        "> `/sz-decode pbkdf2 pbkdf2$sha512$600000$salt$abcdef...`\n\n" +
+        `> *Supported algorithms:* ${algorithms}`
     )
 }
 
@@ -133,12 +132,7 @@ module.exports = (app, meta) => {
         }
 
         if (crypto.getHashes().some(h => h.toLowerCase() === algorithm.toLowerCase())) {
-            try {
-                const decoded = Buffer.from(value, "hex").toString("utf8")
-                await respond(`🔓 ${algorithm}:\n\`${decoded}\``)
-            } catch {
-                await respond(`❌ cannot decode ${algorithm} hex digest`)
-            }
+            await respond(`❌ ${algorithm} is a one-way hash and cannot be decoded`)
             return
         }
 

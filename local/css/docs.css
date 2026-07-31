@@ -1,57 +1,378 @@
 main {
     flex: 1;
+    min-width: 0;
+    min-height: 0;
     overflow-y: auto;
-    padding: 32px;
+    background: #050505;
+    color: #b7bdb7;
 }
 
-h1 {
-    margin: 0 0 40px;
+main > nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    gap: 4px;
+    padding: 12px 18px;
+    margin: 0;
+    background: rgba(8, 10, 8, 0.96);
+    border-bottom: 1px solid #202820;
+    z-index: 100;
+}
+
+main > nav::before {
+    content: "docs:";
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+    color: #318b31;
+    font-size: 12px;
+}
+
+main > nav a {
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #6f766f;
+    font-size: 12px;
+    text-decoration: none;
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease;
+}
+
+main > nav a::before {
+    content: "./";
+    color: transparent;
+    transition: color 120ms ease;
+}
+
+main > nav a:hover {
+    background: #0c110c;
+    border-color: #1d291d;
+    color: #c7cec7;
+}
+
+main > nav a:hover::before {
+    color: #318b31;
+}
+
+main > nav a.active {
+    background: #102010;
+    border-color: #315b31;
     color: #59ff59;
-    font-size: 18px;
+    text-shadow: 0 0 7px rgba(89, 255, 89, 0.2);
+}
+
+main > nav a.active::before {
+    color: #59ff59;
+}
+
+main > section {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 34px 32px;
+    border-bottom: 1px solid #161c16;
+}
+
+main > section:last-child {
+    border-bottom: 0;
+}
+
+main h2 {
+    position: relative;
+    margin: 0 0 20px;
+    padding-bottom: 10px;
+    color: #e0e5e0;
+    font-size: 21px;
+    font-weight: normal;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #202820;
+}
+
+main h2::before {
+    content: "## ";
+    color: #318b31;
+}
+
+main h2::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 90px;
+    height: 1px;
+    background: #59ff59;
+    opacity: 0.65;
+}
+
+main h3 {
+    margin: 28px 0 12px;
+    color: #59ff59;
+    font-size: 14px;
     font-weight: normal;
     letter-spacing: 1px;
 }
 
-section {
-    margin-bottom: 40px;
+main h3::before {
+    content: "/// ";
+    color: #318b31;
 }
 
-h2 {
-    margin: 0 0 14px;
+main h4 {
+    margin: 20px 0 8px;
     color: #59ff59;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: normal;
+    letter-spacing: 1px;
 }
 
-p {
-    margin: 0;
-    max-width: 800px;
-    color: #d0d0d0;
-    line-height: 1.7;
+main h4::before {
+    content: "!!! ";
+    color: #318b31;
 }
 
-pre {
-    margin: 16px 0 0;
-    padding: 16px;
-    background: #090909;
-    border: 1px solid #202020;
-    overflow-x: auto;
-    white-space: pre;
-    color: #d8d8d8;
-    font-family: inherit;
+main p {
+    max-width: 900px;
+    margin: 0 0 16px;
+    color: #9da39d;
+    font-size: 13px;
+    line-height: 1.75;
 }
 
-table {
-    border-collapse: collapse;
-    width: 500px;
+.summary {
+    color: #b8ffb8;
+    font-size: 12px;
+    line-height: 1.5;
+
 }
 
-td {
-    padding: 8px 0;
-    border-bottom: 1px solid #1d1d1d;
+.summary::before {
+    content: "TL;DR ";
+    color: #318b31;
 }
 
-td:first-child {
-    width: 70px;
+main p:last-child {
+    margin-bottom: 0;
+}
+
+main code {
+    padding: 2px 5px;
+    background: #0a100a;
+    border: 1px solid #182218;
+    color: #72ff72;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+}
+
+main ul {
+    margin: 12px 0 20px;
+    padding: 0;
+    list-style: none;
+}
+
+main li {
+    position: relative;
+    margin: 5px 0;
+    padding: 7px 10px 7px 24px;
+    background: #080b08;
+    border-left: 1px solid #182118;
+    color: #929992;
+    font-size: 12px;
+    line-height: 1.6;
+    transition:
+        background 120ms ease,
+        border-color 120ms ease;
+}
+
+main li::before {
+    content: ">";
+    position: absolute;
+    left: 9px;
+    color: #318b31;
+}
+
+main li:hover {
+    background: #0b110b;
+    border-left-color: #59ff59;
+}
+
+.badge, .badge--optional, .badge--required {
+    display: inline-block;
+    margin-right: 7px;
+    padding: 1px 5px;
+    background: #102010;
+    border: 1px solid #294329;
     color: #59ff59;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    user-select: none;
+}
+
+.badge--optional {
+    background: #101010;
+    border-color: #2a2a2a;
+    color: #9da39d;
+}
+
+.badge--required {
+    background: #101010;
+    border-color: #2a2a2a;
+    color: #ff5959;
+}
+
+main section a {
+    color: #59ff59;
+    text-decoration: none;
+    border-bottom: 1px dotted #318b31;
+    transition:
+        color 120ms ease,
+        border-color 120ms ease;
+}
+
+main section a:hover {
+    color: #9aff9a;
+    border-bottom-color: #59ff59;
+    text-shadow: 0 0 7px rgba(89, 255, 89, 0.3);
+}
+
+main section {
+    scroll-margin-top: 58px;
+}
+
+main section + section::before {
+    content: "------------------------------------------------------------";
+    display: block;
+    margin: -10px 0 30px;
+    color: #1d271d;
+    font-size: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+#overview {
+    padding-top: 42px;
+}
+
+
+@keyframes glitch {
+    0%,
+    90%,
+    100% {
+        transform: translate(0);
+        filter: none;
+    }
+
+    91% {
+        transform: translate(-3px, 0);
+        filter: drop-shadow(3px 0 #ff00ff);
+    }
+
+    92% {
+        transform: translate(3px, 0);
+        filter: drop-shadow(-3px 0 #00ffff);
+    }
+
+    93% {
+        transform: translate(-1px, 2px);
+        filter:
+            drop-shadow(2px 0 #ff00ff)
+            drop-shadow(-2px 0 #00ffff);
+    }
+
+    94% {
+        transform: translate(2px, -1px);
+        filter: none;
+    }
+
+    95% {
+        transform: translate(0);
+    }
+}
+
+h1 {
+    margin: 0 0 20px;
+    color: #59ff59;
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-align: center;
+    text-shadow:
+        0 0 4px #59ff59,
+        0 0 8px #1f7a1f,
+        0 0 12px rgba(89, 255, 89, 0.4);
+    text-transform: uppercase;
+    font-family: "Courier New", Courier, monospace;
+    animation: glitch 1s infinite;
+    position: relative;
+}
+
+h1::before {
+    content: "$ ";
+    color: #2ecc2e;
+    text-shadow: 0 0 6px rgba(46, 204, 46, 0.6);
+}
+
+h1::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 255, 0, 0.05),
+        rgba(0, 255, 0, 0.05) 2px,
+        transparent 2px,
+        transparent 4px
+    );
+    mix-blend-mode: overlay;
+}
+
+main li code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: #b8ffb8;
+}
+
+@media (max-width: 700px) {
+    main > nav {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    main > nav::before {
+        display: none;
+    }
+
+    main > section {
+        padding: 28px 20px;
+    }
+
+    main p {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 520px) {
+    main > section {
+        padding: 24px 14px;
+    }
+
+    main h2 {
+        font-size: 18px;
+    }
+
+    main li {
+        padding-left: 20px;
+        overflow-wrap: anywhere;
+    }
+
+    main section + section::before {
+        content: "------------------------------";
+    }
 }

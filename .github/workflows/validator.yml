@@ -1,63 +1,63 @@
 name: Validate Commands
 
 on:
-  pull_request:
-    branches:
-      - main
+    pull_request:
+        branches:
+            - main
 
 jobs:
-  validate-commands:
-    name: Validate commands.json
-    runs-on: ubuntu-latest
+    validate-commands:
+        name: Validate commands.json
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Validate commands.json against schema
-        run: npm run validate-commands
+            - name: Validate commands.json against schema
+              run: npm run validate-commands
 
-      - name: Verify command files exist
-        run: |
-          node <<'EOF'
-          const fs = require('fs')
-          const path = require('path')
+            - name: Verify command files exist
+              run: |
+                  node <<'EOF'
+                  const fs = require('fs')
+                  const path = require('path')
 
-          const commands = JSON.parse(
-            fs.readFileSync('src/data/commands.json', 'utf8')
-          )
+                  const commands = JSON.parse(
+                    fs.readFileSync('src/data/commands.json', 'utf8')
+                  )
 
-          let failed = false
+                  let failed = false
 
-          for (const [name, meta] of Object.entries(commands)) {
-            if (name === '$schema')
-              continue
+                  for (const [name, meta] of Object.entries(commands)) {
+                    if (name === '$schema')
+                      continue
 
-            const file = path.join('src', 'cmds', meta.file)
+                    const file = path.join('src', 'cmds', meta.file)
 
-            if (!fs.existsSync(file)) {
-              console.error(`${name}: "${meta.file}" does not exist`)
-              failed = true
-            }
-          }
+                    if (!fs.existsSync(file)) {
+                      console.error(`${name}: "${meta.file}" does not exist`)
+                      failed = true
+                    }
+                  }
 
-          if (failed)
-            process.exit(1)
+                  if (failed)
+                    process.exit(1)
 
-          console.log('All command files exist')
-          EOF
+                  console.log('All command files exist')
+                  EOF
 
-      - name: Generate manifest
-        run: npm run generate-manifest
+            - name: Generate manifest
+              run: npm run generate-manifest
 
-      - name: Validate generated manifest
-        run: npm run validate-manifest
+            - name: Validate generated manifest
+              run: npm run validate-manifest

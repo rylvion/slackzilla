@@ -110,8 +110,8 @@ async function buildJS() {
         const relative = path.relative(SRC.js, file)
         const output = path.join(DIST, "js", relative)
 
-        const code = await fs.readFile(file, "utf8")
-        
+        let code = await fs.readFile(file, "utf8")
+
         code = code
             .replace(
                 /fetch\s*\(\s*(['"`])\.\.\/\.\.\/data\//g,

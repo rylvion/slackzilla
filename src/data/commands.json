@@ -1,5 +1,6 @@
 {
     "$schema": "../../schemas/command.schema.json",
+    
     "ping": {
         "cmd": "/sz-ping",
         "description": "idk js pongs ig",
@@ -7,6 +8,7 @@
         "file": "ping.js",
         "usage_hint": ""
     },
+
     "help": {
         "cmd": "/sz-help",
         "description": "displays all commands and their descriptions",
@@ -14,6 +16,7 @@
         "file": "help.js",
         "usage_hint": ""
     },
+
     "info": {
         "cmd": "/sz-info",
         "description": "displays info about the bot (e.g. ver no., author, etc.)",
@@ -21,6 +24,7 @@
         "file": "info.js",
         "usage_hint": ""
     },
+
     "quote": {
         "cmd": "/sz-quote",
         "description": "displays a random quote",
@@ -28,6 +32,7 @@
         "file": "quote.js",
         "usage_hint": ""
     },
+
     "jokes": {
         "cmd": "/sz-joke",
         "description": "😜sends a random joke",
@@ -35,6 +40,7 @@
         "file": "jokes.js",
         "usage_hint": ""
     },
+
     "fact": {
         "cmd": "/sz-fact",
         "description": "displays a fun fact",
@@ -42,6 +48,7 @@
         "file": "fact.js",
         "usage_hint": ""
     },
+
     "hug": {
         "cmd": "/sz-hug",
         "description": "HUG ME 🤗",
@@ -49,6 +56,7 @@
         "file": "hug.js",
         "usage_hint": ""
     },
+
     "meme": {
         "cmd": "/sz-meme",
         "description": "shows a random meme",
@@ -56,6 +64,7 @@
         "file": "meme.js",
         "usage_hint": ""
     },
+
     "echo": {
         "cmd": "/sz-echo",
         "description": "echoes the message you sent",
@@ -63,6 +72,7 @@
         "file": "echo.js",
         "usage_hint": "<message>"
     },
+
     "calculator": {
         "cmd": "/sz-calc",
         "description": "calculates a mathematical expression",
@@ -134,6 +144,7 @@
         "file": "case.js",
         "usage_hint": "<camel|pascal|snake|kebab> <text>"
     },
+
     "unix": {
         "cmd": "/sz-unix",
         "description": "converts between unix timestamp and human readable date",

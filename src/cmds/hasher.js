@@ -13,7 +13,7 @@ function getHelp() {
         "> `/sz-hash sha256 hello world`\n" +
         "> `/sz-hash hello world`\n" +
         "> `/sz-hash rand 32`\n" +
-        "> `/sz-hash pbkdf2 sha512 600000 salt text`\n\n" +
+        "> `/sz-hash pbkdf2 sha512 600000 salt password` - pbkdf2 <algorithm> <iterations> <password>\n\n" +
         "> `/sz-hash base64 hello world`\n" +
         "> `/sz-hash hex hello world`\n" +
         `> *Supported algorithms:* ${algorithms}, rand, pbkdf2, base64, hex`
@@ -50,12 +50,25 @@ function parseInput(text) {
     }
 
     if (parts[0].toLowerCase() === "pbkdf2") {
-        const [_, algo, iterations, salt, ...rest] = parts
+        const [_, algo, iterations, ...rest] = parts
+
+        if (rest.length >= 2) {
+            const salt = rest.shift()
+
+            return {
+                algorithm: "pbkdf2",
+                pbkdf2Algo: algo,
+                pbkdf2Iterations: parseInt(iterations),
+                pbkdf2Salt: salt,
+                value: rest.join(" ")
+            }
+        }
+
         return {
             algorithm: "pbkdf2",
             pbkdf2Algo: algo,
             pbkdf2Iterations: parseInt(iterations),
-            pbkdf2Salt: salt,
+            pbkdf2Salt: crypto.randomBytes(32).toString("hex"),
             value: rest.join(" ")
         }
     }
@@ -131,8 +144,8 @@ module.exports = (app, meta) => {
 
         if (algorithm === "pbkdf2") {
             const { pbkdf2Algo, pbkdf2Iterations, pbkdf2Salt } = parsed
-            if (!pbkdf2Algo || !pbkdf2Iterations || !pbkdf2Salt || !value) {
-                await respond("❌ pbkdf2 usage: pbkdf2 <algorithm> <iterations> <salt> <text>")
+            if (!pbkdf2Algo || !pbkdf2Iterations || !value) {
+                await respond("❌ pbkdf2 usage: pbkdf2 <algorithm> <iterations> <text>")
                 return
             }
             crypto.pbkdf2(value, pbkdf2Salt, pbkdf2Iterations, 64, pbkdf2Algo, (err, derivedKey) => {
@@ -184,6 +197,6 @@ module.exports = (app, meta) => {
 
         log.success("{user} hashed text via {cmd} using {0}", command, algorithm)
 
-        await respond(`🔑 ${algorithm}:\n\`${digest}\``)
+            await respond(`🔑 ${algorithm}:\n\`${digest}\``)
     })
 }
