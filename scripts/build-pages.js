@@ -78,7 +78,12 @@ async function buildHTML() {
         const relative = path.relative(SRC.pages, file)
         const output = path.join(DIST, relative)
 
-        const html = await fs.readFile(file, "utf8")
+        let html = await fs.readFile(file, "utf8")
+
+        html = html.replace(
+            /(href|src)="\.\.\/\.\.\/(css|js)\//g,
+                '$1="../$2/'
+        )
 
         const result = await minifyHTML(html, {
             collapseWhitespace: true,
