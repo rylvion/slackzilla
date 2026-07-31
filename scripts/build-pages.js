@@ -111,6 +111,16 @@ async function buildJS() {
         const output = path.join(DIST, "js", relative)
 
         const code = await fs.readFile(file, "utf8")
+        
+        code = code
+            .replace(
+                /fetch\s*\(\s*(['"`])\.\.\/\.\.\/data\//g,
+                'fetch($1../data/'
+            )
+            .replace(
+                /(href|src)\s*:\s*(['"`])\.\.\/\.\.\/(css|js|data)\//g,
+                '$1: $2../$3/'
+            )
 
         const result = await minify(code, {
             compress: true,
