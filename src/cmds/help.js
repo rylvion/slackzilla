@@ -20,7 +20,7 @@ module.exports = (app, meta) => {
 
         const categoryNames = {
             core: "⚙️ core",
-            utility: "🛠️ utility",
+            utility: "🛠️ utility\n\*btw the utility also has a help command associated with it e.g. \`/sz-calc help\`",
             entertainment: "🎉 entertainment",
             other: "📦 other"
         }

@@ -22,7 +22,7 @@ its prefixed with `/sz-` and the commands are as follows:
 - `/sz-ping` - it shows latency
 - `/sz-calc` - it evaluates mathematical expressions and returns the result. It supports multi-digit numbers, decimals, unary minus, and exponentiation.
 - `/sz-roll` - it simulates dice rolls and returns the result. It supports normal dice notation like `d6`, custom dice sizes like `d20`, multiple dice such as `2d6`, and modifiers like `2d20+5`.
-and many more commands,
+and many more commands.
 
 ### you can add sum of ur commands tooo:
 i also made a scalable modular system out of this, so go on [src/data/commands.json](https://github.com/rylvion/slackzilla/tree/main/src/data/commands.json) (this is the source of truth) 

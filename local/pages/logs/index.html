@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Slackzilla | Logs</title>
+        <meta name="description" content="View Logs for the Slackzilla bot at Slack">
+
+        <link rel="stylesheet" href="../../css/globals.css">
+        <link rel="stylesheet" href="../../css/layout.css">
+        <link rel="stylesheet" href="../../css/logs.css">
+    </head>
+    
+    <body>
+
+        <header>
+            <span>SLACKZILLA</span>
+
+            <label class="button" for="file" tabindex="0">
+                Open Log
+                <input id="file" type="file" accept=".log,.txt" hidden>
+            </label>
+        </header>
+
+        <div class="layout">
+
+            <aside class="sidebar">
+                <div class="sidebar-title">
+                    NAVIGATION
+                </div>
+
+                <nav>
+                    <a class="active" href="#">Logs</a>
+                    <a href="../uptime/">Uptime</a>
+                    <a href="../api/">API</a>
+                    <a href="../docs/">Docs</a>
+                    <a href="../admin/">Admin</a>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="footer-title">STATUS</div>
+
+                    <div class="status">
+                        <span class="dot"></span>
+                        Online
+                    </div>
+                </div>
+
+            </aside>
+
+            <main id="log">
+                <div class="placeholder">
+                    Drop a .log file here or press Open Log
+                </div>
+            </main>
+
+        </div>
+
+        <script src="../../js/globals.js"></script>
+        <script src="../../js/logs.js"></script>
+
+    </body>
+</html>

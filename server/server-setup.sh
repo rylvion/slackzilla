@@ -39,6 +39,7 @@ sed -i "s|^WEBHOOK_SECRET=.*|WEBHOOK_SECRET=$WEBHOOK_SECRET|" server/.env
 sed -i "s|^PORT=.*|PORT=9000|" server/.env
 sed -i "s|^PROJECT_DIR=.*|PROJECT_DIR=$PWD|" server/.env
 sed -i "s|^SERVICE_NAME=.*|SERVICE_NAME=slackzilla|" server/.env
+sed -i "s|^BOT_SERVICE_NAME=.*|BOT_SERVICE_NAME=slackzilla|" server/.env
 sed -i "s|^BRANCH=.*|BRANCH=main|" server/.env
 sed -i "s|^REPO_URL=.*|REPO_URL=$REPO_URL|" server/.env
 

@@ -1,6 +1,6 @@
 {
   "name": "slackzilla",
-  "version": "beta",
+  "version": "v0.7.1-beta",
   "description": "slackatron mega 1x1x1x1 edition",
   "main": "src/bot.js",
   "scripts": {
@@ -9,9 +9,15 @@
     "generate-manifest": "node scripts/generateManifest.js",
     "validate-manifest": "ajv validate -s schemas/manifest.schema.json -d manifest.json",
     "validate-commands": "ajv validate -s schemas/command.schema.json -d src/data/commands.json",
-    "cmd-stats": "node scripts/stats.js"
+    "cmd-stats": "node scripts/stats.js",
+    "build:pages": "node scripts/build-pages.js"
   },
-  "keywords": ["slack", "bot", "slackbot", "slackzilla"],
+  "keywords": [
+    "slack",
+    "bot",
+    "slackbot",
+    "slackzilla"
+  ],
   "author": "@rylvion",
   "license": "MIT",
   "type": "commonjs",
@@ -25,6 +31,9 @@
   "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-cli": "^5.0.0",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "clean-css": "^5.3.3",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.49.0"
   }
 }

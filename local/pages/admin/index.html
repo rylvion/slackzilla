@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Slackzilla | Admin</title>
+        <meta name="description" content="View Admin Panel for the Slackzilla bot at Slack">
+
+        <link rel="stylesheet" href="../../css/globals.css">
+        <link rel="stylesheet" href="../../css/layout.css">
+        <link rel="stylesheet" href="../../css/admin.css">
+    </head>
+
+    <body>
+        <header>
+            <span>SLACKZILLA</span>
+        </header>
+
+        <div class="layout">
+            <aside class="sidebar">
+
+                <div class="sidebar-title">
+                    NAVIGATION
+                </div>
+
+                <nav>
+                    <a href="../logs/">Logs</a>
+                    <a href="../uptime/">Uptime</a>
+                    <a href="../api/">API</a>
+                    <a href="../docs/">Docs</a>
+                    <a class="active" href="../admin/">Admin</a>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="footer-title">TOP SECRET</div>
+                    <nav>
+                        <a href="#">Manage Users</a>
+                        <a href="#">Manage Commands</a>
+                        <a href="#">Manage Bot Settings</a>
+
+                    </nav>
+                </div>
+
+                <div class="sidebar-footer">
+                    <div class="footer-title">STATUS</div>
+                    <div class="status">
+                        <span class="dot"></span> Online
+                    </div>
+                </div>
+
+            </aside>
+
+            <main>
+
+                <section class="panel">
+
+                    <h2>ADMIN PANEL</h2>
+
+                    <p>This is local view so no authentication required and no functionality implemented yet BUT it will have authentication on the server</p>
+
+                    <p> heres an overview of the admin panel:</p>
+
+                    <ul>
+                        <li>
+                            <h3>Manage Users</h3>
+                            <p>View and manage users who have interacted with the bot. You can ban/unban users view their activity, and manage their permissions.</p>
+                            <p><i>i havent implemented the user tracking BUT only the logs show when a user interacts with the bot </i></p>
+                        </li>
+
+                        <li>
+                            <h3>Manage Commands</h3>
+                            <p>create, edit, and delete custom commands for the bot. You can also view command usage statistics and manage command permissions.</p>
+                        </li>
+                        <li>
+                            <h3>Manage Bot Settings</h3>
+                            <p>view and manage the bot's manifest file, which contains configuration details, metadata, commands and other settings.</p>
+                        </li>
+                    </ul>
+
+                </section>
+
+            </main>
+        </div>
+        
+        <script src="../../js/globals.js"></script>
+    </body>

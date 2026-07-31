@@ -3,7 +3,8 @@ const fs = require('fs')
 require('dotenv').config({ path: path.resolve(__dirname, '.env') })
 
 const { App } = require('@slack/bolt')
-const { log } = require('./utils/logger')
+const { log, cyan} = require('./utils/logger')
+const { recordCommandUsage } = require('./utils/metrics')
 const staticMeta = require('./meta')
 
 const app = new App({
@@ -12,6 +13,20 @@ const app = new App({
     signingSecret: process.env.SLACK_SIGNING_SECRET,
     socketMode: true
 })
+
+const originalCommand = app.command.bind(app)
+
+app.command = (commandName, handler) => {
+    originalCommand(commandName, async args => {
+        try {
+            recordCommandUsage(commandName, args.command)
+        } catch (err) {
+            log.error("failed to record usage for {0}: {1}", null, commandName, err.message)
+        }
+
+        return handler(args)
+    })
+}
 
 global.botMeta = {
     ...staticMeta,
@@ -49,6 +64,7 @@ for (const [name, meta] of Object.entries(cmds)) {
 (async () => {
     await app.start(process.env.PORT || 3000)
 
+    log.start()
     log.info("All systems initialised")
     log.info('Ready for launch in T minus 3... 2... 1...')
 

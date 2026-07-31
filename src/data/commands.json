@@ -164,5 +164,13 @@
         "category": "utility",
         "file": "decoder.js",
         "usage_hint": "<algorithm> <string>"
+    },
+
+    "feedback": {
+        "cmd": "/sz-feedback",
+        "description": "sends feedback to the bot author",
+        "category": "utility",
+        "file": "feedback.js",
+        "usage_hint": "<message>"
     }
 }
