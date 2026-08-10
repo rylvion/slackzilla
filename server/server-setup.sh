@@ -7,6 +7,7 @@ echo "installing dependencies..."
 sudo apt install -y git curl ca-certificates nano openssl
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 sudo apt install -y nodejs
+sudo apt install -y nginx
 
 echo "creating project directory..."
 mkdir -p ~/projs
@@ -31,12 +32,15 @@ fi
 if [ ! -f server/.env ]; then
 	cp server/.env.example server/.env
 fi
+if [ ! -f /etc/nginx/sites-available/slackzilla.conf ]; then
+	cp server/slackzilla.conf /etc/nginx/sites-available/slackzilla.conf
+fi
 
 REPO_URL="$(git remote get-url origin)"
 WEBHOOK_SECRET="$(openssl rand -hex 32)"
 
 sed -i "s|^WEBHOOK_SECRET=.*|WEBHOOK_SECRET=$WEBHOOK_SECRET|" server/.env
-sed -i "s|^PORT=.*|PORT=9000|" server/.env
+sed -i "s|^PORT=.*|PORT=80|" server/.env
 sed -i "s|^PROJECT_DIR=.*|PROJECT_DIR=$PWD|" server/.env
 sed -i "s|^SERVICE_NAME=.*|SERVICE_NAME=slackzilla|" server/.env
 sed -i "s|^BRANCH=.*|BRANCH=main|" server/.env
@@ -50,4 +54,4 @@ sudo systemctl enable --now slackzilla.service slackzilla-webhook.service
 
 echo "slackzilla server setup complete."
 echo "edit src/.env for the bot tokens if needed, then set the github webhook secret and url."
-echo "use journalctl -u slackzilla.service -f and journalctl -u slackzilla-webhook.service -f to view the logs."
+echo "use journalctl -u slackzilla.service -f output=cat and journalctl -u slackzilla-webhook.service -f to view the logs."

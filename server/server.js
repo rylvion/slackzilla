@@ -6,7 +6,7 @@ const { URL } = require("url")
 
 require("dotenv").config({ path: path.join(__dirname, ".env") })
 
-const { log } = require("../../src/utils/logger")
+const { log } = require("../src/utils/logger")
 const store = require("./database/store")
 const { createAuth } = require("./lib/auth")
 const {

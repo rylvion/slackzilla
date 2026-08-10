@@ -46,7 +46,8 @@ npm ci
 
 echo
 echo "[>] Restarting service..."
-systemctl restart "$SERVICE_NAME"
+sudo systemctl restart "$SERVICE_NAME"
+sudo systemctl restart nginx
 
 echo
 echo "[✓] Deployment successful."
