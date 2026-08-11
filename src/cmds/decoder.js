@@ -117,13 +117,12 @@ module.exports = (app, meta) => {
             const [, algo, iterations, salt, hex] = parts
 
             try {
-                const decoded = Buffer.from(hex, "hex").toString("utf8")
                 await respond(
                     `🔓 pbkdf2:\n` +
                     `• algorithm: \`${algo}\`\n` +
                     `• iterations: \`${iterations}\`\n` +
                     `• salt: \`${salt}\`\n` +
-                    `• decoded: \`${decoded}\``
+                    `• password: \`${hex}\` (psst, cannot be reversed)\n`
                 )
             } catch {
                 await respond("❌ invalid pbkdf2 hex output")

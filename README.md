@@ -1,12 +1,5 @@
 # Slackzilla
 
-███████╗██╗      █████╗  ██████╗██╗  ██╗███████╗██╗██╗     ██╗      █████╗ 
-██╔════╝██║     ██╔══██╗██╔════╝██║ ██╔╝╚══███╔╝██║██║     ██║     ██╔══██╗
-███████╗██║     ███████║██║     █████╔╝   ███╔╝ ██║██║     ██║     ███████║
-╚════██║██║     ██╔══██║██║     ██╔═██╗  ███╔╝  ██║██║     ██║     ██╔══██║
-███████║███████╗██║  ██║╚██████╗██║  ██╗███████╗██║███████╗███████╗██║  ██║
-╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝╚══════╝╚══════╝╚═╝  ╚═╝
-
 slackzilla has a modular slash-command system, a manifest generator, a hosted server dashboard, and a local preview that mirrors the server.
 
 ## Links
@@ -74,6 +67,7 @@ For  `ADMIN_PASSWORD_HASH`, the following is a recommended way to generate a sec
 1.3. `$s=New-Object byte[] 16;[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($s);$p=[System.Text.Encoding]::UTF8.GetBytes("mypassword");$h=(New-Object System.Security.Cryptography.Rfc2898DeriveBytes($p,$s,600000,[System.Security.Cryptography.HashAlgorithmName]::SHA512)).GetBytes(64);$saltHex=($s|%{ $_.ToString('x2') }) -join '';$hashHex=($h|%{ $_.ToString('x2') }) -join ''; "pbkdf2`$sha512`$600000`$$saltHex`$$hashHex"` on `powershell` any version
 1.4. `ruby -ropenssl -e 'salt=OpenSSL::Random.random_bytes(16);pwd="mypassword";iter=600000;dk=OpenSSL::PKCS5.pbkdf2_hmac(pwd,salt,iter,64,"sha512");puts "pbkdf2$sha512$#{iter}$#{salt.unpack1("H*")}$#{dk.unpack1("H*")}"'` - linux/wsl/ruby
 2. Copy it and paste it into the `ADMIN_PASSWORD_HASH` field in `server/.env`. This hash is used to verify the admin password for the dashboard.
+3. Log in to `/admin` with the original password you hashed here, not with the hash string itself.
 
 For `ADMIN_SESSION_SECRET`, the following is a recommended way to generate a secure secret:
 1. Generating a secret for this is easy, you can use any of the following methods:

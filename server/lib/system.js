@@ -101,6 +101,22 @@ function checkServiceStatus(serviceName) {
 
         return String(result.stdout || result.stderr || "inactive").trim() || "inactive"
     } catch {
+        try {
+            if (process.platform === "win32") {
+                const fallback = childProcess.spawnSync("tasklist", [], { encoding: "utf8" })
+                if (fallback.status === 0 && /node\.exe/i.test(String(fallback.stdout || ""))) {
+                    return "active"
+                }
+            } else {
+                const fallback = childProcess.spawnSync("pgrep", ["-f", serviceName], { encoding: "utf8" })
+                if (fallback.status === 0) {
+                    return "active"
+                }
+            }
+        } catch {
+            // fall through to unknown
+        }
+
         return "unknown"
     }
 }

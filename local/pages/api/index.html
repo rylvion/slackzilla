@@ -4,26 +4,18 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Slackzilla | API</title>
-        <meta name="description"
-            content="View API Information for the Slackzilla bot at Slack">
-
-        <link rel="stylesheet" href="../../css/globals.css">
-        <link rel="stylesheet" href="../../css/layout.css">
-        <link rel="stylesheet" href="../../css/api.css">
+        <meta name="description" content="View the Slackzilla API surface">
+        <link rel="stylesheet" href="../../css/dashboard.css">
     </head>
-
-    <body>
+    <body class="app app--api">
         <header>
             <span>SLACKZILLA</span>
+            <div class="header-meta">documented endpoints and response contracts</div>
         </header>
 
         <div class="layout">
             <aside class="sidebar">
-
-                <div class="sidebar-title">
-                    NAVIGATION
-                </div>
-
+                <div class="sidebar-title">NAVIGATION</div>
                 <nav>
                     <a href="../logs/">Logs</a>
                     <a href="../uptime/">Uptime</a>
@@ -34,355 +26,80 @@
 
                 <div class="sidebar-footer">
                     <div class="footer-title">STATUS</div>
-                    <div class="status">
-                        <span class="dot"></span>Online
-                    </div>
+                    <div class="status"><span class="dot"></span>online</div>
                 </div>
             </aside>
 
             <main>
                 <nav>
-                    <a class="active" href="#">Overview</a>
+                    <a class="active" href="#overview">Overview</a>
                     <a href="#status">Status</a>
-                    <a href="#error-codes">Error Codes</a>
                     <a href="#endpoints">Endpoints</a>
+                    <a href="#expansion">Expansion</a>
                 </nav>
 
                 <section class="panel" id="overview">
                     <h2>API OVERVIEW</h2>
-                    <p>
-                        Slackzilla's API allows you to interact with the bot
-                        programmatically.
-                        You can retrieve information, send commands, and manage
-                        users through the available endpoints.
-                    </p>
-
-                    <p>
-                        To access the API, which will normally need a
-                        bearer/authentication-token,
-                        but for testing purposes, i wont require it once the pai has been implemented,
-                        the API will be rate limited to 20 reqs per ip per
-                        minute.
-                    </p>
-
-                    <p class="error">there wont be any authentication required, but if it has lots of users THEN the below plan MIGHT be implemented</p>
-                    <p>
-                        The Slackzilla API Bearer Token will use Slack OAuth 2.0 in order to verify
-                        your identity and will recieve the token, (this is to stop these hackers from spamming the api and to keep it secure)
-                        the token generated will will expire after 2 weeks (you have to referesh the token via api or manually)
-                        Each API credential will consist of a Key ID and a Secret API Key. The Key ID 
-                        identifies the credential, while the Secret API Key is used to authenticate requests.
-                        Secret keys are generated using a cryptographically
-                        secure random number generator and only a SHA-256 hash of the key is stored
-                        on the server. If a secret key is lost, it cannot be recovered and must be
-                        regenerated.
-
-                    </p>
+                    <p>The API is split into small endpoints so it can grow without turning into a single monolith. Public routes expose status, logs, and docs data. Admin routes stay behind login and CSRF checks.</p>
+                    <p class="note">Responses are documented as plain text and code blocks here, not as clickable links, so the page reads like API docs instead of navigation.</p>
                 </section>
+
                 <section class="panel" id="status">
                     <h2>API STATUS</h2>
                     <table>
-                        <tr><td>Status</td><td><span class="online">Online</span></td></tr>
+                        <tr><td>Status</td><td><span class="ansi-green">Online</span></td></tr>
                         <tr><td>Version</td><td>beta</td></tr>
-                        <tr><td>Base URL</td><td>https://rylvion.hackclub.app/api/</td></tr>
-                        <tr><td>Authentication</td><td>None (Rate Limited)</td></tr>
-                        <tr><td>Rate Limit</td><td>20 requests / minutes / ip</td></tr>
-                        <tr>
-                            <td>API Status</td>
-                            <td>#̴̗͉͉͎̻̭̈́͗̀̆̏̎̄̚#̸̡͉͍̲̞̣̰̤̹͙̠͓̪̦̻̘͎̝͔̪̼͇̖̖̮͕̤̑̍͌̒͑̌̀̈͗̅͜#̸̱̳̱̺̰̗̘̥͔̖̥̤͈͍̘͈̜̮̖͈̼̫͓̝̳̲͔̀͛̈́̒̅͒͗̊̐̓͂̏̅̆̀͝ͅ#̸̛̭̟̝̯̘̩̮̦͉̮̜͓̓́͆̇̓̈́̿̒̇̽͑̀͋̓̀͑̑̋̚͝͝#̸̧̢̡̡̢̨̛͚̘̹̦̱̺̱̳̰͚̬̞͔̟̣̙̺͍̟̙̤̙͕̘̬̈́͐̓͊͌͑͑́̏͆̓̄̿́̎̆̑̀̐͠͠</td>
-                        </tr>
-                    </table>
-
-                </section>
-
-                <section class="panel" id="error-codes">
-                    <h2>Error Codes</h2>
-                    <table>
-
-                        <tr><td>200</td><td>OK</td></tr>
-                        <tr><td>201</td><td>Created</td></tr>
-                        <tr><td>204</td><td>No Content</td></tr>
-                        <tr><td>400</td><td>Bad Request</td></tr>
-                        <tr><td>401</td><td>Unauthorised</td></tr>
-                        <tr><td>403</td><td>Forbidden</td></tr>
-                        <tr><td>404</td><td>Not Found</td></tr>
-                        <tr><td>405</td><td>Method Not Allowed</td></tr>
-                        <tr><td>409</td><td>Conflict</td></tr>
-                        <tr><td>422</td><td>Unprocessable Content</td></tr>
-                        <tr><td>429</td><td>Rate limit exceeded</td></tr>
-                        <tr><td>500</td><td>Internal server error</td></tr>
-                        <tr><td>502</td><td>Bad Gateway</td></tr>
-                        <tr><td>503</td><td>Service unavailable</td></tr>
-                        <tr><td>504</td><td>Gateway timeout</td></tr>
-
+                        <tr><td>Base URL</td><td><code>/api</code></td></tr>
+                        <tr><td>Authentication</td><td>public for status/logs, session-based for admin</td></tr>
+                        <tr><td>Rate limit</td><td>deployment and admin actions are gated by server controls</td></tr>
                     </table>
                 </section>
 
                 <section class="panel" id="endpoints">
                     <h2>ENDPOINTS</h2>
 
-                    <p>
-                        <strong>
-                            <i>once the api has been implemented, </i>
-                        </strong>
-                    </p>
-                    <p>
-                        All endpoints are experimental and WILL not work as of rn but you might 
-                        just stumble across them when i have just implemented it. The proposed endpoints are as follows:
-                        any ideas or suggestions for api are welcome.
-                    </p>
-
-                    <p>
-                        Base URL:
-                        <span data-endpoint="https://rylvion.hackclub.app/api">
-                            https://rylvion.hackclub.app/api
-                        </span>
-                    </p>
-
                     <div class="endpoint">
-
                         <div class="endpoint-header">
                             <span class="method get">GET</span>
-
-                            <span
-                                class="endpoint-url"
-                                data-endpoint="https://rylvion.hackclub.app/api/commands">
-                                /commands
-                            </span>
+                            <span class="endpoint-url">/api/status</span>
                         </div>
-
-                        <div class="description">
-
-                            <p>
-                                Returns every command currently registered with
-                                Slackzilla.
-                            </p>
-
-                            <p>
-                                Commands include their slash command,
-                                description,
-                                category and usage information.
-                            </p>
-
-                        </div>
-
-                        <div class="parameters">
-
-                            <h3>Query Parameters</h3>
-
-                            <div class="parameter">
-
-                                <span
-                                    class="parameter-name"
-                                    data-endpoint="https://rylvion.hackclub.app/api/commands?categories=core,utility">
-                                    ?categories
-                                </span>
-
-                                <p class="parameter-description">
-                                    Optional. Filters commands by one or more
-                                    categories.
-                                    Separate multiple categories with commas.
-                                </p>
-
-                                <table>
-                                    <tr>    <td>Type    </td>   <td>string      </td>   </tr>
-                                    <tr>    <td>Required</td>   <td>No          </td>   </tr>
-                                    <tr>    <td>Example </td>   <td>core,utility</td>   </tr>
-                                </table>
-
-                            </div>
-
-                            <div class="parameter">
-
-                                <span
-                                    class="parameter-name"
-                                    data-endpoint="https://rylvion.hackclub.app/api/commands?search=ping">
-                                    ?search
-                                </span>
-
-                                <p class="parameter-description">
-                                    Optional. Searches command names and
-                                    descriptions.
-                                </p>
-
-                                <table>
-                                    <tr>    <td>Type</td>       <td>string</td>   </tr>
-                                    <tr>    <td>Required</td>   <td>No    </td>   </tr>
-                                    <tr>    <td>Example</td>    <td>ping  </td>   </tr>
-                                </table>
-
-                            </div>
-
-                        </div>
-
-                        <div class="example-request">
-
-                            <h3>Example Request</h3>
-
-                            <pre>
-                            <code>curl \
-"https://rylvion.hackclub.app/api/commands"</code></pre>
-
-                        </div>
-
-                        <div class="example-request">
-
-                            <h3>Filter By Category</h3>
-
-                            <pre><code>curl \
-"https://rylvion.hackclub.app/api/commands?categories=core,utility"</code></pre>
-
-                        </div>
-
-                        <div class="example-request">
-
-                            <h3>Search Commands</h3>
-
-                            <pre><code>curl \
-"https://rylvion.hackclub.app/api/commands?search=ping"</code></pre>
-
-                        </div>
-
-                        <div class="endpoint-response">
-
-                            <h3>Successful Response</h3>
-
-                            <pre><code>{
-    "ok": true,
-    "version": "v0.7.1-beta",
-    "generatedAt": "2026-07-29T13:10:42.123Z",
-    "count": 22,
-    "commands": [
-        {
-            "name": "ping",
-            "cmd": "/sz-ping",
-            "description": "idk js pongs ig",
-            "category": "core",
-            "usage_hint": ""
-        },
-        {
-            "name": "hash",
-            "cmd": "/sz-hash",
-            "description": "generates a hash of a string, default: sha256",
-            "category": "utility",
-            "usage_hint": "&lt;algorithm&gt; &lt;text&gt;"
-        },
-    ]
-}</code></pre>
-
-                        </div>
-
-                        <div class="endpoint-response">
-
-                            <h3>Search Result</h3>
-
-                            <pre><code>{
-    "ok": true,
-    "count": 1,
-    "commands": [
-        {
-            "name": "ping",
-            "cmd": "/sz-ping",
-            "description": "idk js pongs ig",
-            "category": "core"
-        }
-    ]
-}</code></pre>
-
-                        </div>
-
-                        <div class="endpoint-response">
-
-                            <h3>Single Command</h3>
-
-                            <p>
-                                You may also request information about a
-                                specific command.
-                            </p>
-
-                            <div class="parameter">
-
-                                <span
-                                    class="parameter-name"
-                                    data-endpoint="https://rylvion.hackclub.app/api/commands/ping">
-                                    /ping
-                                </span>
-
-                            </div>
-
-                            <pre>
-                                <code>
-{
-    "ok": true,
-    "command": {
-        "name": "ping",
-        "cmd": "/sz-ping",
-        "description": "idk js pongs ig",
-        "category": "core",
-        "usage_hint": ""
-    }
-}</code></pre>
-
-                        </div>
-
-                        <div class="endpoint-response">
-
-                            <h3>Unknown Command</h3>
-
-                            <div class="parameter">
-
-                                <span
-                                    class="parameter-name"
-                                    data-endpoint="https://rylvion.hackclub.app/api/commands/foo">
-                                    /foo
-                                </span>
-
-                            </div>
-
-                            <pre><code>{
-    "ok": false,
-    "error": {
-        "code": 404,
-        "code_name": "COMMAND_NOT_FOUND",
-        "message": "Command 'foo' does not exist."
-    }
-}</code></pre>
-
-                        </div>
-
+                        <p>Returns the current runtime snapshot, including uptime, branch, commit, memory, and deployment state.</p>
                     </div>
 
-                    <!--  these are examples not actual endpoints, not guaranteed to make an api out of them either -->
-                    <div class="endpoint" id="get-status">
-                        <span class="method get">GET</span>
-                        <span
-                            data-endpoint="https://rylvion.hackclub.app/api/status">/status</span>
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/logs</span>
+                        </div>
+                        <p>Returns the current log snapshot as plain text lines. ANSI escape sequences are preserved for colour-aware rendering.</p>
                     </div>
 
-                    <div class="endpoint" id="post-hash">
-                        <span class="method post">POST</span>
-                        <span
-                            data-endpoint="https://rylvion.hackclub.app/api/hash">/hash</span>
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/admin/summary</span>
+                        </div>
+                        <p>Authenticated summary for the admin dashboard. Includes status, command usage, recent logs, and feedback previews.</p>
                     </div>
 
-                    <div class="endpoint" id="post-roll">
-                        <span class="method post">POST</span>
-                        <span
-                            data-endpoint="https://rylvion.hackclub.app/api/roll">/roll</span>
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/admin/control</span>
+                        </div>
+                        <p>Accepts control actions such as start, stop, restart, refresh, and redeploy after CSRF verification.</p>
                     </div>
-
-                    <div class="endpoint" id="post-calc">
-                        <span class="method post">POST</span>
-                        <span
-                            data-endpoint="https://rylvion.hackclub.app/api/calc">/calc</span>
-                    </div>
-
                 </section>
 
+                <section class="panel" id="expansion">
+                    <h2>EXPANSION</h2>
+                    <p>The endpoint surface is intentionally modular. New read-only routes can be added beside status and logs, while admin actions can stay behind the same session and CSRF model.</p>
+                    <pre><code>{
+  "ok": true,
+  "data": "extend with new endpoint groups as the bot grows"
+}</code></pre>
+                </section>
             </main>
         </div>
-
-        <script src="../../js/globals.js"></script>
-        <script src="../../js/api.js"></script>
     </body>
 </html>

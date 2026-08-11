@@ -84,6 +84,10 @@
         }
     }
 
+    function renderAnsiLine(raw) {
+        return ansiToHtml(raw)
+    }
+
     function createTerminalLine(entry) {
         const node = document.createElement("div")
         node.className = "terminal-line"
@@ -303,7 +307,7 @@
         source.addEventListener("log", event => {
             const payload = JSON.parse(event.data)
             const terminal = document.getElementById("admin-log-terminal")
-            if (terminal) terminal.textContent = payload.line
+            if (terminal) terminal.innerHTML = renderAnsiLine(payload.line)
         })
 
         setupAdminActions(initial.csrfToken || csrfToken)
@@ -331,7 +335,8 @@
 
         const terminal = document.getElementById("admin-log-terminal")
         if (terminal && payload.logs) {
-            terminal.textContent = payload.logs[payload.logs.length - 1] || terminal.textContent
+            const line = payload.logs[payload.logs.length - 1] || ""
+            terminal.innerHTML = line ? renderAnsiLine(line) : terminal.innerHTML
         }
 
         const feedback = document.getElementById("recent-feedback")

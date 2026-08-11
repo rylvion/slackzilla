@@ -32,6 +32,57 @@ function formatDate(value) {
     return new Date(value).toLocaleString()
 }
 
+function ansiToHtml(text) {
+    const classes = {
+        31: "ansi-red",
+        32: "ansi-green",
+        33: "ansi-yellow",
+        34: "ansi-blue",
+        35: "ansi-purple",
+        36: "ansi-cyan",
+        90: "ansi-dim",
+        1: "ansi-bold"
+    }
+
+    const tokens = String(text || "").split(/(\x1b\[[0-9;]*m)/g)
+    let html = ""
+    const open = []
+
+    for (const token of tokens) {
+        if (!token) continue
+
+        if (/^\x1b\[[0-9;]*m$/.test(token)) {
+            const codes = token.slice(2, -1).split(";").map(Number)
+
+            if (codes.includes(0)) {
+                while (open.length) {
+                    html += "</span>"
+                    open.pop()
+                }
+                continue
+            }
+
+            for (const code of codes) {
+                const cls = classes[code]
+                if (!cls) continue
+                html += `<span class="${cls}">`
+                open.push(cls)
+            }
+
+            continue
+        }
+
+        html += escapeHtml(token)
+    }
+
+    while (open.length) {
+        html += "</span>"
+        open.pop()
+    }
+
+    return html
+}
+
 function shell({ title, active, body, state = {}, admin = false, csrfToken = "" }) {
     const nav = [
         { href: "/logs", label: "Logs", key: "logs" },
@@ -146,7 +197,7 @@ function renderLandingPage({ summary, commandStats = [], logs = [] }) {
         </table>
     `
 
-    const recentLogs = logs.map(line => `<div class="terminal-line">${escapeHtml(line)}</div>`).join("") || `<div class="terminal-line">No log data yet.</div>`
+    const recentLogs = logs.map(line => `<div class="terminal-line">${ansiToHtml(line)}</div>`).join("") || `<div class="terminal-line">No log data yet.</div>`
 
     return shell({
         title: "Slackzilla | Dashboard",
@@ -267,7 +318,7 @@ function renderLoginPage({ csrfToken, error = "" }) {
         body: `
             <section class="panel panel--auth">
                 <h2>ADMIN LOGIN</h2>
-                <p>This hosted dashboard requires authentication.</p>
+                <p>Enter the actual admin password. The hash in the environment is only used for verification.</p>
                 ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
                 <form method="post" action="/admin/login" class="stack-form">
                     <input type="hidden" name="csrf" value="${escapeHtml(csrfToken)}" />

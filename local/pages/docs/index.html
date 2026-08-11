@@ -4,252 +4,80 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Slackzilla | Documentation</title>
-        <meta name="description" content="View Documentation for the Slackzilla bot at Slack">
-
-        <link rel="stylesheet" href="../../css/globals.css">
-        <link rel="stylesheet" href="../../css/layout.css">
-        <link rel="stylesheet" href="../../css/docs.css">
+        <meta name="description" content="Documentation for Slackzilla">
+        <link rel="stylesheet" href="../../css/dashboard.css">
     </head>
+    <body class="app app--docs">
+        <header>
+            <span>SLACKZILLA</span>
+            <div class="header-meta">operator notes, routing, and deployment context</div>
+        </header>
 
-        <body>
-            <header>
-                <span>SLACKZILLA</span>
-            </header>
+        <div class="layout">
+            <aside class="sidebar">
+                <div class="sidebar-title">NAVIGATION</div>
+                <nav>
+                    <a href="../logs/">Logs</a>
+                    <a href="../uptime/">Uptime</a>
+                    <a href="../api/">API</a>
+                    <a class="active" href="#">Docs</a>
+                    <a href="../admin/">Admin</a>
+                </nav>
 
-            <div class="layout">
-                <aside class="sidebar">
+                <div class="sidebar-footer">
+                    <div class="footer-title">STATUS</div>
+                    <div class="status"><span class="dot"></span>online</div>
+                </div>
+            </aside>
 
-                    <div class="sidebar-title">
-                        NAVIGATION
+            <main>
+                <nav>
+                    <a class="active" href="#overview">Overview</a>
+                    <a href="#architecture">Architecture</a>
+                    <a href="#command-handler">Command handler</a>
+                    <a href="#webhook">Webhook</a>
+                    <a href="#recent-signals">Recent signals</a>
+                </nav>
+
+                <section id="overview">
+                    <h2>DOCUMENTATION</h2>
+                    <p class="summary">This mirror documents how the bot, dashboard, and webhook pieces fit together.</p>
+                    <p>The static docs page is intentionally practical: it points to the real runtime model, the server routes, and the deployment path, rather than repeating the original prototype copy.</p>
+                </section>
+
+                <section id="architecture">
+                    <h2>ARCHITECTURE</h2>
+                    <p>The bot runs as a modular command loader, the server exposes status/logs/admin/API routes, and the webhook deployment path restarts the runtime when GitHub pushes land.</p>
+                    <div class="chips">
+                        <span class="chip">bot</span>
+                        <span class="chip">server</span>
+                        <span class="chip">webhook</span>
+                        <span class="chip">dashboard</span>
                     </div>
+                </section>
 
-                    <nav>
-                        <a href="../logs/">Logs</a>
-                        <a href="../uptime/">Uptime</a>
-                        <a href="../api/">API</a>
-                        <a class="active" href="#">Docs</a>
-                        <a href="../admin/">Admin</a>
-                    </nav>
+                <section id="command-handler">
+                    <h2>COMMAND HANDLER</h2>
+                    <p>Commands are loaded from a data file and expanded through individual modules. That keeps the slash-command surface modular and easy to extend without adding a giant switch statement to the bot entrypoint.</p>
+                    <pre><code>src/data/commands.json
+src/cmds/*.js
+src/bot.js</code></pre>
+                </section>
 
-                    <div class="sidebar-footer">
-                        <div class="footer-title">STATUS</div>
-                        <div class="status">
-                            <span class="dot"></span> Online
-                        </div>
-                    </div>
-                </aside>
+                <section id="webhook">
+                    <h2>WEBHOOK</h2>
+                    <p>The webhook path verifies the GitHub signature, rejects malformed payloads, and triggers the deploy script only for the expected branch.</p>
+                    <p class="note">Admin login uses the real password; the hash in the environment is only for verification. That same pattern keeps the dashboard session cookie separate from the stored secret.</p>
+                </section>
 
-                <main>
-                    <nav>
-                        <a class="active" href="#overview">Overview</a>
-                        <a href="#github-pages">GitHub Pages</a>
-                        <a href="#manifest">Manifest</a>
-                        <a href="#webhook">Webhook</a>
-                        <a href="#command-handler">Command Handler</a>  
-                    </nav>
-                    <section id="overview">
-                        <h1>Documentation</h1>
+                <section id="recent-signals">
+                    <h2>RECENT SIGNALS</h2>
+                    <p class="note">The terminal below preserves ANSI escapes so status text stays colour-coded in the docs preview.</p>
+                    <div class="terminal terminal--mini" id="recent-signals"></div>
+                </section>
+            </main>
+        </div>
 
-                        <p>Welcome to the Slackzilla documentation!</p>
-
-                        <p>This is where you'll be dumped with technical information about the bot....</p>
-
-                    </section>
-
-                    <section id="github-pages">
-                        <h2>GitHub Pages </h2>
-                        <p class="summary">static non-functional prototype that serves as a preview of the eventual live platform</p>
-                        <p>
-                            The Slackzilla GitHub Pages site is a static prototype designed to preview the visual and structural direction of the eventual live platform, 
-                            rather than being the actual server-hosted site at <code>rylvion.hackclub.app</code>. It uses a retro hacker-terminal aesthetic across its 
-                            documentation, API, logs, uptime and admin pages, with the interface designed to resemble a terminal-style control panel for Slackzilla. 
-                            The source files are organised into separate HTML, CSS, JavaScript and data directories, then processed by a 
-                            custom Node.js build script that recursively collects the pages, fixes relative paths for the deployed structure, minifies HTML with 
-                            <code>html-minifier-terser</code>, JavaScript with <code>Terser</code> and CSS with <code>CleanCSS</code>, copies static log data and generates the final dist directory. 
-                            A small root redirect automatically sends visitors to the logs page, while the resulting static build is automatically deployed to GitHub Pages through 
-                            GitHub Actions whenever changes reach main or a manual workflow is triggered. This prototype exists primarily to establish the look, navigation and 
-                            page structure of the platform before the real implementation is built into Slackzilla's server infrastructure.
-                        </p>
-                        
-                        <h3>Files dependencies</h3>
-                        <ul>
-                            <li>    <code>.github/workflows/pages.yml   </code> - GHA workflow to minify, build and deploy to GitHub Pages</li>
-                            <li>    <code>scripts/build-pages.js        </code> - Minifies HTML, CSS and JavaScript with html-minifier-terser, Terser and CleanCSS</li>
-                            <li>    <code>package.json                  </code> - Node.js package manifest</li>
-                            <li>    <code>local/                        </code> directory containing source files</li>
-                            <li>    <code>local/pages/                  </code> directory containing the HTML pages</li>
-                            <li>    <code>local/data/                   </code> directory containing static data files</li>
-                            <li>    <code>local/js/                     </code> directory containing JavaScript files</li>
-                            <li>    <code>local/assets/                 </code> directory containg static assets such as log files, images, etc.</li>
-                        </ul>
-
-                        <h3>Node Dependencies</h3>
-                        <ul>
-                            <li><span class="badge">[7.2.0]</span> <code>html-minifier-terser </code> - Minifies HTML files</li>
-                            <li><span class="badge">[5.4.9]</span> <code>terser               </code> - Minifies JavaScript files</li>
-                            <li><span class="badge">[5.3.3]</span> <code>clean-css            </code> - Minifies CSS files</li>
-                        </ul>
-                    </section>
-
-                    <section id="manifest">
-                        <h2>Manifest Workflow</h2>
-                        <p class="summary">this registers the commands to the bot (via <code>src/data/commands.json</code>) so it can respond to user interactions.</p>
-                        <p>
-                            The workflow triggers on pushes to main or manual dispatch, checks out the repository, installs Node.js and dependencies, then generates 
-                            and validates the Slack app manifest. It rotates Slack's short-lived manifest token by exchanging the stored refresh token through Slack's 
-                            <code>tooling.tokens.rotate</code> endpoint, verifies the response, and securely re-encrypts both the new access token and refresh token using GitHub's 
-                            public key (via libsodium sealed boxes) before updating the repository's encrypted secrets through the GitHub Actions API. 
-                        </p>
-                        <p>
-                            With the fresh access token, it reads manifest.json and performs a signed <code>apps.manifest.update</code> call to Slack, ensuring the 
-                            manifest is successfully applied by checking the ok field in Slack's response.
-                        </p>
-
-                        <h3>Files dependencies</h3>
-
-                        <ul>
-                            <li>    <code>.github/workflows/deploy.yml  </code> - GitHub Actions workflow to generate, validate, rotate and sync manifest to slack</li>
-                            <li>    <code>manifest.json                 </code> - the Slack app manifest file that contains the bot configuration, metadata and commands</li>
-                            <li>    <code>package.json                  </code> - Node.js package manifest</li>
-                            <li>    <code>scripts/generateManifest.js   </code> - script to generate AND validate the Slack app manifest</li>
-                            <li>    <code>scripts/rotateManifestToken.js</code> - script to rotate AND encrypt the Slack app manifest token </li>
-                            <li>    <code>schemas/                      </code> - directory for JSON schemas to validate (currently containing the manifest and the command schema)</li>
-                            <li>    <code>src/data/commands.json        </code> - file containing the command definitions to generate the manifest</li>
-                        </ul>
-
-                        <h3>Node Dependencies</h3>
-                        <ul>
-                            <li><span class="badge">[8.7.1]</span> <code>ajv</code> - JSON schema validator</li>
-                        </ul>
-
-                        <h3>API Dependencies</h3>
-                        <ul>
-                            <li><a href="https://slack.com/api/apps.manifest.update">apps.manifest.update</a> - Updates the Slack app manifest</li>
-                        </ul>
-
-                        <h3>Secrets Dependencies</h3>
-
-                        <h4><code>Github Secrets</code></h4>
-
-                        <ul>
-                            <li><code>GH_SECRET_PAT         </code></li>
-                            <li><code>SLACK_APP_ID          </code></li>
-                            <li><code>SLACK_MANIFEST_TOKEN  </code></li>
-                            <li><code>SLACK_REFRESH_TOKEN   </code></li>
-                        </ul>
-                    </section>
-
-                    <section id="webhook">
-                        <h2>Webhook Workflow</h2>
-                        <p class="summary">this automatically updates the bot with the latest changes of the repository automatically when commits are pushed</p>
-                        <p>
-                            Slackzilla's webhook deployment system provides a secure GitHub-to-server CI/CD pipeline where the GitHub Actions workflow 
-                            constructs a JSON deployment payload containing the repository, branch reference, commit SHA and workflow metadata, 
-                            then generates an HMAC-SHA256 signature using the shared <code>WEBHOOK_SECRET</code> and sends the payload to the server's /webhook endpoint 
-                            via an authenticated HTTP POST request. The Node.js webhook server, listening on port 9000, reads the raw request body, 
-                            extracts <code>X-Hub-Signature-256</code> and uses the same secret to independently calculate the expected HMAC-SHA256 digest, 
-                            comparing the signatures with <code>crypto.timingSafeEqual()</code> to prevent timing-based comparison attacks; requests with 
-                            invalid signatures are rejected with HTTP 401, non-POST requests or unknown paths are rejected, payloads are size-limited to 1 MiB
-                            and malformed JSON receives HTTP 400. 
-                        </p>
-                        <p>
-                            After authentication, the server only accepts <code>push</code> events targeting the configured deployment 
-                            branch, ignoring other event types or branches, and prevents concurrent deployments through an in-memory <code>deployInFlight</code> lock. 
-                            Once accepted, it immediately returns HTTP 202 and asynchronously executes <code>deploy.sh</code>, which fetches the configured branch, 
-                            compares the local and remote commit hashes, skips deployment when they match, otherwise hard-resets the working tree to the 
-                            latest remote commit, installs dependencies with <code>npm ci</code>, and restarts the Slackzilla systemd service, creating an automated chain 
-                            from GitHub push to authenticated webhook verification, repository synchronisation and production service restart.
-
-                        </p>
-
-                        <h3>Files dependencies</h3>
-                        <ul>
-                            <li>    <code>.github/workflows/deploy.yml      </code> - GHA workflow for sending webhook payloads</li>
-                            <li>    <code>server/server.js                  </code> - Node.js webhook server (listens for webhook on port 9000)</li>
-                            <li>    <code>server/deploy.sh                  </code> - bash script to fetch, reset, install and restart the Slackzilla service</li>
-                            <li>    <code>server/slackzilla-webhook.service </code> - systemd service to run the webhook server continuously</li>
-                            <li>    <code>server/slackzilla.service         </code> - systemd service to run the slackzilal bot</li>
-                        </ul>
-
-                        <h3>Node Dependencies</h3>
-                        
-                        <ul>
-                            <li><span class="badge">[5.0.5]</span> <code>@octokit</code> - REST API client for GitHub</li>
-                            <li><span class="badge">[22.0.1]</span> <code>@octokit/rest</code> - REST API client for GitHub</li>
-                            <li><span class="badge">[17.4.2]</span> <code>dotenv</code> - Load environment variables from a .env file</li>
-                        </ul>
-
-                        <h3>Secrets Dependencies</h3>
-
-                        <h4><code>Github Secrets</code></h4>
-                        <ul>
-                            <li><span class="badge--required">REQUIRED</span>  <code>WEBHOOK_SECRET         </code> - Unique secret for signing & authenticating webhook payloads</li>
-                            <li><span class="badge--required">REQUIRED</span>  <code>WEBHOOK_URL            </code> - URL to which webhook payloads are sent </li>
-                        </ul>
-
-                        <h4><code>server/.env</code></h4>
-
-                        <ul>
-                            <li><span class="badge--required">REQUIRED</span>  <code>WEBHOOK_SECRET         </code> - Unique secret for signing & authenticating webhook payloads</li>
-                            <li><span class="badge--required">REQUIRED</span>  <code>WEBHOOK_URL            </code> - URL to which webhook payloads are sent </li>
-                            <li><span class="badge--required">REQUIRED</span>  <code>PORT                   </code> - Port on which the webhook server listens</li>
-                            <li><span class="badge--required">REQUIRED</span>  <code>SERVICE_NAME           </code> - Name of the service the bot will be running on</li>
-                            <li><span class="badge--required">REQUIRED</span>  <code>BRANCH                 </code> - branch name </li>
-                            <li><span class="badge--required">REQUIRED</span>  <code>REPO_URL               </code> - repository URL </li>
-                            <li><span class="badge--required">REQUIRED</span>  <code>PROJECT_DIR            </code> - project directory </li>
-                        </ul>
-                    </section>
-
-                    <section id="command-handler">
-                        <h2>Command Handler</h2>
-                        <p class="summary">this system handles commands and their metadata, registering them to the bot. Without it, the slack bot is non-functional</p>
-                        <p>
-                            The Slackzilla command handler uses a data-driven dynamic loading system rather than manually registering every 
-                            Slack command inside <code>bot.js</code>. At startup, the bot reads <code>src/data/commands.json</code>, iterates through each command definition, 
-                            validates that its metadata is an object, resolves the referenced JavaScript file inside <code>src/cmds/</code>, checks that the file exists, 
-                            imports it with <code>require()</code>, and verifies that it exports a function before passing the Slack Bolt <code>App</code> instance 
-                            and that command's metadata into the module. Each command module is therefore responsible for 
-                            registering its own Slack command and implementing its behaviour, while <code>commands.json</code> acts as the central source of 
-                            metadata and configuration. The bot also overrides <code>app.command()</code> with a wrapper that automatically records 
-                            command usage through the metrics system before handing execution to the command's original handler, 
-                            with failures in metrics recording isolated from the command itself. 
-                            
-                            This architecture makes commands independently modular and allows new commands to be added by creating a 
-                            command module and registering its metadata, without turning `bot.js` into a giant collection of command-specific logic.
-                        </p>
-
-                        <h3>Files Dependencies</h3>
-                        <ul>
-                            <li>    <code>src/data/commands.json        </code> - JSON file containing the command metadata</li>
-                            <li>    <code>src/cmds/*.js                 </code> - directory containing the command modules</li>
-                            <li>    <code>src/bot.js                    </code> - main bot file that dynamically loads commands and registers them</li>
-                            <li>    <code>src/.env                      </code> - makes the actual bot runs</li>
-                            <li>    <code>src/utils/*.js                </code> - utility functions used by the bot</li>
-                            <li>    <code>src/meta.js                   </code> - metadata for the bot</li>
-                            <li>    <code>server/database/store.js      </code> - database store for the bot</li>
-                        </ul>
-
-                        <h3>Node Dependencies</h3>
-                        <ul>
-                            <li><span class="badge">[4.18.2]</span> <code>@slack/bolt</code> - Slack SDK for building bots</li>
-                            <li><span class="badge">[17.4.2]</span> <code>dotenv</code> - Load environment variables from a .env file</li>
-                        </ul>
-
-                        <h3>Secrets Dependencies</h3>
-                        <p>NOTE: Optional secrets are for the AI service (used by the <code>/sz-ask</code> command)</p>
-
-                        <h4><code>src/.env</code></h4>
-                        <ul>
-                            <li>    <span class="badge--required">REQUIRED</span>  <code>SLACK_BOT_TOKEN      </code> - Token for authenticating with the Slack API</li>
-                            <li>    <span class="badge--required">REQUIRED</span>  <code>SLACK_APP_TOKEN      </code> - Token for authenticating the Slack app</li>
-                            <li>    <span class="badge--required">REQUIRED</span>  <code>SLACK_SIGNING_SECRET </code> - Secret for signing Slack requests</li>
-                            <li>    <span class="badge--optional">OPTIONAL</span>  <code>AI_API_KEY           </code> - API key for the AI service ( using the <code>/sz-ask</code> command)</li>
-                            <li>    <span class="badge--optional">OPTIONAL</span>  <code>AI_MODEL             </code> - Model name for the AI service</li>
-                            <li>    <span class="badge--optional">OPTIONAL</span>  <code>AI_URL               </code> - URL for the AI service</li>
-                        </ul>
-                    </section>
-                </main>
-            </div>
-        <script src="../../js/globals.js"></script>
+        <script src="../../js/dashboard.js"></script>
     </body>
 </html>
