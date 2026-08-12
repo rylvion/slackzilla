@@ -20,12 +20,18 @@ module.exports = {
     'app_mentions:read',
     'channels:history',
     'chat:write',
-    'commands'
+    'commands',
+    'im:write'
   ],
 
   settings: {
     orgDeployEnabled: false,
     isHosted: false,
-    tokenRotationEnabled: false
+    tokenRotationEnabled: false,
+    eventSubscriptions: {
+      bot_events: [
+        'app_mention'
+      ]
+    }
   }
 }

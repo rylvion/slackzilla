@@ -119,6 +119,19 @@
         },
         "token_rotation_enabled": {
           "type": "boolean"
+        },
+        "event_subscriptions": {
+          "type": "object",
+          "properties": {
+            "bot_events": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

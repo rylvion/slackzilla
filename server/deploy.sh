@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/.env"
 
 BRANCH="${BRANCH:-main}"
 SERVICE_NAME="${SERVICE_NAME:-slackzilla}"
+WEBHOOK_SERVICE_NAME="${WEBHOOK_SERVICE_NAME:-slackzilla-webhook}"
 
 echo "====Slackzilla :: Remote Deployment Initialised===="
 echo "[*] Timestamp      : $(date)"
@@ -48,6 +49,15 @@ echo
 echo "[>] Restarting service..."
 sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl restart nginx
+
+echo
+echo "[>] Scheduling webhook restart..."
+if command -v systemd-run >/dev/null 2>&1; then
+    systemd-run --unit="slackzilla-webhook-restart-$(date +%s)" --on-active=2s /bin/systemctl restart "$WEBHOOK_SERVICE_NAME" >/dev/null
+else
+    echo "[!] systemd-run is required to restart $WEBHOOK_SERVICE_NAME safely"
+    exit 1
+fi
 
 echo
 echo "[✓] Deployment successful."

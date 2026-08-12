@@ -2,7 +2,7 @@ const os = require("os")
 const path = require("path")
 const childProcess = require("child_process")
 
-const { readDeploymentState, saveDeploymentState } = require("../database/store")
+const { readDeploymentState, readBotState, saveDeploymentState } = require("../database/store")
 
 function execCommand(command, args = [], options = {}) {
     return new Promise((resolve, reject) => {
@@ -121,14 +121,31 @@ function checkServiceStatus(serviceName) {
     }
 }
 
+function getBotConnectionState() {
+    const state = readBotState()
+    const heartbeatAt = state.lastHeartbeatAt || state.updatedAt || null
+    const heartbeatAgeMs = heartbeatAt ? Date.now() - new Date(heartbeatAt).getTime() : Number.POSITIVE_INFINITY
+    const online = state.status === "online" && heartbeatAgeMs < 45000
+
+    return {
+        online,
+        status: online ? "online" : "offline",
+        heartbeatAgeMs,
+        heartbeatAt,
+        state
+    }
+}
+
 function getRuntimeSnapshot(previousSample, projectDir, botServiceName) {
     const git = readGitInfo(projectDir)
     const deployment = readDeploymentState()
     const cpu = getProcessCpuPercent(previousSample)
     const memory = process.memoryUsage()
+    const bot = getBotConnectionState(botServiceName)
 
     return {
-        botOnline: checkServiceStatus(botServiceName),
+        botOnline: bot.status,
+        botConnectionState: bot,
         uptime: process.uptime(),
         nodeVersion: process.version,
         platform: process.platform,

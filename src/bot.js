@@ -5,6 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') })
 const { App } = require('@slack/bolt')
 const { log, cyan} = require('./utils/logger')
 const { recordCommandUsage } = require('./utils/metrics')
+const { recordBotHeartbeat } = require("../server/database/store")
 const staticMeta = require('./meta')
 
 const app = new App({
@@ -37,6 +38,20 @@ global.botMeta = {
     scopes: [...staticMeta.oauthScopes]
 }
 
+function updateBotHeartbeat() {
+    try {
+        recordBotHeartbeat({
+            pid: process.pid,
+            startedAt: new Date(global.botMeta.startedAt).toISOString(),
+            version: global.botMeta.version,
+            nodeVersion: global.botMeta.nodeVersion,
+            platform: global.botMeta.platform
+        })
+    } catch (err) {
+        log.error("failed to update bot heartbeat: {0}", null, err.message)
+    }
+}
+
 const cmds = JSON.parse(
     fs.readFileSync(path.join(__dirname, 'data', 'commands.json'), 'utf8')
 )
@@ -61,8 +76,26 @@ for (const [name, meta] of Object.entries(cmds)) {
     }
 }
 
+app.event("app_mention", async ({ event, say }) => {
+    const text = String(event.text || "").replace(/<@[^>]+>\s*/g, "").trim()
+
+    if (!text) {
+        await say({
+            text: `hi <@${event.user}>. try /sz-help for the full command list or /sz-feedback to send feedback.`
+        })
+        return
+    }
+
+    await say({
+        text: `hi <@${event.user}>. i saw your mention. try /sz-help or /sz-feedback if you want to send me something.`
+    })
+})
+
 (async () => {
     await app.start(process.env.PORT || 3000)
+
+    updateBotHeartbeat()
+    setInterval(updateBotHeartbeat, 15000)
 
     log.start()
     log.info("All systems initialised")

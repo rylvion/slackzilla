@@ -161,6 +161,12 @@ function buildManifest() {
             meta.settings.tokenRotationEnabled
     }
 
+    if (Array.isArray(meta.settings?.eventSubscriptions?.bot_events) && meta.settings.eventSubscriptions.bot_events.length > 0) {
+        manifest.settings.event_subscriptions = {
+            bot_events: [...new Set(meta.settings.eventSubscriptions.bot_events)]
+        }
+    }
+
     if (!validateManifest(manifest)) {
         console.error('manifest schema validation failed:')
 

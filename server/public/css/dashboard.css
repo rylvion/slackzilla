@@ -204,6 +204,16 @@ a {
     background: #101010;
 }
 
+.button--ghost {
+    color: #d8d8d8;
+    border-color: #303030;
+}
+
+.button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
 .input {
     border: 1px solid #2b2b2b;
     background: #0d0d0d;
@@ -272,6 +282,10 @@ a {
     white-space: pre-wrap;
 }
 
+.terminal-line {
+    white-space: pre-wrap;
+}
+
 .terminal--mini {
     min-height: 120px;
     max-height: 220px;
@@ -317,6 +331,64 @@ pre {
     flex-wrap: wrap;
 }
 
+.feedback-row--compact {
+    padding: 14px;
+}
+
+.feedback-detail {
+    display: grid;
+    gap: 18px;
+}
+
+.feedback-detail__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.feedback-detail__section {
+    display: grid;
+    gap: 10px;
+}
+
+.feedback-detail__section h4,
+.summary {
+    margin: 0;
+    color: #a6ffa6;
+    font-size: 13px;
+    letter-spacing: 0.8px;
+    font-weight: normal;
+    text-transform: uppercase;
+}
+
+.feedback-detail__message {
+    white-space: pre-wrap;
+    font-size: 14px;
+}
+
+.detail-list {
+    display: grid;
+    gap: 10px;
+}
+
+.detail-list div {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.detail-list dt {
+    color: #7d7d7d;
+}
+
+.detail-list dd {
+    margin: 0;
+}
+
 .chips {
     display: flex;
     gap: 8px;
@@ -329,6 +401,45 @@ pre {
     color: var(--green);
     background: #101010;
     font-size: 12px;
+}
+
+.chip--unread {
+    color: #ffd75f;
+}
+
+.chip--read {
+    color: #6ea8ff;
+}
+
+.chip--responded {
+    color: #59ff59;
+}
+
+.action-status {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: 1px solid #2b2b2b;
+    background: #0a0a0a;
+    color: #d8d8d8;
+    min-height: 40px;
+}
+
+.action-status[data-state="loading"] {
+    color: #ffd75f;
+}
+
+.action-status[data-state="success"] {
+    color: #59ff59;
+}
+
+.action-status[data-state="error"] {
+    color: #ff6d6d;
+}
+
+.feedback-response {
+    width: 100%;
+    min-height: 180px;
+    resize: vertical;
 }
 
 .mono {

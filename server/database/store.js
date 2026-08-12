@@ -7,6 +7,7 @@ const logFile = path.join(logDir, "slackzilla.log")
 const feedbackFile = path.join(dataDir, "feedback.json")
 const metricsFile = path.join(dataDir, "metrics.json")
 const deploymentFile = path.join(dataDir, "deployment.json")
+const botStateFile = path.join(dataDir, "bot-state.json")
 
 const defaultMetrics = {
     commands: {}
@@ -19,6 +20,17 @@ const defaultDeployment = {
     lastDeploymentCommit: null,
     lastDeploymentOutput: [],
     lastDeploymentResult: null
+}
+
+const defaultBotState = {
+    status: "offline",
+    pid: null,
+    startedAt: null,
+    lastHeartbeatAt: null,
+    version: null,
+    nodeVersion: null,
+    platform: null,
+    commandCount: null
 }
 
 function ensureDir(filePath) {
@@ -83,15 +95,34 @@ function readFeedback() {
     return readJsonArray(feedbackFile)
 }
 
+function normalizeFeedbackEntry(entry = {}) {
+    const status = String(entry.status || "unread").toLowerCase()
+    const normalizedStatus = ["unread", "read", "responded"].includes(status) ? status : "unread"
+
+    return {
+        id: entry.id,
+        userId: entry.userId || null,
+        username: entry.username || null,
+        message: String(entry.message || "").trim(),
+        timestamp: entry.timestamp || new Date().toISOString(),
+        status: normalizedStatus,
+        response: typeof entry.response === "string" ? entry.response : "",
+        responseSentAt: entry.responseSentAt || null,
+        responseError: entry.responseError || null,
+        updatedAt: entry.updatedAt || entry.timestamp || new Date().toISOString()
+    }
+}
+
 function saveFeedback(items) {
-    writeJson(feedbackFile, items)
+    writeJson(feedbackFile, items.map(normalizeFeedbackEntry))
 }
 
 function addFeedback(entry) {
     const items = readFeedback()
-    items.unshift(entry)
+    const normalized = normalizeFeedbackEntry(entry)
+    items.unshift(normalized)
     saveFeedback(items)
-    return entry
+    return normalized
 }
 
 function updateFeedback(id, patch) {
@@ -102,11 +133,14 @@ function updateFeedback(id, patch) {
         return null
     }
 
-    items[index] = {
-        ...items[index],
+    const current = normalizeFeedbackEntry(items[index])
+    const nextStatus = String(patch.status || current.status).toLowerCase()
+    items[index] = normalizeFeedbackEntry({
+        ...current,
         ...patch,
+        status: ["unread", "read", "responded"].includes(nextStatus) ? nextStatus : current.status,
         updatedAt: new Date().toISOString()
-    }
+    })
 
     saveFeedback(items)
     return items[index]
@@ -127,7 +161,9 @@ function deleteFeedback(id) {
 function listFeedback({ query = "", status = "all" } = {}) {
     const q = query.trim().toLowerCase()
     const items = readFeedback().filter(item => {
-        if (status !== "all" && item.status !== status) {
+        const currentStatus = String(item.status || "unread").toLowerCase()
+
+        if (status !== "all" && currentStatus !== status) {
             return false
         }
 
@@ -144,6 +180,32 @@ function listFeedback({ query = "", status = "all" } = {}) {
     })
 
     return items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+}
+
+function readBotState() {
+    return readJson(botStateFile, defaultBotState)
+}
+
+function saveBotState(patch) {
+    const state = {
+        ...defaultBotState,
+        ...readBotState(),
+        ...patch,
+        lastUpdatedAt: new Date().toISOString()
+    }
+
+    writeJson(botStateFile, state)
+    return state
+}
+
+function recordBotHeartbeat(patch = {}) {
+    const now = new Date().toISOString()
+
+    return saveBotState({
+        ...patch,
+        status: "online",
+        lastHeartbeatAt: now
+    })
 }
 
 function readMetrics() {
@@ -211,6 +273,9 @@ module.exports = {
     updateFeedback,
     deleteFeedback,
     listFeedback,
+    readBotState,
+    saveBotState,
+    recordBotHeartbeat,
     recordCommandUsage,
     getCommandStats,
     readDeploymentState,

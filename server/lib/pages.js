@@ -87,13 +87,14 @@ function shell({ title, active, body, state = {}, admin = false, csrfToken = "" 
     const nav = [
         { href: "/logs", label: "Logs", key: "logs" },
         { href: "/status", label: "Uptime", key: "status" },
-        { href: "/api/status", label: "API", key: "api" },
-        { href: "/", label: "Docs", key: "home" },
+        { href: "/api", label: "API", key: "api" },
+        { href: "/docs", label: "Docs", key: "docs" },
+        { href: "/", label: "Home", key: "home" },
         { href: "/admin", label: "Admin", key: "admin" }
     ]
 
-    const topStatus = String(state.botOnline || state.summary?.botOnline || "unknown")
-    const online = topStatus.toLowerCase() === "active"
+    const topStatus = String(state.botOnline || state.summary?.botOnline || "offline")
+    const online = ["active", "online"].includes(topStatus.toLowerCase())
     const statusClass = online ? "dot" : "dot dot--red"
 
     return `<!doctype html>
@@ -161,6 +162,7 @@ function renderCommandTable(commandStats = []) {
 function renderFeedbackPreview(feedback = []) {
     return feedback.map(item => {
         const user = item.username || item.userId || "anonymous"
+        const statusTone = item.status === "responded" ? "responded" : item.status === "read" ? "read" : "unread"
         return `
             <article class="feedback-row">
                 <header>
@@ -169,12 +171,32 @@ function renderFeedbackPreview(feedback = []) {
                 </header>
                 <p>${escapeHtml(item.message)}</p>
                 <footer>
-                    <span class="chip">${escapeHtml(item.status)}</span>
+                    <span class="chip chip--${escapeHtml(statusTone)}">${escapeHtml(item.status)}</span>
                     <span class="mono">${escapeHtml(item.id)}</span>
                 </footer>
             </article>
         `
     }).join("") || `<p>No feedback yet.</p>`
+}
+
+function renderFeedbackState(item = {}) {
+    const status = String(item.status || "unread").toLowerCase()
+    const label = status === "responded" ? "Responded" : status === "read" ? "Read" : "Unread"
+
+    return `<span class="chip chip--${escapeHtml(status)}">${escapeHtml(label)}</span>`
+}
+
+function renderFeedbackActions(item = {}) {
+    const status = String(item.status || "unread").toLowerCase()
+    const markAction = status === "unread" ? "read" : "unread"
+
+    return `
+        <div class="feedback-actions">
+            <button class="button" data-feedback-action="${escapeHtml(markAction)}" data-feedback-id="${escapeHtml(item.id)}" type="button">${status === "unread" ? "Mark as Read" : "Mark as Unread"}</button>
+            <button class="button" data-feedback-action="open" data-feedback-id="${escapeHtml(item.id)}" type="button">Open</button>
+            <button class="button" data-feedback-action="delete" data-feedback-id="${escapeHtml(item.id)}" type="button">Delete</button>
+        </div>
+    `
 }
 
 function renderLandingPage({ summary, commandStats = [], logs = [] }) {
@@ -237,7 +259,7 @@ function renderStatusPage({ status, commandStats = [] }) {
         state: status,
         body: `
             ${panel("UPTIME", `
-                <div class="status-line"><span class="${status.botOnline === "active" ? "dot" : "dot dot--red"}"></span>${escapeHtml(status.botOnline)}</div>
+                <div class="status-line"><span class="${["active", "online"].includes(String(status.botOnline).toLowerCase()) ? "dot" : "dot dot--red"}"></span>${escapeHtml(status.botOnline)}</div>
             `)}
 
             ${panel("SYSTEM", `
@@ -334,7 +356,7 @@ function renderLoginPage({ csrfToken, error = "" }) {
 }
 
 function renderAdminDashboardPage({ summary, feedback, commandStats, logs, runtimeConfig, csrfToken }) {
-    const latestLog = logs[logs.length - 1] || "No logs yet"
+    const latestLogs = logs.map(line => `<div class="terminal-line">${ansiToHtml(line)}</div>`).join("") || `<div class="terminal-line">No logs yet</div>`
 
     return shell({
         title: "Slackzilla | Admin Panel",
@@ -343,6 +365,7 @@ function renderAdminDashboardPage({ summary, feedback, commandStats, logs, runti
         csrfToken,
         state: { summary, feedback, commandStats, logs, csrfToken },
         body: `
+            <div id="admin-action-status" class="action-status">Ready.</div>
             ${panel("ADMIN PANEL", `
                 <p>Secure controls for service operations, deploy flow, inbox moderation, and the bot's runtime details.</p>
                 <div class="toolbar toolbar--stacked">
@@ -351,6 +374,8 @@ function renderAdminDashboardPage({ summary, feedback, commandStats, logs, runti
                     <button class="button" data-admin-action="restart" type="button">Restart bot</button>
                     <button class="button" data-admin-action="redeploy" type="button">Redeploy</button>
                     <button class="button" data-admin-action="refresh" type="button">Refresh</button>
+                    <button class="button button--ghost" data-admin-action="refresh-status" type="button">Refresh status</button>
+                    <button class="button button--ghost" data-admin-action="refresh-logs" type="button">Refresh logs</button>
                 </div>
             `)}
 
@@ -360,7 +385,7 @@ function renderAdminDashboardPage({ summary, feedback, commandStats, logs, runti
                     <tr><td>Uptime</td><td data-field="uptime">${escapeHtml(summary.uptimeText)}</td></tr>
                     <tr><td>Branch</td><td data-field="branch">${escapeHtml(summary.branch)}</td></tr>
                     <tr><td>Commit</td><td data-field="commit">${escapeHtml(summary.commit)}</td></tr>
-                    <tr><td>Deployment</td><td>${escapeHtml(summary.deploymentStatus)}</td></tr>
+                    <tr><td>Deployment</td><td data-field="deployment">${escapeHtml(summary.deploymentStatus)}</td></tr>
                 </table>
                 <pre id="deploy-output">${escapeHtml(summary.lastDeploymentOutput || "No deployment output yet")}</pre>
             `)}
@@ -390,9 +415,26 @@ function renderAdminDashboardPage({ summary, feedback, commandStats, logs, runti
                 </table>
             `)}
 
-            ${panel("RECENT FEEDBACK", `<div id="recent-feedback">${renderFeedbackPreview(feedback)}</div>`)}
+            ${panel("RECENT FEEDBACK", `
+                <div id="recent-feedback">
+                    ${(feedback || []).map(item => `
+                        <article class="feedback-row feedback-row--compact" data-feedback-id="${escapeHtml(item.id)}">
+                            <header>
+                                <strong>${escapeHtml(item.username || item.userId || "anonymous")}</strong>
+                                <span>${escapeHtml(formatDate(item.timestamp))}</span>
+                            </header>
+                            <p>${escapeHtml(item.message)}</p>
+                            <footer>
+                                ${renderFeedbackState(item)}
+                                <span class="mono">${escapeHtml(item.id)}</span>
+                                <a class="button button--ghost" href="/admin/feedback?id=${encodeURIComponent(item.id)}">Open</a>
+                            </footer>
+                        </article>
+                    `).join("") || `<p>No feedback yet.</p>`}
+                </div>
+            `)}
 
-            ${panel("LIVE LOG SNAPSHOT", `<div id="admin-log-terminal" class="terminal terminal--mini">${escapeHtml(latestLog)}</div><p><a href="/logs">Open full logs</a></p>`)}
+            ${panel("LIVE LOG SNAPSHOT", `<div id="admin-log-terminal" class="terminal terminal--mini">${latestLogs}</div><p><a href="/logs">Open full logs</a></p>`)}
 
             <form method="post" action="/admin/logout" class="logout-form">
                 <input type="hidden" name="csrf" value="${escapeHtml(csrfToken)}" />
@@ -404,7 +446,58 @@ function renderAdminDashboardPage({ summary, feedback, commandStats, logs, runti
     })
 }
 
-function renderFeedbackPage({ feedback, query, status, csrfToken }) {
+function renderFeedbackDetail(item) {
+    if (!item) {
+        return `<p class="note">Select a feedback item to view details and send a response.</p>`
+    }
+
+    const status = String(item.status || "unread").toLowerCase()
+    const response = item.response || ""
+
+    return `
+        <article class="feedback-detail" data-feedback-id="${escapeHtml(item.id)}">
+            <header class="feedback-detail__header">
+                <div>
+                    <div class="summary">Feedback ID</div>
+                    <h3 class="mono">${escapeHtml(item.id)}</h3>
+                </div>
+                ${renderFeedbackState(item)}
+            </header>
+
+            <dl class="detail-list">
+                <div><dt>Submitted</dt><dd>${escapeHtml(formatDate(item.timestamp))}</dd></div>
+                <div><dt>From</dt><dd>${escapeHtml(item.username || item.userId || "anonymous")}</dd></div>
+                <div><dt>User ID</dt><dd class="mono">${escapeHtml(item.userId || "unknown")}</dd></div>
+                <div><dt>Status</dt><dd>${escapeHtml(status)}</dd></div>
+            </dl>
+
+            <section class="feedback-detail__section">
+                <h4>Feedback</h4>
+                <p class="feedback-detail__message">${escapeHtml(item.message)}</p>
+            </section>
+
+            <div class="toolbar toolbar--stacked">
+                <button class="button" data-feedback-action="${status === "unread" ? "read" : "unread"}" data-feedback-id="${escapeHtml(item.id)}" type="button">${status === "unread" ? "Mark as Read" : "Mark as Unread"}</button>
+                <button class="button button--ghost" data-feedback-action="refresh" data-feedback-id="${escapeHtml(item.id)}" type="button">Refresh</button>
+            </div>
+
+            <section class="feedback-detail__section">
+                <h4>Response</h4>
+                <label class="stack-form">
+                    <span>Write a response to the Slack user</span>
+                    <textarea class="input feedback-response" id="feedback-response-${escapeHtml(item.id)}" rows="8" maxlength="4000" placeholder="Type your response here">${escapeHtml(response)}</textarea>
+                </label>
+                <div class="toolbar">
+                    <button class="button" data-feedback-action="respond" data-feedback-id="${escapeHtml(item.id)}" type="button">Send Response</button>
+                </div>
+                ${item.responseSentAt ? `<p class="note">Response sent at ${escapeHtml(formatDate(item.responseSentAt))}</p>` : ""}
+                ${item.responseError ? `<p class="error">${escapeHtml(item.responseError)}</p>` : ""}
+            </section>
+        </article>
+    `
+}
+
+function renderFeedbackPage({ feedback, query, status, csrfToken, selectedFeedback = null }) {
     const rows = feedback.map(item => {
         const user = item.username || item.userId || "anonymous"
 
@@ -412,11 +505,12 @@ function renderFeedbackPage({ feedback, query, status, csrfToken }) {
             <header><strong>${escapeHtml(user)}</strong><span>${escapeHtml(formatDate(item.timestamp))}</span></header>
             <p>${escapeHtml(item.message)}</p>
             <footer>
-                <span class="chip">${escapeHtml(item.status)}</span>
+                ${renderFeedbackState(item)}
                 <span class="mono">${escapeHtml(item.id)}</span>
                 <div class="feedback-actions">
-                    <button class="button" data-feedback-action="read" data-feedback-id="${escapeHtml(item.id)}" type="button">Read</button>
-                    <button class="button" data-feedback-action="archive" data-feedback-id="${escapeHtml(item.id)}" type="button">Archive</button>
+                    <a class="button button--ghost" href="/admin/feedback?id=${encodeURIComponent(item.id)}">Open</a>
+                    <button class="button" data-feedback-action="${item.status === "unread" ? "read" : "unread"}" data-feedback-id="${escapeHtml(item.id)}" type="button">${item.status === "unread" ? "Read" : "Unread"}</button>
+                    <button class="button" data-feedback-action="respond" data-feedback-id="${escapeHtml(item.id)}" type="button">Respond</button>
                     <button class="button" data-feedback-action="delete" data-feedback-id="${escapeHtml(item.id)}" type="button">Delete</button>
                 </div>
             </footer>
@@ -428,8 +522,9 @@ function renderFeedbackPage({ feedback, query, status, csrfToken }) {
         active: "admin",
         admin: true,
         csrfToken,
-        state: { feedback, query, status, csrfToken },
+        state: { feedback, query, status, csrfToken, selectedFeedback },
         body: `
+            <div id="admin-action-status" class="action-status">Ready.</div>
             ${panel("FEEDBACK INBOX", `
                 <form id="feedback-filters" class="toolbar">
                     <input id="feedback-search" class="input" name="q" value="${escapeHtml(query)}" placeholder="Search feedback" />
@@ -437,16 +532,179 @@ function renderFeedbackPage({ feedback, query, status, csrfToken }) {
                         <option value="all"${status === "all" ? " selected" : ""}>All</option>
                         <option value="unread"${status === "unread" ? " selected" : ""}>Unread</option>
                         <option value="read"${status === "read" ? " selected" : ""}>Read</option>
-                        <option value="archived"${status === "archived" ? " selected" : ""}>Archived</option>
+                        <option value="responded"${status === "responded" ? " selected" : ""}>Responded</option>
                     </select>
                     <button class="button" type="submit">Filter</button>
                 </form>
             `)}
+
+            ${selectedFeedback ? panel("SELECTED FEEDBACK", renderFeedbackDetail(selectedFeedback)) : ""}
+
             <section class="feedback-list" id="feedback-list">${rows}</section>
             <form method="post" action="/admin/logout" class="logout-form">
                 <input type="hidden" name="csrf" value="${escapeHtml(csrfToken)}" />
                 <button class="button" type="submit">Logout</button>
             </form>
+        `
+    })
+}
+
+function renderDocsPage() {
+    return shell({
+        title: "Slackzilla | Docs",
+        active: "docs",
+        state: {},
+        body: `
+            ${panel("SERVER OVERVIEW", `
+                <p>Slackzilla runs as two cooperating processes: the Slack bot handles commands and heartbeats, while the dashboard server serves public pages, APIs, admin tools, and deployment hooks.</p>
+                <p>The live system is intentionally modular so status, logs, feedback, and deployment logic can evolve without a single giant entry point.</p>
+            `)}
+            ${panel("OPERATIONS", `
+                <ul>
+                    <li><h3>Bot</h3><p>Handles slash commands, app mentions, and feedback capture.</p></li>
+                    <li><h3>Dashboard</h3><p>Serves public status, live logs, admin pages, API docs, and webhook deployment handling.</p></li>
+                    <li><h3>Storage</h3><p>Uses simple JSON and log files under <span class="mono">server/database</span> and <span class="mono">server/logs</span>.</p></li>
+                </ul>
+            `)}
+        `
+    })
+}
+
+function renderApiDocsPage() {
+    const endpoints = [
+        {
+            method: "GET",
+            path: "/api/status",
+            auth: "Public",
+            purpose: "Return the current bot and server status snapshot.",
+            request: "No request body.",
+            response: `{
+  "ok": true,
+  "data": {
+    "botOnline": "online",
+    "uptimeText": "26m 8s",
+    "nodeVersion": "v22.22.1",
+    "platform": "linux"
+  }
+}`
+        },
+        {
+            method: "GET",
+            path: "/api/logs",
+            auth: "Public",
+            purpose: "Return the current log snapshot and line count.",
+            request: "No request body.",
+            response: `{
+  "ok": true,
+  "data": {
+    "size": 12345,
+    "lines": ["[01/01/2026 ...] Slackzilla online"]
+  }
+}`
+        },
+        {
+            method: "GET",
+            path: "/api/admin/summary",
+            auth: "Admin session + CSRF not required for reads",
+            purpose: "Return the authenticated admin dashboard snapshot.",
+            request: "Requires an authenticated admin cookie.",
+            response: `{
+  "ok": true,
+  "data": {
+    "status": { "botOnline": "online" },
+    "feedback": [],
+    "commandStats": []
+  }
+}`
+        },
+        {
+            method: "GET",
+            path: "/api/admin/feedback",
+            auth: "Admin session cookie",
+            purpose: "Return a filtered list of feedback entries.",
+            request: "Optional query parameters: q, status.",
+            response: `{
+  "ok": true,
+  "data": {
+    "feedback": []
+  }
+}`
+        },
+        {
+            method: "GET",
+            path: "/api/admin/feedback/:id",
+            auth: "Admin session cookie",
+            purpose: "Return a single feedback entry by ID.",
+            request: "Replace :id with the feedback ID from the inbox.",
+            response: `{
+  "ok": true,
+  "data": {
+    "feedback": {
+      "id": "a71c28fa-863d-447e-84a3-627bd5120572"
+    }
+  }
+}`
+        },
+        {
+            method: "POST",
+            path: "/api/admin/feedback/:id",
+            auth: "Admin session + CSRF",
+            purpose: "Update feedback state or send a response DM.",
+            request: `{
+  "action": "respond",
+  "response": "Thanks for the report"
+}`,
+            response: `{
+  "ok": true,
+  "data": {
+    "feedback": { "status": "responded" }
+  }
+}`
+        },
+        {
+            method: "POST",
+            path: "/api/admin/control",
+            auth: "Admin session + CSRF",
+            purpose: "Trigger bot and deployment actions from the dashboard.",
+            request: `{
+  "action": "refresh-status"
+}`,
+            response: `{
+  "ok": true,
+  "data": {
+    "status": { "botOnline": "online" }
+  }
+}`
+        }
+    ]
+
+    return shell({
+        title: "Slackzilla | API",
+        active: "api",
+        state: {},
+        body: `
+            ${panel("API OVERVIEW", `
+                <p>The API is split into separate route modules for status, logs, feedback, admin summary, and control actions.</p>
+                <p>All JSON endpoints return a predictable envelope: <span class="mono">ok: true</span> on success and <span class="mono">ok: false</span> with a stable error code on failure.</p>
+            `)}
+            ${panel("ENDPOINTS", endpoints.map(endpoint => `
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method ${endpoint.method.toLowerCase()}">${escapeHtml(endpoint.method)}</span>
+                        <span class="endpoint-url">${escapeHtml(endpoint.path)}</span>
+                    </div>
+                    <table>
+                        <tr><td>Purpose</td><td>${escapeHtml(endpoint.purpose)}</td></tr>
+                        <tr><td>Authentication</td><td>${escapeHtml(endpoint.auth)}</td></tr>
+                        <tr><td>Request</td><td><pre>${escapeHtml(endpoint.request)}</pre></td></tr>
+                        <tr><td>Response</td><td><pre>${escapeHtml(endpoint.response)}</pre></td></tr>
+                    </table>
+                </div>
+            `).join(""))}
+            ${panel("ERRORS", `
+                <p>Errors follow the same shape everywhere:</p>
+                <pre>${escapeHtml(JSON.stringify({ ok: false, error: "Feedback not found", code: "FEEDBACK_NOT_FOUND" }, null, 2))}</pre>
+            `)}
         `
     })
 }
@@ -461,5 +719,8 @@ module.exports = {
     renderLogsPage,
     renderLoginPage,
     renderAdminDashboardPage,
-    renderFeedbackPage
+    renderFeedbackPage,
+    renderFeedbackDetail,
+    renderDocsPage,
+    renderApiDocsPage
 }

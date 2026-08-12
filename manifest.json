@@ -148,7 +148,8 @@
         "app_mentions:read",
         "channels:history",
         "chat:write",
-        "commands"
+        "commands",
+        "im:write"
       ]
     },
     "pkce_enabled": false
@@ -157,6 +158,11 @@
     "socket_mode_enabled": true,
     "org_deploy_enabled": false,
     "is_hosted": false,
-    "token_rotation_enabled": false
+    "token_rotation_enabled": false,
+    "event_subscriptions": {
+      "bot_events": [
+        "app_mention"
+      ]
+    }
   }
 }

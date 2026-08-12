@@ -5,10 +5,11 @@ const crypto = require("crypto")
 const { URL } = require("url")
 
 require("dotenv").config({ path: path.join(__dirname, ".env") })
+require("dotenv").config({ path: path.join(__dirname, "..", "src", ".env") })
 
-const { log } = require("../src/utils/logger")
 const store = require("./database/store")
 const { createAuth } = require("./lib/auth")
+const { sendText, sendJson, sendHtml, parseBody } = require("./lib/http")
 const {
     runDeployScript,
     runSystemctl,
@@ -16,29 +17,32 @@ const {
     saveDeploymentState
 } = require("./lib/system")
 const {
-    formatBytes,
-    formatDate,
-    renderLandingPage,
     renderStatusPage,
-    renderLogsPage,
-    renderLoginPage,
-    renderAdminDashboardPage,
-    renderFeedbackPage,
     escapeHtml
 } = require("./lib/pages")
+const { handlePublicPages } = require("./pages/public")
+const { handleAdminPages } = require("./pages/admin")
+const { handleStatusApi } = require("./api/status")
+const { handleLogsApi } = require("./api/logs")
+const { handleAdminApi } = require("./api/admin")
+const { handleFeedbackApi } = require("./api/feedback")
+const { handleControlApi } = require("./api/control")
 
 const port = Number(process.env.PORT || 9000)
 const projectDir = process.env.PROJECT_DIR || process.cwd()
 const webhookSecret = process.env.WEBHOOK_SECRET
 const deployBranch = process.env.BRANCH || "main"
-const botServiceName =  process.env.SERVICE_NAME || "slackzilla"
+const botServiceName = process.env.SERVICE_NAME || "slackzilla"
+const webhookServiceName = process.env.WEBHOOK_SERVICE_NAME || "slackzilla-webhook"
 const deployScript = path.join(__dirname, "deploy.sh")
 const cookieSecure = String(process.env.COOKIE_SECURE || "false").toLowerCase() === "true"
+
 const runtimeConfig = {
     port,
     projectDir,
     deployBranch,
     botServiceName,
+    webhookServiceName,
     cookieSecure,
     webhookPath: "/webhook"
 }
@@ -78,32 +82,6 @@ function refreshRuntimeSnapshot() {
     return runtimeSnapshot
 }
 
-function normalizeStatus(snapshot) {
-    const deployment = store.readDeploymentState()
-
-    return {
-        botOnline: snapshot.botOnline,
-        uptimeText: formatDuration(snapshot.uptime),
-        nodeVersion: snapshot.nodeVersion,
-        platform: snapshot.platform,
-        commit: snapshot.commit,
-        branch: snapshot.branch,
-        lastCommitAtText: formatDate(snapshot.lastCommitAt),
-        lastDeploymentText: formatDate(deployment.lastDeploymentAt),
-        deploymentStatus: deployment.status,
-        lastDeploymentOutput: (deployment.lastDeploymentOutput || []).join("\n").trim(),
-        rssText: formatBytes(snapshot.memoryRss),
-        cpuText: `${snapshot.cpuPercent.toFixed(2)}%`,
-        memoryText: `${formatBytes(snapshot.memoryRss)} / ${formatBytes(snapshot.systemTotalMemory)}`,
-        loadText: snapshot.systemLoadAverage.map(value => value.toFixed(2)).join(" / "),
-        lastDeploymentAt: deployment.lastDeploymentAt,
-        lastDeploymentCommit: deployment.lastDeploymentCommit,
-        lastDeploymentResult: deployment.lastDeploymentResult,
-        systemTotalMemory: snapshot.systemTotalMemory,
-        systemFreeMemory: snapshot.systemFreeMemory
-    }
-}
-
 function formatDuration(seconds) {
     const total = Math.max(0, Math.floor(seconds))
     const days = Math.floor(total / 86400)
@@ -119,22 +97,43 @@ function formatDuration(seconds) {
     ].filter(Boolean).join(" ")
 }
 
-function sendText(res, statusCode, text, contentType = "text/plain; charset=utf-8") {
-    res.statusCode = statusCode
-    res.setHeader("Content-Type", contentType)
-    res.end(text)
+function normalizeStatus(snapshot) {
+    const deployment = store.readDeploymentState()
+
+    return {
+        botOnline: snapshot.botOnline,
+        uptimeText: formatDuration(snapshot.uptime),
+        nodeVersion: snapshot.nodeVersion,
+        platform: snapshot.platform,
+        commit: snapshot.commit,
+        branch: snapshot.branch,
+        lastCommitAtText: snapshot.lastCommitAt ? new Date(snapshot.lastCommitAt).toLocaleString() : "unknown",
+        lastDeploymentText: deployment.lastDeploymentAt ? new Date(deployment.lastDeploymentAt).toLocaleString() : "unknown",
+        deploymentStatus: deployment.status,
+        lastDeploymentOutput: (deployment.lastDeploymentOutput || []).join("\n").trim(),
+        rssText: formatBytes(snapshot.memoryRss),
+        cpuText: `${snapshot.cpuPercent.toFixed(2)}%`,
+        memoryText: `${formatBytes(snapshot.memoryRss)} / ${formatBytes(snapshot.systemTotalMemory)}`,
+        loadText: snapshot.systemLoadAverage.map(value => value.toFixed(2)).join(" / "),
+        lastDeploymentAt: deployment.lastDeploymentAt,
+        lastDeploymentCommit: deployment.lastDeploymentCommit,
+        lastDeploymentResult: deployment.lastDeploymentResult,
+        systemTotalMemory: snapshot.systemTotalMemory,
+        systemFreeMemory: snapshot.systemFreeMemory
+    }
 }
 
-function sendJson(res, statusCode, payload) {
-    res.statusCode = statusCode
-    res.setHeader("Content-Type", "application/json; charset=utf-8")
-    res.end(JSON.stringify(payload, null, 2))
-}
+function formatBytes(bytes) {
+    const units = ["B", "KB", "MB", "GB", "TB"]
+    let index = 0
+    let value = Number(bytes) || 0
 
-function sendHtml(res, statusCode, html) {
-    res.statusCode = statusCode
-    res.setHeader("Content-Type", "text/html; charset=utf-8")
-    res.end(html)
+    while (value >= 1024 && index < units.length - 1) {
+        value /= 1024
+        index += 1
+    }
+
+    return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`
 }
 
 function sendSseHeaders(res) {
@@ -150,63 +149,6 @@ function sendSseHeaders(res) {
 function sendSse(res, event, data) {
     res.write(`event: ${event}\n`)
     res.write(`data: ${JSON.stringify(data)}\n\n`)
-}
-
-function parseBody(req) {
-    return new Promise((resolve, reject) => {
-        const chunks = []
-        let size = 0
-
-        req.on("data", chunk => {
-            size += chunk.length
-            if (size > 1024 * 1024) {
-                reject(new Error("payload too large"))
-                req.destroy()
-                return
-            }
-
-            chunks.push(chunk)
-        })
-
-        req.on("end", () => {
-            const raw = Buffer.concat(chunks).toString("utf8")
-            const contentType = req.headers["content-type"] || ""
-
-            if (contentType.includes("application/json")) {
-                try {
-                    resolve(raw ? JSON.parse(raw) : {})
-                } catch (err) {
-                    reject(err)
-                }
-                return
-            }
-
-            const form = new URLSearchParams(raw)
-            resolve(Object.fromEntries(form.entries()))
-        })
-
-        req.on("error", reject)
-    })
-}
-
-function verifyWebhookSignature(signature, body) {
-    if (!signature || typeof signature !== "string") {
-        return false
-    }
-
-    const expected = `sha256=${crypto
-        .createHmac("sha256", webhookSecret)
-        .update(body)
-        .digest("hex")}`
-
-    const expectedBuffer = Buffer.from(expected)
-    const signatureBuffer = Buffer.from(signature)
-
-    if (expectedBuffer.length !== signatureBuffer.length) {
-        return false
-    }
-
-    return crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
 }
 
 function createStreamSet() {
@@ -244,8 +186,18 @@ function splitLogLines(content) {
 }
 
 function renderStatusPayload() {
-    const snapshot = refreshRuntimeSnapshot()
-    return normalizeStatus(snapshot)
+    return normalizeStatus(refreshRuntimeSnapshot())
+}
+
+function buildAdminSummary(csrfToken = "") {
+    return {
+        status: renderStatusPayload(),
+        feedback: store.listFeedback({ status: "all" }).slice(0, 5),
+        commandStats: store.getCommandStats().slice(0, 8),
+        logs: splitLogLines(store.getLogSnapshot().content).slice(-20),
+        runtimeConfig,
+        csrfToken
+    }
 }
 
 function refreshAndBroadcastStatus() {
@@ -278,21 +230,10 @@ function refreshAndBroadcastLogs() {
     return snapshot
 }
 
-function buildAdminSummary(csrfToken = "") {
-    return {
-        status: renderStatusPayload(),
-        feedback: store.listFeedback({ status: "all" }).slice(0, 5),
-        commandStats: store.getCommandStats().slice(0, 8),
-        logs: splitLogLines(store.getLogSnapshot().content).slice(-20),
-        runtimeConfig,
-        csrfToken
-    }
-}
-
 function watchLogs() {
     let previousSize = store.getLogSnapshot().size
 
-    fs.watchFile(store.logFile, { interval: 500 }, (current, previous) => {
+    fs.watchFile(store.logFile, { interval: 500 }, (current) => {
         if (current.size < previousSize) {
             previousSize = 0
         }
@@ -314,13 +255,31 @@ function watchLogs() {
         }
 
         const content = buffer.toString("utf8")
-        const lines = splitLogLines(content)
-
-        for (const line of lines) {
+        for (const line of splitLogLines(content)) {
             broadcast(logClients, "log", { line })
             broadcast(adminClients, "log", { line })
         }
     })
+}
+
+function verifyWebhookSignature(signature, body) {
+    if (!signature || typeof signature !== "string") {
+        return false
+    }
+
+    const expected = `sha256=${crypto
+        .createHmac("sha256", webhookSecret)
+        .update(body)
+        .digest("hex")}`
+
+    const expectedBuffer = Buffer.from(expected)
+    const signatureBuffer = Buffer.from(signature)
+
+    if (expectedBuffer.length !== signatureBuffer.length) {
+        return false
+    }
+
+    return crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
 }
 
 function handleStatic(req, res, pathname) {
@@ -436,17 +395,17 @@ function handleWebhook(req, res, url) {
 
             broadcast(adminClients, "deploy", state)
             refreshAndBroadcastStatus()
-        } catch (err) {
+        } catch (error) {
             const state = store.saveDeploymentState({
                 status: "failed",
                 lastDeploymentAt: new Date().toISOString(),
                 lastDeploymentCommit: payload.after || null,
-                lastDeploymentOutput: [err.message],
+                lastDeploymentOutput: [error.message],
                 lastDeploymentResult: "failed"
             })
 
             broadcast(adminClients, "deploy", state)
-            store.appendLogChunk(`deployment failed: ${err.message}\n`)
+            store.appendLogChunk(`deployment failed: ${error.message}\n`)
             refreshAndBroadcastStatus()
         }
     })
@@ -454,318 +413,42 @@ function handleWebhook(req, res, url) {
     return true
 }
 
-function handlePublicPages(req, res, url) {
-    if (req.method !== "GET") {
-        return false
-    }
-
-    if (url.pathname === "/") {
-        const summary = renderStatusPayload()
-        const commandStats = store.getCommandStats().slice(0, 5)
-        const logs = splitLogLines(store.getLogSnapshot().content).slice(-8)
-        sendHtml(res, 200, renderLandingPage({ summary, commandStats, logs }))
-        return true
-    }
-
-    if (url.pathname === "/status") {
-        const status = renderStatusPayload()
-        const commandStats = store.getCommandStats().slice(0, 8)
-        sendHtml(res, 200, renderStatusPage({ status, commandStats }))
-        return true
-    }
-
-    if (url.pathname === "/logs") {
-        const snapshot = store.getLogSnapshot()
-        sendHtml(res, 200, renderLogsPage({ logs: splitLogLines(snapshot.content) }))
-        return true
-    }
-
-    return false
+const context = {
+    store,
+    auth,
+    runtimeConfig,
+    deployScript,
+    sendText,
+    sendJson,
+    sendHtml,
+    parseBody,
+    sendSse,
+    registerStreamClient,
+    broadcast,
+    statusClients,
+    logClients,
+    adminClients,
+    splitLogLines,
+    renderStatusPayload,
+    buildAdminSummary,
+    refreshAndBroadcastStatus,
+    refreshAndBroadcastLogs,
+    runDeployScript,
+    runSystemctl,
+    saveDeploymentState
 }
 
-function handleAdminPages(req, res, url) {
-    if (!url.pathname.startsWith("/admin")) {
-        return false
-    }
-
-    if (url.pathname === "/admin/login" && req.method === "GET") {
-        const csrfToken = auth.issueLoginChallenge(req, res)
-        const error = url.searchParams.get("error") || ""
-        sendHtml(res, 200, renderLoginPage({ csrfToken, error }))
-        return true
-    }
-
-    const session = auth.requireSession(req, res)
-
-    if (!session) {
-        return true
-    }
-
-    if (url.pathname === "/admin" && req.method === "GET") {
-        const summary = renderStatusPayload()
-        const feedback = store.listFeedback({ status: "all" }).slice(0, 5)
-        const commandStats = store.getCommandStats().slice(0, 8)
-        const logs = splitLogLines(store.getLogSnapshot().content).slice(-20)
-
-        sendHtml(res, 200, renderAdminDashboardPage({ summary, feedback, commandStats, logs, runtimeConfig, csrfToken: session.csrfToken }))
-        return true
-    }
-
-    if (url.pathname === "/admin/feedback" && req.method === "GET") {
-        const feedback = store.listFeedback({
-            query: url.searchParams.get("q") || "",
-            status: url.searchParams.get("status") || "all"
-        })
-
-        sendHtml(res, 200, renderFeedbackPage({
-            feedback,
-            query: url.searchParams.get("q") || "",
-            status: url.searchParams.get("status") || "all",
-            csrfToken: session.csrfToken
-        }))
-        return true
-    }
-
-    return false
+function handleApi(req, res, url) {
+    return (
+        handleStatusApi({ req, res, url, context }) ||
+        handleLogsApi({ req, res, url, context }) ||
+        handleAdminApi({ req, res, url, context }) ||
+        handleFeedbackApi({ req, res, url, context }) ||
+        handleControlApi({ req, res, url, context })
+    )
 }
 
-async function handleApi(req, res, url) {
-    if (url.pathname === "/api/status" && req.method === "GET") {
-        sendJson(res, 200, renderStatusPayload())
-        return true
-    }
-
-    if (url.pathname === "/api/status/stream" && req.method === "GET") {
-        const status = renderStatusPayload()
-        registerStreamClient(statusClients, req, res)
-        sendSse(res, "status", status)
-        return true
-    }
-
-    if (url.pathname === "/api/logs" && req.method === "GET") {
-        const snapshot = store.getLogSnapshot()
-        sendJson(res, 200, {
-            size: snapshot.size,
-            lines: splitLogLines(snapshot.content)
-        })
-        return true
-    }
-
-    if (url.pathname === "/api/logs/download" && req.method === "GET") {
-        const snapshot = store.getLogSnapshot()
-        sendText(res, 200, snapshot.content, "text/plain; charset=utf-8")
-        return true
-    }
-
-    if (url.pathname === "/api/logs/stream" && req.method === "GET") {
-        const snapshot = store.getLogSnapshot()
-        registerStreamClient(logClients, req, res)
-        sendSse(res, "snapshot", {
-            lines: splitLogLines(snapshot.content),
-            size: snapshot.size
-        })
-        return true
-    }
-
-    if (url.pathname === "/api/admin/summary" && req.method === "GET") {
-        const session = auth.requireSession(req, res)
-        if (!session) return true
-
-        sendJson(res, 200, buildAdminSummary(session.csrfToken))
-        return true
-    }
-
-    if (url.pathname === "/api/admin/events" && req.method === "GET") {
-        const session = auth.requireSession(req, res)
-        if (!session) return true
-
-        registerStreamClient(adminClients, req, res)
-        sendSse(res, "summary", buildAdminSummary(session.csrfToken))
-        return true
-    }
-
-    if (url.pathname === "/api/admin/feedback" && req.method === "GET") {
-        const session = auth.requireSession(req, res)
-        if (!session) return true
-
-        const feedback = store.listFeedback({
-            query: url.searchParams.get("q") || "",
-            status: url.searchParams.get("status") || "all"
-        })
-
-        sendJson(res, 200, { feedback })
-        return true
-    }
-
-    if (url.pathname.startsWith("/api/admin/feedback/") && req.method === "POST") {
-        const session = auth.requireSession(req, res)
-        if (!session) return true
-
-        const body = await parseBody(req).catch(err => ({ __error: err }))
-        if (body.__error) {
-            sendJson(res, 400, { ok: false, error: body.__error.message })
-            return true
-        }
-
-        req.body = body
-
-        if (!auth.verifyCsrf(req, session)) {
-            sendJson(res, 403, { ok: false, error: "invalid csrf token" })
-            return true
-        }
-
-        const id = url.pathname.split("/").pop()
-        const action = String(body.action || body.status || "").toLowerCase()
-
-        if (action === "delete") {
-            const ok = store.deleteFeedback(id)
-            if (ok) {
-                broadcast(adminClients, "summary", buildAdminSummary())
-            }
-            sendJson(res, ok ? 200 : 404, { ok })
-            return true
-        }
-
-        if (action === "read" || action === "archive" || action === "unread") {
-            const status = action === "read" ? "read" : action === "archive" ? "archived" : "unread"
-            const updated = store.updateFeedback(id, { status })
-            if (updated) {
-                broadcast(adminClients, "summary", buildAdminSummary())
-            }
-            sendJson(res, updated ? 200 : 404, { ok: Boolean(updated), feedback: updated })
-            return true
-        }
-
-        sendJson(res, 400, { ok: false, error: "invalid feedback action" })
-        return true
-    }
-
-    if (url.pathname === "/api/admin/control" && req.method === "POST") {
-        const session = auth.requireSession(req, res)
-        if (!session) return true
-
-        const body = await parseBody(req).catch(err => ({ __error: err }))
-        if (body.__error) {
-            sendJson(res, 400, { ok: false, error: body.__error.message })
-            return true
-        }
-
-        req.body = body
-
-        if (!auth.verifyCsrf(req, session)) {
-            sendJson(res, 403, { ok: false, error: "invalid csrf token" })
-            return true
-        }
-
-        const action = String(body.action || "").toLowerCase()
-
-        try {
-            if (action === "redeploy") {
-                const result = await runDeployScript(deployScript, process.env, chunk => {
-                    store.appendLogChunk(chunk)
-                })
-
-                const state = saveDeploymentState({
-                    status: "success",
-                    lastDeploymentAt: new Date().toISOString(),
-                    lastDeploymentCommit: store.readDeploymentState().lastDeploymentCommit,
-                    lastDeploymentOutput: result.output.split(/\r?\n/).filter(Boolean),
-                    lastDeploymentResult: "success"
-                })
-
-                refreshAndBroadcastStatus()
-                broadcast(adminClients, "deploy", state)
-                broadcast(adminClients, "summary", buildAdminSummary())
-                sendJson(res, 200, { ok: true, state })
-                return true
-            }
-
-            if (["start", "stop", "restart"].includes(action)) {
-                await runSystemctl(action, botServiceName)
-                refreshAndBroadcastStatus()
-                sendJson(res, 200, { ok: true, action })
-                return true
-            }
-
-            if (action === "refresh") {
-                const status = refreshAndBroadcastStatus()
-                broadcast(adminClients, "summary", buildAdminSummary())
-                sendJson(res, 200, { ok: true, status })
-                return true
-            }
-
-            sendJson(res, 400, { ok: false, error: "unknown control action" })
-            return true
-        } catch (err) {
-            const state = saveDeploymentState({
-                status: "failed",
-                lastDeploymentAt: new Date().toISOString(),
-                lastDeploymentOutput: [err.message],
-                lastDeploymentResult: "failed"
-            })
-
-            refreshAndBroadcastStatus()
-            broadcast(adminClients, "deploy", state)
-            broadcast(adminClients, "summary", buildAdminSummary())
-            sendJson(res, 500, { ok: false, error: err.message })
-            return true
-        }
-    }
-
-    return false
-}
-
-async function handleLogin(req, res, url) {
-    if (url.pathname === "/admin/login" && req.method === "POST") {
-        const body = await parseBody(req).catch(err => ({ __error: err }))
-        if (body.__error) {
-            sendHtml(res, 400, renderLoginPage({ csrfToken: "", error: body.__error.message }))
-            return true
-        }
-
-        req.body = body
-
-        const result = auth.login(req, res, String(body.password || ""))
-
-        if (!result.ok) {
-            sendHtml(res, result.status || 401, renderLoginPage({ csrfToken: auth.issueLoginChallenge(req, res), error: result.message }))
-            return true
-        }
-
-        res.statusCode = 302
-        res.setHeader("Location", "/admin")
-        res.end()
-        return true
-    }
-
-    if (url.pathname === "/admin/logout" && req.method === "POST") {
-        const session = auth.requireSession(req, res)
-        if (!session) return true
-
-        const body = await parseBody(req).catch(err => ({ __error: err }))
-        if (body.__error) {
-            sendText(res, 400, body.__error.message)
-            return true
-        }
-
-        req.body = body
-
-        if (!auth.verifyCsrf(req, session)) {
-            sendText(res, 403, "invalid csrf token")
-            return true
-        }
-
-        auth.logout(req, res)
-        res.statusCode = 302
-        res.setHeader("Location", "/")
-        res.end()
-        return true
-    }
-
-    return false
-}
-
-async function handleRequest(req, res) {
+function handleRequest(req, res) {
     const url = new URL(req.url, "http://localhost")
 
     res.setHeader("X-Content-Type-Options", "nosniff")
@@ -774,10 +457,9 @@ async function handleRequest(req, res) {
 
     if (handleStatic(req, res, url.pathname)) return
     if (handleWebhook(req, res, url)) return
-    if (await handleLogin(req, res, url)) return
-    if (handlePublicPages(req, res, url)) return
-    if (await handleApi(req, res, url)) return
-    if (handleAdminPages(req, res, url)) return
+    if (handleAdminPages({ req, res, url, context })) return
+    if (handleApi(req, res, url)) return
+    if (handlePublicPages({ req, res, url, context })) return
 
     sendText(res, 404, "Not found\n")
 }
@@ -789,10 +471,10 @@ refreshAndBroadcastLogs()
 setInterval(refreshAndBroadcastStatus, 5000)
 
 http.createServer((req, res) => {
-    handleRequest(req, res).catch(err => {
-        log.error("dashboard server request failed: {0}", null, err.message)
+    Promise.resolve(handleRequest(req, res)).catch(error => {
+        store.appendLogChunk(`dashboard server request failed: ${error.message}\n`)
         sendText(res, 500, "Internal server error\n")
     })
 }).listen(port, () => {
-    log.info("Slackzilla dashboard server listening on port {0}", null, port)
+    store.appendLogChunk(`dashboard server listening on port ${port}\n`)
 })

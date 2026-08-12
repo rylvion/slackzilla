@@ -40,8 +40,10 @@ this is the current checklist for getting the bot, webhook, and hosted dashboard
 4. set `WEBHOOK_URL` in github actions to something like `http://your-server:9000/webhook`.
 5. set `COOKIE_SECURE=true` when the dashboard is behind https, otherwise leave it on `false` for plain http testing.
 6. if you want the dashboard to manage a differently named systemd service, set `SERVICE_NAME` to that service name.
-7. `PROJECT_DIR` should point at the absolute repo path on the server so the dashboard can read git metadata.
-8. `REPO_URL` should match the remote that the deploy script should use.
+7. if your webhook service has a different unit name, set `WEBHOOK_SERVICE_NAME` so deploy restarts target the right process.
+8. `PROJECT_DIR` should point at the absolute repo path on the server so the dashboard can read git metadata.
+9. `REPO_URL` should match the remote that the deploy script should use.
+10. set `SLACK_BOT_TOKEN` in the server environment if you want feedback responses sent directly from the dashboard.
 
 ## systemd setup
 
