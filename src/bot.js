@@ -91,7 +91,7 @@ app.event("app_mention", async ({ event, say }) => {
     })
 })
 
-(async () => {
+;(async () => {
     await app.start(process.env.PORT || 3000)
 
     updateBotHeartbeat()
