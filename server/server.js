@@ -485,6 +485,7 @@ setInterval(refreshAndBroadcastStatus, 5000)
 
 http.createServer((req, res) => {
     Promise.resolve(handleRequest(req, res)).catch(error => {
+        console.error("DASHBOARD REQUEST FAILED:", error)
         store.appendLogChunk(`dashboard server request failed: ${error.message}\n`)
         sendText(res, 500, "Internal server error\n")
     })

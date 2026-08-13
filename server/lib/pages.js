@@ -99,6 +99,7 @@ function renderTemplate(relativePath, data = {}) {
         formatBytes,
         formatDate,
         ansiToHtml,
+        csrfToken: "",
         ...data
     }, {
         filename: filePath
