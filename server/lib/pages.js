@@ -100,6 +100,8 @@ function renderTemplate(relativePath, data = {}) {
         formatDate,
         ansiToHtml,
         csrfToken: "",
+        active: "",
+        admin: false,
         ...data
     }, {
         filename: filePath
