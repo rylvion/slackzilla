@@ -421,6 +421,20 @@ const context = {
     sendText,
     sendJson,
     sendHtml,
+    sendOk: (res, data, statusCode) => {
+        sendJson(res, statusCode || 200, {
+            ok: true,
+            data
+        })
+    },
+    sendError: (res, statusCode, code, error, details = {}) => {
+        sendJson(res, statusCode, {
+            ok: false,
+            code,
+            error,
+            ...details
+        })
+    },
     parseBody,
     sendSse,
     registerStreamClient,
@@ -438,17 +452,16 @@ const context = {
     saveDeploymentState
 }
 
-function handleApi(req, res, url) {
-    return (
-        handleStatusApi({ req, res, url, context }) ||
-        handleLogsApi({ req, res, url, context }) ||
-        handleAdminApi({ req, res, url, context }) ||
-        handleFeedbackApi({ req, res, url, context }) ||
-        handleControlApi({ req, res, url, context })
-    )
+async function handleApi(req, res, url) {
+    if (await handleStatusApi({ req, res, url, context })) return true
+    if (await handleLogsApi({ req, res, url, context })) return true
+    if (await handleAdminApi({ req, res, url, context })) return true
+    if (await handleFeedbackApi({ req, res, url, context })) return true
+    if (await handleControlApi({ req, res, url, context })) return true
+    return false
 }
 
-function handleRequest(req, res) {
+async function handleRequest(req, res) {
     const url = new URL(req.url, "http://localhost")
 
     res.setHeader("X-Content-Type-Options", "nosniff")
@@ -457,9 +470,9 @@ function handleRequest(req, res) {
 
     if (handleStatic(req, res, url.pathname)) return
     if (handleWebhook(req, res, url)) return
-    if (handleAdminPages({ req, res, url, context })) return
-    if (handleApi(req, res, url)) return
-    if (handlePublicPages({ req, res, url, context })) return
+    if (await handleAdminPages({ req, res, url, context })) return
+    if (await handleApi(req, res, url)) return
+    if (await handlePublicPages({ req, res, url, context })) return
 
     sendText(res, 404, "Not found\n")
 }

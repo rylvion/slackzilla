@@ -34,36 +34,34 @@ function handleControlApi({ req, res, url, context }) {
                     context.refreshAndBroadcastStatus()
                     context.broadcast(context.adminClients, "deploy", state)
                     context.broadcast(context.adminClients, "summary", context.buildAdminSummary(session.csrfToken))
-                    context.sendOk(res, { data: { state } })
+                    context.sendOk(res, { state })
                     return true
                 }
 
                 if (["start", "stop", "restart"].includes(action)) {
                     await context.runSystemctl(action, context.runtimeConfig.botServiceName)
                     context.refreshAndBroadcastStatus()
-                    context.sendOk(res, { data: { action } })
+                    context.sendOk(res, { action })
                     return true
                 }
 
                 if (action === "refresh") {
                     const status = context.refreshAndBroadcastStatus()
                     context.broadcast(context.adminClients, "summary", context.buildAdminSummary(session.csrfToken))
-                    context.sendOk(res, { data: { status } })
+                    context.sendOk(res, { status })
                     return true
                 }
 
                 if (action === "refresh-status") {
                     const status = context.refreshAndBroadcastStatus()
-                    context.sendOk(res, { data: { status } })
+                    context.sendOk(res, { status })
                     return true
                 }
 
                 if (action === "refresh-logs") {
                     const snapshot = context.refreshAndBroadcastLogs()
                     context.sendOk(res, {
-                        data: {
-                            size: snapshot.size
-                        }
+                        size: snapshot.size
                     })
                     return true
                 }

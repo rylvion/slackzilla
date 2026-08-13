@@ -52,6 +52,17 @@ function createAuth(options) {
     const loginChallenges = new Map()
     const loginAttempts = new Map()
 
+    function isApiRequest(req) {
+        try {
+            const pathname = new URL(req.url, "http://localhost").pathname
+            const accept = String(req.headers.accept || "")
+
+            return pathname.startsWith("/api/") || accept.includes("text/event-stream") || accept.includes("application/json")
+        } catch {
+            return false
+        }
+    }
+
     function hashPassword(password, salt, iterations, algorithm) {
         return crypto.pbkdf2Sync(password, salt, Number(iterations), 64, algorithm || "sha512").toString("hex")
     }
@@ -310,6 +321,17 @@ function createAuth(options) {
         const session = getSessionFromRequest(req)
 
         if (!session) {
+            if (isApiRequest(req)) {
+                res.statusCode = 401
+                res.setHeader("Content-Type", "application/json; charset=utf-8")
+                res.end(JSON.stringify({
+                    ok: false,
+                    code: "AUTH_REQUIRED",
+                    error: "admin session required"
+                }))
+                return null
+            }
+
             res.statusCode = 302
             res.setHeader("Location", "/admin/login")
             res.end()

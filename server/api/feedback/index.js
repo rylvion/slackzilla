@@ -10,9 +10,7 @@ function handleFeedbackApi({ req, res, url, context }) {
             status: url.searchParams.get("status") || "all"
         })
 
-        context.sendOk(res, {
-            data: { feedback }
-        })
+        context.sendOk(res, { feedback })
         return true
     }
 
@@ -33,9 +31,7 @@ function handleFeedbackApi({ req, res, url, context }) {
             return true
         }
 
-        context.sendOk(res, {
-            data: { feedback }
-        })
+        context.sendOk(res, { feedback })
         return true
     }
 
@@ -65,8 +61,10 @@ function handleFeedbackApi({ req, res, url, context }) {
                 const ok = context.store.deleteFeedback(id)
                 if (ok) {
                     context.broadcast(context.adminClients, "summary", context.buildAdminSummary(session.csrfToken))
+                    context.sendOk(res, { deleted: true })
+                } else {
+                    context.sendError(res, 404, "FEEDBACK_NOT_FOUND", "Feedback not found")
                 }
-                context.sendOk(res, { data: { deleted: ok } }, ok ? 200 : 404)
                 return true
             }
 
@@ -82,7 +80,7 @@ function handleFeedbackApi({ req, res, url, context }) {
                 }
 
                 context.broadcast(context.adminClients, "summary", context.buildAdminSummary(session.csrfToken))
-                context.sendOk(res, { data: { feedback: updated } })
+                context.sendOk(res, { feedback: updated })
                 return true
             }
 
@@ -137,10 +135,8 @@ function handleFeedbackApi({ req, res, url, context }) {
                     context.broadcast(context.adminClients, "summary", context.buildAdminSummary(session.csrfToken))
                     context.broadcast(context.adminClients, "feedback", { feedback: updated })
                     context.sendOk(res, {
-                        data: {
-                            feedback: updated,
-                            delivery
-                        }
+                        feedback: updated,
+                        delivery
                     })
                     return true
                 } catch (error) {

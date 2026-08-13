@@ -3,9 +3,7 @@ function handleAdminApi({ req, res, url, context }) {
         const session = context.auth.requireSession(req, res)
         if (!session) return true
 
-        context.sendOk(res, {
-            data: context.buildAdminSummary(session.csrfToken)
-        })
+        context.sendOk(res, context.buildAdminSummary(session.csrfToken))
         return true
     }
 

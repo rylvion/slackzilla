@@ -1,0 +1,154 @@
+<section class="panel">
+    <h2>API OVERVIEW</h2>
+    <p>The API is split into separate route modules for status, logs, feedback, admin summary, and control actions.</p>
+    <p>All JSON endpoints return a predictable envelope: <span class="mono">ok: true</span> on success and <span class="mono">ok: false</span> with a stable error code on failure.</p>
+</section>
+
+<section class="panel">
+    <h2>ENDPOINTS</h2>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-url">/api/status</span>
+        </div>
+        <table>
+            <tr><td>Purpose</td><td>Return the current bot and server status snapshot.</td></tr>
+            <tr><td>Authentication</td><td>Public</td></tr>
+            <tr><td>Request</td><td><pre>No request body.</pre></td></tr>
+            <tr><td>Response</td><td><pre>{
+  "ok": true,
+  "data": {
+    "botOnline": "online",
+    "uptimeText": "26m 8s",
+    "nodeVersion": "v22.22.1",
+    "platform": "linux"
+  }
+}</pre></td></tr>
+        </table>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-url">/api/logs</span>
+        </div>
+        <table>
+            <tr><td>Purpose</td><td>Return the current log snapshot and line count.</td></tr>
+            <tr><td>Authentication</td><td>Public</td></tr>
+            <tr><td>Request</td><td><pre>No request body.</pre></td></tr>
+            <tr><td>Response</td><td><pre>{
+  "ok": true,
+  "data": {
+    "size": 12345,
+    "lines": ["[01/01/2026 ...] Slackzilla online"]
+  }
+}</pre></td></tr>
+        </table>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-url">/api/admin/summary</span>
+        </div>
+        <table>
+            <tr><td>Purpose</td><td>Return the authenticated admin dashboard snapshot.</td></tr>
+            <tr><td>Authentication</td><td>Admin session cookie</td></tr>
+            <tr><td>Request</td><td><pre>Requires an authenticated admin cookie.</pre></td></tr>
+            <tr><td>Response</td><td><pre>{
+  "ok": true,
+  "data": {
+    "status": { "botOnline": "online" },
+    "feedback": [],
+    "commandStats": []
+  }
+}</pre></td></tr>
+        </table>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-url">/api/admin/feedback</span>
+        </div>
+        <table>
+            <tr><td>Purpose</td><td>Return a filtered list of feedback entries.</td></tr>
+            <tr><td>Authentication</td><td>Admin session cookie</td></tr>
+            <tr><td>Request</td><td><pre>Optional query parameters: q, status.</pre></td></tr>
+            <tr><td>Response</td><td><pre>{
+  "ok": true,
+  "data": {
+    "feedback": []
+  }
+}</pre></td></tr>
+        </table>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-url">/api/admin/feedback/:id</span>
+        </div>
+        <table>
+            <tr><td>Purpose</td><td>Return a single feedback entry by ID.</td></tr>
+            <tr><td>Authentication</td><td>Admin session cookie</td></tr>
+            <tr><td>Request</td><td><pre>Replace :id with the feedback ID from the inbox.</pre></td></tr>
+            <tr><td>Response</td><td><pre>{
+  "ok": true,
+  "data": {
+    "feedback": {
+      "id": "a71c28fa-863d-447e-84a3-627bd5120572"
+    }
+  }
+}</pre></td></tr>
+        </table>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="endpoint-url">/api/admin/feedback/:id</span>
+        </div>
+        <table>
+            <tr><td>Purpose</td><td>Update feedback state or send a response DM.</td></tr>
+            <tr><td>Authentication</td><td>Admin session + CSRF</td></tr>
+            <tr><td>Request</td><td><pre>{
+  "action": "respond",
+  "response": "Thanks for the report"
+}</pre></td></tr>
+            <tr><td>Response</td><td><pre>{
+  "ok": true,
+  "data": {
+    "feedback": { "status": "responded" }
+  }
+}</pre></td></tr>
+        </table>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="endpoint-url">/api/admin/control</span>
+        </div>
+        <table>
+            <tr><td>Purpose</td><td>Trigger bot and deployment actions from the dashboard.</td></tr>
+            <tr><td>Authentication</td><td>Admin session + CSRF</td></tr>
+            <tr><td>Request</td><td><pre>{
+  "action": "refresh-status"
+}</pre></td></tr>
+            <tr><td>Response</td><td><pre>{
+  "ok": true,
+  "data": {
+    "status": { "botOnline": "online" }
+  }
+}</pre></td></tr>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>ERRORS</h2>
+    <p>Errors follow the same shape everywhere:</p>
+    <pre><%= JSON.stringify({ ok: false, error: "Feedback not found", code: "FEEDBACK_NOT_FOUND" }, null, 2) %></pre>
+</section>

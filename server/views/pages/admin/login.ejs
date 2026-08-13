@@ -1,0 +1,15 @@
+<section class="panel panel--auth">
+    <h2>ADMIN LOGIN</h2>
+    <p>Enter the actual admin password. The hash in the environment is only used for verification.</p>
+    <% if (error) { %>
+        <p class="error"><%= error %></p>
+    <% } %>
+    <form method="post" action="/admin/login" class="stack-form">
+        <input type="hidden" name="csrf" value="<%= csrfToken %>" />
+        <label>
+            <span>Password</span>
+            <input class="input" type="password" name="password" required autofocus />
+        </label>
+        <button class="button" type="submit">Unlock</button>
+    </form>
+</section>

@@ -69,6 +69,7 @@
     }
 
     function formatLogLine(raw) {
+        const normalized = String(raw || "")
         const level = /\berror\b/i.test(raw)
             ? "error"
             : /\bsuccess\b/i.test(raw)
@@ -78,9 +79,10 @@
                     : "info"
 
         return {
-            raw,
+            raw: normalized,
             level,
-            html: ansiToHtml(raw)
+            html: ansiToHtml(normalized),
+            search: normalized.toLowerCase()
         }
     }
 
@@ -92,6 +94,7 @@
         const node = document.createElement("div")
         node.className = "terminal-line"
         node.dataset.level = entry.level
+        node.dataset.search = entry.search || ""
         node.innerHTML = entry.html
         return node
     }
@@ -121,7 +124,7 @@
 
         for (const line of terminal.querySelectorAll(".terminal-line")) {
             const matchLevel = level === "all" || line.dataset.level === level
-            const matchQuery = !query || line.textContent.toLowerCase().includes(query)
+            const matchQuery = !query || (line.dataset.search || line.textContent.toLowerCase()).includes(query)
             line.classList.toggle("hidden", !(matchLevel && matchQuery))
         }
     }

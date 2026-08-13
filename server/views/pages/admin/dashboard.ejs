@@ -1,0 +1,101 @@
+<div id="admin-action-status" class="action-status">Ready.</div>
+
+<section class="panel">
+    <h2>ADMIN PANEL</h2>
+    <p>Secure controls for service operations, deploy flow, inbox moderation, and the bot's runtime details.</p>
+    <div class="toolbar toolbar--stacked">
+        <button class="button" data-admin-action="start" type="button">Start bot</button>
+        <button class="button" data-admin-action="stop" type="button">Stop bot</button>
+        <button class="button" data-admin-action="restart" type="button">Restart bot</button>
+        <button class="button" data-admin-action="redeploy" type="button">Redeploy</button>
+        <button class="button" data-admin-action="refresh" type="button">Refresh</button>
+        <button class="button button--ghost" data-admin-action="refresh-status" type="button">Refresh status</button>
+        <button class="button button--ghost" data-admin-action="refresh-logs" type="button">Refresh logs</button>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>LIVE STATUS</h2>
+    <table id="admin-status-list">
+        <tr><td>Bot</td><td data-field="botOnline"><%= summary.botOnline %></td></tr>
+        <tr><td>Uptime</td><td data-field="uptime"><%= summary.uptimeText %></td></tr>
+        <tr><td>Branch</td><td data-field="branch"><%= summary.branch %></td></tr>
+        <tr><td>Commit</td><td data-field="commit"><%= summary.commit %></td></tr>
+        <tr><td>Deployment</td><td data-field="deployment"><%= summary.deploymentStatus %></td></tr>
+    </table>
+    <pre id="deploy-output"><%= summary.lastDeploymentOutput || "No deployment output yet" %></pre>
+</section>
+
+<section class="panel">
+    <h2>RUNTIME CONFIG</h2>
+    <table>
+        <tr><td>Port</td><td><%= runtimeConfig.port %></td></tr>
+        <tr><td>Project dir</td><td class="mono"><%= runtimeConfig.projectDir %></td></tr>
+        <tr><td>Deploy branch</td><td><%= runtimeConfig.deployBranch %></td></tr>
+        <tr><td>Bot service</td><td><%= runtimeConfig.botServiceName %></td></tr>
+        <tr><td>Cookie secure</td><td><%= String(runtimeConfig.cookieSecure) %></td></tr>
+        <tr><td>Webhook path</td><td class="mono"><%= runtimeConfig.webhookPath %></td></tr>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>COMMAND STATS</h2>
+    <table id="command-stats">
+        <tr><td>Command</td><td>Count</td><td>Last user</td><td>Last used</td></tr>
+        <% (commandStats || []).slice(0, 8).forEach(item => { %>
+            <tr>
+                <td><%= item.name %></td>
+                <td><%= item.count %></td>
+                <td><%= item.lastUser || 'unknown' %></td>
+                <td><%= formatDate(item.lastUsedAt) %></td>
+            </tr>
+        <% }) %>
+        <% if (!(commandStats || []).length) { %>
+            <tr><td colspan="4">No command usage recorded yet.</td></tr>
+        <% } %>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>RECENT FEEDBACK</h2>
+    <div id="recent-feedback">
+        <% (feedback || []).forEach(item => { %>
+            <% const status = String(item.status || 'unread').toLowerCase() %>
+            <article class="feedback-row feedback-row--compact" data-feedback-id="<%= item.id %>">
+                <header>
+                    <strong><%= item.username || item.userId || 'anonymous' %></strong>
+                    <span><%= formatDate(item.timestamp) %></span>
+                </header>
+                <p><%= item.message %></p>
+                <footer>
+                    <span class="chip chip--<%= status %>"><%= status === 'responded' ? 'Responded' : status === 'read' ? 'Read' : 'Unread' %></span>
+                    <span class="mono"><%= item.id %></span>
+                    <a class="button button--ghost" href="/admin/feedback?id=<%= encodeURIComponent(item.id) %>">Open</a>
+                </footer>
+            </article>
+        <% }) %>
+        <% if (!(feedback || []).length) { %>
+            <p>No feedback yet.</p>
+        <% } %>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>LIVE LOG SNAPSHOT</h2>
+    <div id="admin-log-terminal" class="terminal terminal--mini">
+        <% (logs || []).forEach(line => { %>
+            <div class="terminal-line"><%- ansiToHtml(line) %></div>
+        <% }) %>
+        <% if (!(logs || []).length) { %>
+            <div class="terminal-line">No logs yet</div>
+        <% } %>
+    </div>
+    <p><a href="/logs">Open full logs</a></p>
+</section>
+
+<form method="post" action="/admin/logout" class="logout-form">
+    <input type="hidden" name="csrf" value="<%= csrfToken %>" />
+    <button class="button" type="submit">Logout</button>
+</form>
+
+<script type="application/json" id="admin-data"><%- serializeState({ summary, feedback, commandStats, logs, csrfToken }) %></script>

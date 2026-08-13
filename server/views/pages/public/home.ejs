@@ -1,0 +1,70 @@
+<section class="panel">
+    <h2>SERVER DASHBOARD</h2>
+    <p>The hosted dashboard is now running on the same port as the webhook server, sharing real-time health, logs, deployments, and admin controls.</p>
+    <p>You can manage the bot, read command usage, and watch the current log stream without opening the server by hand.</p>
+    <div class="chips">
+        <span class="chip">branch <%= summary.branch %></span>
+        <span class="chip">commit <%= summary.commit %></span>
+        <span class="chip">node <%= summary.nodeVersion %></span>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>BOT CONTROL SURFACE</h2>
+    <p>Open the admin panel for authenticated actions like restart, redeploy, and feedback triage.</p>
+    <div class="toolbar toolbar--stacked">
+        <a class="button" href="/admin">Open admin</a>
+        <a class="button button--ghost" href="/status">Open status</a>
+        <a class="button button--ghost" href="/logs">Open logs</a>
+        <a class="button button--ghost" href="/admin/feedback">Open feedback</a>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>QUICK STATUS</h2>
+    <table>
+        <tr><td>Bot</td><td><%= summary.botOnline %></td></tr>
+        <tr><td>Uptime</td><td><%= summary.uptimeText %></td></tr>
+        <tr><td>Deployment</td><td><%= summary.deploymentStatus %></td></tr>
+        <tr><td>Last Deploy</td><td><%= summary.lastDeploymentText %></td></tr>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>TOP COMMANDS</h2>
+    <table>
+        <tr><td>Command</td><td>Count</td><td>Last user</td><td>Last used</td></tr>
+        <% (commandStats || []).slice(0, 5).forEach(item => { %>
+            <tr>
+                <td><%= item.name %></td>
+                <td><%= item.count %></td>
+                <td><%= item.lastUser || 'unknown' %></td>
+                <td><%= formatDate(item.lastUsedAt) %></td>
+            </tr>
+        <% }) %>
+        <% if (!(commandStats || []).length) { %>
+            <tr><td colspan="4">No command usage recorded yet.</td></tr>
+        <% } %>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>ROUTES</h2>
+    <ul>
+        <li><h3>Status</h3><p>Live health metrics from <span class="mono">/api/status/stream</span>.</p></li>
+        <li><h3>Logs</h3><p>Streaming terminal output from <span class="mono">/api/logs/stream</span>.</p></li>
+        <li><h3>Admin</h3><p>Authenticated controls for deploy/restart, feedback triage, and command stats.</p></li>
+    </ul>
+</section>
+
+<section class="panel">
+    <h2>RECENT SIGNALS</h2>
+    <div class="terminal terminal--mini">
+        <% (logs || []).slice(-8).forEach(line => { %>
+            <div class="terminal-line"><%- ansiToHtml(line) %></div>
+        <% }) %>
+        <% if (!(logs || []).length) { %>
+            <div class="terminal-line">No log data yet.</div>
+        <% } %>
+    </div>
+</section>

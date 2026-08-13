@@ -1,6 +1,6 @@
 {
   "name": "slackzilla",
-  "version": "v0.8.4.1-beta",
+  "version": "v0.8.5-beta",
   "description": "slackatron mega 1x1x1x1 edition",
   "main": "src/bot.js",
   "scripts": {
@@ -13,10 +13,16 @@
     "build:pages": "node scripts/build-pages.js"
   },
   "keywords": [
-    "slack",
-    "bot",
-    "slackbot",
-    "slackzilla"
+    "slack", "bot", "slackbot", "slack-bot", "slack-app",
+    "slack-api", "slack-bolt", "slackzilla", "chatbot",
+    "automation", "developer-tools", "devtools", "utilities",
+    "free-api", "api", "api-server", "rest-api", "web-api",
+    "webhooks", "github", "github-api", "octokit","monitoring",
+    "server-monitoring", "server-stats", "dashboard", "admin-dashboard",
+    "system-monitoring", "uptime-monitoring", "logging", "logger",
+    "metrics", "analytics", "health-check", "status-page",
+    "self-hosted", "nodejs", "node", "javascript", "backend",
+    "automation-tools", "open-source", "developer-utility"
   ],
   "author": "@rylvion",
   "license": "MIT",
@@ -26,6 +32,7 @@
     "@openrouter/sdk": "^1.2.4",
     "@slack/bolt": "^4.7.3",
     "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
     "octokit": "^5.0.5",
     "sodium-native": "^5.1.0"
   },

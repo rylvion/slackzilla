@@ -2,10 +2,8 @@ function handleLogsApi({ req, res, url, context }) {
     if (url.pathname === "/api/logs" && req.method === "GET") {
         const snapshot = context.store.getLogSnapshot()
         context.sendOk(res, {
-            data: {
-                size: snapshot.size,
-                lines: context.splitLogLines(snapshot.content)
-            }
+            size: snapshot.size,
+            lines: context.splitLogLines(snapshot.content)
         })
         return true
     }

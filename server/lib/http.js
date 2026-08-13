@@ -56,7 +56,7 @@ function parseBody(req) {
 function sendOk(res, data = {}, statusCode = 200) {
     sendJson(res, statusCode, {
         ok: true,
-        ...data
+        data
     })
 }
 

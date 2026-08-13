@@ -1,6 +1,6 @@
 function handleStatusApi({ req, res, url, context }) {
     if (url.pathname === "/api/status" && req.method === "GET") {
-        context.sendOk(res, { data: context.renderStatusPayload() })
+        context.sendOk(res, context.renderStatusPayload())
         return true
     }
 
