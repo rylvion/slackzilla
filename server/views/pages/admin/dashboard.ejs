@@ -68,9 +68,27 @@
                 </header>
                 <p><%= item.message %></p>
                 <footer>
-                    <span class="chip chip--<%= status %>"><%= status === 'responded' ? 'Responded' : status === 'read' ? 'Read' : 'Unread' %></span>
+                    <span class="chip chip--<%= status %>">
+                        <%= status === 'responded' ? 'Responded' : status === 'read' ? 'Read' : 'Unread' %>
+                    </span>
+
                     <span class="mono"><%= item.id %></span>
-                    <a class="button button--ghost" href="/admin/feedback?id=<%= encodeURIComponent(item.id) %>">Open</a>
+
+                    <a
+                        class="button button--ghost"
+                        href="/admin/feedback?id=<%= encodeURIComponent(item.id) %>">
+                        Open
+                    </a>
+
+                    <% if (status === 'unread') { %>
+                        <button
+                            class="button button--ghost"
+                            type="button"
+                            data-feedback-action="read"
+                            data-feedback-id="<%= item.id %>">
+                            Mark as read
+                        </button>
+                    <% } %>
                 </footer>
             </article>
         <% }) %>
