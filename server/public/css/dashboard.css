@@ -528,3 +528,204 @@ pre {
         width: 120px;
     }
 }
+
+/*TODO: Implement API page (shown down below) into a separate file */
+
+.endpoint {
+    margin-top: 18px;
+    background: #080808;
+    border: 1px solid var(--line-soft);
+}
+
+.endpoint:first-of-type {
+    margin-top: 0;
+}
+
+.endpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 14px;
+    background: #0d0d0d;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.endpoint-url {
+    color: #d0d0d0;
+    font-family: monospace;
+    font-size: 13px;
+    letter-spacing: 0.2px;
+}
+
+.method {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    height: 22px;
+    padding: 0 8px;
+    box-sizing: border-box;
+
+    border: 1px solid;
+    font-family: monospace;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    line-height: 1;
+}
+
+.method.get {
+    color: var(--green);
+    background: rgba(0, 255, 120, 0.06);
+    border-color: rgba(0, 255, 120, 0.3);
+}
+
+
+.method.post {
+    color: #d6a85f;
+    background: rgba(214, 168, 95, 0.06);
+    border-color: rgba(214, 168, 95, 0.3);
+}
+
+
+.endpoint table {
+    width: 100%;
+    max-width: none;
+    table-layout: fixed;
+}
+
+.endpoint td {
+    padding: 12px 14px;
+    vertical-align: top;
+    border-bottom: 1px solid #151515;
+    color: #a8a8a8;
+    line-height: 1.5;
+}
+
+.endpoint tr:last-child td {
+    border-bottom: 0;
+}
+
+.endpoint td:first-child {
+    width: 150px;
+    color: #666;
+    font-family: monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+}
+
+
+.endpoint pre {
+    margin: 0;
+    padding: 12px;
+    background: #000;
+    border: 1px solid #171717;
+    color: #b8b8b8;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.endpoint td pre:only-child {
+    color: #777;
+}
+
+.endpoint-url {
+    font-family: monospace;
+}
+
+.panel > pre {
+    color: #b8b8b8;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+
+@media (max-width: 700px) {
+    .endpoint-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 14px;
+    }
+
+    .endpoint td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .endpoint td:first-child {
+        width: 100%;
+        padding-bottom: 4px;
+        border-bottom: 0;
+    }
+
+    .endpoint td:nth-child(2) {
+        padding-top: 4px;
+    }
+
+    .endpoint pre {
+        font-size: 11px;
+    }
+}
+
+
+.endpoint {
+    transition: border-color 120ms, background 120ms;
+}
+
+.endpoint:hover {
+    border-color: #292929;
+}
+
+.endpoint:hover .endpoint-header {
+    background: #101010;
+}
+
+.endpoint td:nth-child(2) {
+    color: #a8a8a8;
+}
+
+.endpoint td:nth-child(2) code,
+.endpoint td:nth-child(2) .mono {
+    color: var(--green);
+}
+
+.panel p .mono {
+    color: var(--green);
+    font-family: monospace;
+}
+
+.endpoint pre,
+.panel > pre {
+    scrollbar-width: thin;
+    scrollbar-color: #292929 #000;
+}
+
+.endpoint pre::-webkit-scrollbar,
+.panel > pre::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+.endpoint pre::-webkit-scrollbar-track,
+.panel > pre::-webkit-scrollbar-track {
+    background: #000;
+}
+
+.endpoint pre::-webkit-scrollbar-thumb,
+.panel > pre::-webkit-scrollbar-thumb {
+    background: #292929;
+}
+
+.endpoint pre::-webkit-scrollbar-thumb:hover,
+.panel > pre::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+}
