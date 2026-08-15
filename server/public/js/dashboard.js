@@ -499,45 +499,49 @@
             window.location.search = `?q=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`
         })
 
-        document.getElementById("feedback-list")?.addEventListener("click", async event => {
-            const button = event.target.closest("[data-feedback-action]")
-            if (!button) return
+        const feedbackContainers = document.querySelectorAll(
+            "#feedback-list, #recent-feedback"
+        )
 
-            const id = button.dataset.feedbackId
-            const action = button.dataset.feedbackAction
+        feedbackContainers.forEach(container => {
+            container.addEventListener("click", async event => {
+                const button = event.target.closest("[data-feedback-action]")
+                if (!button) return
 
-            if (action === "open") {
-                window.location.href = `/admin/feedback?id=${encodeURIComponent(id)}`
-                return
-            }
+                const id = button.dataset.feedbackId
+                const action = button.dataset.feedbackAction
 
-            if (action === "respond") {
-                window.location.href = `/admin/feedback?id=${encodeURIComponent(id)}`
-                return
-            }
+                if (action === "open" || action === "respond") {
+                    window.location.href = `/admin/feedback?id=${encodeURIComponent(id)}`
+                    return
+                }
 
-            if (action === "delete" && !confirm("Delete this feedback entry?")) {
-                return
-            }
+                if (action === "delete" && !confirm("Delete this feedback entry?")) {
+                    return
+                }
 
-            const restore = setBusy(button, true, "Working...")
-            setAdminStatus("loading", `${describeFeedbackAction(action)} in progress...`)
+                const restore = setBusy(button, true, "Working...")
+                setAdminStatus("loading", `${describeFeedbackAction(action)} in progress...`)
 
-            try {
-                await requestJson(`/api/admin/feedback/${id}`, {
-                    method: "POST",
-                    headers: {
-                        "x-csrf-token": token
-                    },
-                    body: JSON.stringify({ action })
-                })
-                setAdminStatus("success", `✓ feedback ${describeFeedbackAction(action).toLowerCase()} complete`)
-                setTimeout(() => window.location.reload(), 350)
-            } catch (error) {
-                setAdminStatus("error", `✗ ${error.message}`)
-            } finally {
-                restore()
-            }
+                try {
+                    await requestJson(`/api/admin/feedback/${id}`, {
+                        method: "POST",
+                        headers: { "x-csrf-token": token },
+                        body: JSON.stringify({ action })
+                    })
+
+                    setAdminStatus(
+                        "success",
+                        `✓ feedback ${describeFeedbackAction(action).toLowerCase()} complete`
+                    )
+
+                    setTimeout(() => window.location.reload(), 350)
+                } catch (error) {
+                    setAdminStatus("error", `✗ ${error.message}`)
+                } finally {
+                    restore()
+                }
+            })
         })
 
         const detail = document.querySelector(".feedback-detail")
