@@ -18,7 +18,7 @@ async function slackApi(method, payload = {}) {
 
     if (!response.ok || !data.ok) {
         const message = data.error || `${method} request failed`
-        throw new Error(message)
+        throw new Error(`${method}: ${message}`)
     }
 
     return data

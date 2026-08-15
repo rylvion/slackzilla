@@ -1,6 +1,6 @@
 {
   "name": "slackzilla",
-  "version": "v0.8.5-beta",
+  "version": "v0.8.5.1-beta",
   "description": "slackatron mega 1x1x1x1 edition",
   "main": "src/bot.js",
   "scripts": {
