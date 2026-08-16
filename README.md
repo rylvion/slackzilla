@@ -45,8 +45,7 @@ and optional ai service keys for commands that use AI.
 
 ### `server/.env`
 
-For `WEBHOOK_SECRET` the following is a recommended way to generate a secure token:
-1. Generating a token for this is easy, you can use any of the following methods:
+1. `WEBHOOK_SECRET` - Use any secure random generator to create a 32‑byte hex token. Examples:
 1.1. `/sz-hash rand 32`, on the bot in slack (dont worry the server wont store the token!)
 1.2. `open-ssl rand -hex 32` in wsl/linux
 1.3. `[Convert]::ToHexString((1..32 | ForEach-Object { Get-Random -Maximum 256 })).ToLower()` on `pwsh` 7.0 or later
@@ -60,17 +59,20 @@ For `WEBHOOK_SECRET` the following is a recommended way to generate a secure tok
 - `BRANCH` - the branch to pull from, default is `main`
 - `SERVICE_NAME` - the name of the systemd service, default is `slackzilla`
 
-For  `ADMIN_PASSWORD_HASH`, the following is a recommended way to generate a secure hash:
-1. Generating a hash for this is easy, you can use any of the following methods:
+1. `ADMIN_PASSWORD_HASH` - Generate a PBKDF2‑SHA512 hash using any preferred method. Examples:
 1.1. `/sz-hash pbkdf2 sha512 600000 mypassword`, on the bot in slack (dont worry the server wont store the password!)
-1.2. `python3 -c "import hashlib, os, binascii; salt = os.urandom(16); password = b'mypassword'; dk = hashlib.pbkdf2_hmac('sha512', password, salt, 600000); print(f'pbkdf2\$sha512\$600000\${binascii.hexlify(salt).decode()}\${binascii.hexlify(dk).decode()}')"` in cli/python3 3.6 or later
-1.3. `$s=New-Object byte[] 16;[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($s);$p=[System.Text.Encoding]::UTF8.GetBytes("mypassword");$h=(New-Object System.Security.Cryptography.Rfc2898DeriveBytes($p,$s,600000,[System.Security.Cryptography.HashAlgorithmName]::SHA512)).GetBytes(64);$saltHex=($s|%{ $_.ToString('x2') }) -join '';$hashHex=($h|%{ $_.ToString('x2') }) -join ''; "pbkdf2`$sha512`$600000`$$saltHex`$$hashHex"` on `powershell` any version
-1.4. `ruby -ropenssl -e 'salt=OpenSSL::Random.random_bytes(16);pwd="mypassword";iter=600000;dk=OpenSSL::PKCS5.pbkdf2_hmac(pwd,salt,iter,64,"sha512");puts "pbkdf2$sha512$#{iter}$#{salt.unpack1("H*")}$#{dk.unpack1("H*")}"'` - linux/wsl/ruby
+1.2. `python3 -c "import hashlib, os, binascii, secrets, string; chars=string.ascii_letters+string.digits; password=''.join(secrets.choice(chars) for _ in range(24)); print('Password:', password); salt=os.urandom(16); dk=hashlib.pbkdf2_hmac('sha512', password.encode(), salt, 600000); print('Hash:', f'pbkdf2\$sha512\$600000\${binascii.hexlify(salt).decode()}\${binascii.hexlify(dk).decode()}')"` in cli/python3 3.6 or later
+1.3. 
+```bash
+$chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';$p=-join(1..24|%{$chars[(Get-Random -Maximum $chars.Length)]});$s=New-Object byte[] 16;[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($s);$pb=[System.Text.Encoding]::UTF8.GetBytes($p);Write-Output "Password: $p";$h=(New-Object System.Security.Cryptography.Rfc2898DeriveBytes($pb,$s,600000,[System.Security.Cryptography.HashAlgorithmName]::SHA512)).GetBytes(64);$saltHex=($s|%{$_.ToString('x2')})-join '';$hashHex=($h|%{$_.ToString('x2')})-join '';Write-Output "Hash: pbkdf2`$sha512`$600000`$$saltHex`$$hashHex"
+```
+use this on `powershell` any version (including both 5.1 and 7.0+)
+1.4. `ruby -rsecurerandom -ropenssl -e 'chars=("a".."z").to_a+("A".."Z").to_a+("0".."9").to_a;pwd=24.times.map{chars[SecureRandom.random_number(chars.length)]}.join;salt=OpenSSL::Random.random_bytes(16);iter=600000;dk=OpenSSL::PKCS5.pbkdf2_hmac(pwd,salt,iter,64,"sha512");puts "Password: #{pwd}";puts "Hash: pbkdf2$sha512$#{iter}$#{salt.unpack1(%q{H*})}$#{dk.unpack1(%q{H*})}"'` - linux/wsl/ruby
+
 2. Copy it and paste it into the `ADMIN_PASSWORD_HASH` field in `server/.env`. This hash is used to verify the admin password for the dashboard.
 3. Log in to `/admin` with the original password you hashed here, not with the hash string itself.
 
-For `ADMIN_SESSION_SECRET`, the following is a recommended way to generate a secure secret:
-1. Generating a secret for this is easy, you can use any of the following methods:
+1. `ADMIN_SESSION_SECRET` - Create a 32‑byte hex secret using any secure random generator:
 1.1. do `/sz-hash rand 32`, on the bot in slack (dont worry the server wont store the secret!)
 1.2. `open-ssl rand -hex 32` in wsl/linux
 1.3. `[Convert]::ToHexString((1..32 | ForEach-Object { Get-Random -Maximum 256 })).ToLower()` on `pwsh` 7.0 or later
