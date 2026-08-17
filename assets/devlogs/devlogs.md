@@ -64,6 +64,13 @@ Summary: Added a prototype view of the web dashboard for slackzilla, its hosted 
   <img src="../attachments/d7/logs.png" alt="Logs Page" width="400">
 </div>
 
+
+## [Devlog 8: Server Hosted Dashboard](./devlog8.md)
+Summary: Added a server hosted dashboard for slackzilla, it is hosted on the same server as the webhook and is connected to the bot, it shows the logs, status, and other information about the bot.
+
+<div style="display: flex; align-items: center;">
+  <img src="../attachments/d8/dashboard.png" alt="dashboard" width="400">
+</div>
 ---
 
 - [Devlog 1: Initial Setup](./devlog1.md)

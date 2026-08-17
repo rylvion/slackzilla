@@ -3,15 +3,9 @@ node_modules/
 priv/
 *.dtmp
 *.bkp
-server/database/feedback.json
-
-
-# web server stuff (that will break the bot/server if added to git)
+dist/
 server/logs/
 *.backup
-dist/
-devlog8.md
 
-# /sz-ask (ai stuff) that will break without the valid api (devlog 9)
 devlog9.md
 src/cmds/ask.js
