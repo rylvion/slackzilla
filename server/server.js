@@ -5,6 +5,7 @@ const crypto = require("crypto")
 const { URL } = require("url")
 
 require("dotenv").config({ path: path.join(__dirname, ".env") })
+require("dotenv").config({ path: path.join(__dirname, "..", "bot", ".env") })
 require("dotenv").config({ path: path.join(__dirname, "..", "src", ".env") })
 
 const store = require("./database/store")
@@ -16,17 +17,17 @@ const {
     getRuntimeSnapshot,
     saveDeploymentState
 } = require("./lib/system")
-const {
-    renderStatusPage,
-    escapeHtml
-} = require("./lib/pages")
+
 const { handlePublicPages } = require("./pages/public")
 const { handleAdminPages } = require("./pages/admin")
 const { handleStatusApi } = require("./api/status")
 const { handleLogsApi } = require("./api/logs")
+const { handleMetricsApi } = require("./api/metrics")
 const { handleAdminApi } = require("./api/admin")
 const { handleFeedbackApi } = require("./api/feedback")
 const { handleControlApi } = require("./api/control")
+const { handleCommandsApi } = require("./api/commands")
+const { handleAskApi } = require("./api/ask")
 
 const port = Number(process.env.PORT || 9000)
 const projectDir = process.env.PROJECT_DIR || process.cwd()
@@ -47,20 +48,16 @@ const runtimeConfig = {
     webhookPath: "/webhook"
 }
 
-if (!webhookSecret) {
-    console.error("Missing WEBHOOK_SECRET in server/.env")
-    process.exit(1)
+function validateEnvVar(name, value) {
+    if (!value) {
+        console.error(`Missing ${name} in server/.env`)
+        process.exit(1)
+    }
 }
 
-if (!process.env.ADMIN_PASSWORD_HASH) {
-    console.error("Missing ADMIN_PASSWORD_HASH in server/.env")
-    process.exit(1)
-}
-
-if (!process.env.ADMIN_SESSION_SECRET) {
-    console.error("Missing ADMIN_SESSION_SECRET in server/.env")
-    process.exit(1)
-}
+validateEnvVar("WEBHOOK_SECRET", webhookSecret)
+validateEnvVar("ADMIN_PASSWORD_HASH", process.env.ADMIN_PASSWORD_HASH)
+validateEnvVar("ADMIN_SESSION_SECRET", process.env.ADMIN_SESSION_SECRET)
 
 const auth = createAuth({
     passwordHash: process.env.ADMIN_PASSWORD_HASH,
@@ -97,9 +94,19 @@ function formatDuration(seconds) {
     ].filter(Boolean).join(" ")
 }
 
-function normalizeStatus(snapshot) {
+function normaliseStatus(snapshot) {
     const deployment = store.readDeploymentState()
-
+    const botMetrics = store.getBotMetrics()
+    const systemUsedMemory = snapshot.systemTotalMemory !== null && snapshot.systemFreeMemory !== null
+        ? snapshot.systemTotalMemory - snapshot.systemFreeMemory
+        : null
+    const memoryUsedPercent = snapshot.systemTotalMemory && systemUsedMemory !== null
+        ? (systemUsedMemory / snapshot.systemTotalMemory) * 100
+        : null
+    const diskUsedPercent = snapshot.disk.total
+        ? (snapshot.disk.used / snapshot.disk.total) * 100
+        : null
+    
     return {
         botOnline: snapshot.botOnline,
         uptimeText: formatDuration(snapshot.uptime),
@@ -113,13 +120,27 @@ function normalizeStatus(snapshot) {
         lastDeploymentOutput: (deployment.lastDeploymentOutput || []).join("\n").trim(),
         rssText: formatBytes(snapshot.memoryRss),
         cpuText: `${snapshot.cpuPercent.toFixed(2)}%`,
-        memoryText: `${formatBytes(snapshot.memoryRss)} / ${formatBytes(snapshot.systemTotalMemory)}`,
+        memoryText: systemUsedMemory !== null ? `${formatBytes(systemUsedMemory)} / ${formatBytes(snapshot.systemTotalMemory)}` : "unavailable",
+        processMemoryText: formatBytes(snapshot.memoryRss),
         loadText: snapshot.systemLoadAverage.map(value => value.toFixed(2)).join(" / "),
         lastDeploymentAt: deployment.lastDeploymentAt,
         lastDeploymentCommit: deployment.lastDeploymentCommit,
         lastDeploymentResult: deployment.lastDeploymentResult,
         systemTotalMemory: snapshot.systemTotalMemory,
-        systemFreeMemory: snapshot.systemFreeMemory
+        systemFreeMemory: snapshot.systemFreeMemory,
+        memoryUsedPercent,
+        diskTotal: snapshot.disk.total,
+        diskFree: snapshot.disk.free,
+        diskUsed: snapshot.disk.used,
+        diskUsedPercent,
+        networkRxBytes: snapshot.network.rxBytes,
+        networkTxBytes: snapshot.network.txBytes,
+        networkRxRate: snapshot.network.rxRate,
+        networkTxRate: snapshot.network.txRate,
+        commandsExecuted: botMetrics.commandsExecuted,
+        uniqueUsers: botMetrics.uniqueUsers,
+        uniqueChannels: botMetrics.uniqueChannels,
+        commandStats: botMetrics.commandStats.slice(0, 12)
     }
 }
 
@@ -158,6 +179,8 @@ function createStreamSet() {
 const logClients = createStreamSet()
 const statusClients = createStreamSet()
 const adminClients = createStreamSet()
+const telemetryHistory = []
+let latestStatusPayload = null
 
 function broadcast(clients, event, data) {
     for (const client of clients) {
@@ -186,14 +209,30 @@ function splitLogLines(content) {
 }
 
 function renderStatusPayload() {
-    return normalizeStatus(refreshRuntimeSnapshot())
+    const snapshot = refreshRuntimeSnapshot()
+    const payload = normaliseStatus(snapshot)
+
+    telemetryHistory.push({
+        time: new Date().toISOString(),
+        cpuPercent: payload.cpuText === "unavailable" ? null : Number.parseFloat(payload.cpuText),
+        memoryUsedPercent: payload.memoryUsedPercent,
+        diskUsedPercent: payload.diskUsedPercent,
+        networkRxRate: payload.networkRxRate,
+        networkTxRate: payload.networkTxRate
+    })
+    telemetryHistory.splice(0, Math.max(0, telemetryHistory.length - 120))
+    payload.telemetryHistory = telemetryHistory
+    latestStatusPayload = payload
+
+    return payload
 }
 
 function buildAdminSummary(csrfToken = "") {
     return {
-        status: renderStatusPayload(),
+        status: latestStatusPayload || renderStatusPayload(),
         feedback: store.listFeedback({ status: "all" }).slice(0, 5),
-        commandStats: store.getCommandStats().slice(0, 8),
+        commandStats: store.getBotMetrics().commandStats.slice(0, 8),
+        serverEvents: store.getServerEvents(50),
         logs: splitLogLines(store.getLogSnapshot().content).slice(-20),
         runtimeConfig,
         csrfToken
@@ -205,7 +244,7 @@ function refreshAndBroadcastStatus() {
     broadcast(statusClients, "status", status)
     broadcast(adminClients, "status", status)
     broadcast(statusClients, "summary", {
-        commandStats: store.getCommandStats().slice(0, 8)
+        commandStats: store.getBotMetrics().commandStats.slice(0, 8)
     })
     broadcast(adminClients, "summary", buildAdminSummary())
     return status
@@ -234,13 +273,8 @@ function watchLogs() {
     let previousSize = store.getLogSnapshot().size
 
     fs.watchFile(store.logFile, { interval: 500 }, (current) => {
-        if (current.size < previousSize) {
-            previousSize = 0
-        }
-
-        if (current.size === previousSize) {
-            return
-        }
+        if (current.size < previousSize) { previousSize = 0 }
+        if (current.size === previousSize) { return }
 
         const start = previousSize
         previousSize = current.size
@@ -283,14 +317,36 @@ function verifyWebhookSignature(signature, body) {
 }
 
 function handleStatic(req, res, pathname) {
-    if (!pathname.startsWith("/public/")) {
+    if (req.method !== "GET") {
         return false
     }
 
-    const filePath = path.normalize(path.join(__dirname, "public", pathname.slice("/public/".length)))
-    const publicRoot = path.join(__dirname, "public")
+    let filePath
+    let rootPath
 
-    if (!filePath.startsWith(publicRoot)) {
+    if (pathname.startsWith("/public/")) {
+        rootPath = path.join(__dirname, "public")
+        filePath = path.normalize(
+            path.join(rootPath, pathname.slice("/public/".length))
+        )
+    } else if (pathname.startsWith("/assets/attachments/")) {
+        rootPath = path.join(__dirname, "..", "assets")
+        filePath = path.normalize(
+            path.join(rootPath, pathname.slice("/assets/".length))
+        )
+    } else if (pathname.startsWith("/assets/")) {
+        rootPath = path.join(__dirname, "client", "dist")
+        filePath = path.normalize(
+            path.join(rootPath, pathname.slice(1))
+        )
+    } else if (pathname === "/favicon.svg") {
+        rootPath = path.join(__dirname, "client", "dist")
+        filePath = path.join(rootPath, "favicon.svg")
+    } else {
+        return false
+    }
+
+    if (!filePath.startsWith(rootPath)) {
         sendText(res, 403, "Forbidden\n")
         return true
     }
@@ -301,15 +357,20 @@ function handleStatic(req, res, pathname) {
     }
 
     const ext = path.extname(filePath)
+
     const contentType = {
+        ".html": "text/html; charset=utf-8",
         ".css": "text/css; charset=utf-8",
         ".js": "text/javascript; charset=utf-8",
+        ".json": "application/json; charset=utf-8",
         ".svg": "image/svg+xml",
         ".png": "image/png",
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
-        ".ico": "image/x-icon"
+        ".ico": "image/x-icon",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2"
     }[ext] || "application/octet-stream"
 
     sendText(res, 200, fs.readFileSync(filePath), contentType)
@@ -443,6 +504,7 @@ const context = {
     logClients,
     adminClients,
     splitLogLines,
+    getBotMetrics: () => store.getBotMetrics(),
     renderStatusPayload,
     buildAdminSummary,
     refreshAndBroadcastStatus,
@@ -453,16 +515,106 @@ const context = {
 }
 
 async function handleApi(req, res, url) {
+    if (await handleCommandsApi({ req, res, url, context })) return true
+    if (await handleAskApi({ req, res, url, context })) return true
     if (await handleStatusApi({ req, res, url, context })) return true
     if (await handleLogsApi({ req, res, url, context })) return true
+    if (await handleMetricsApi({ req, res, url, context })) return true
     if (await handleAdminApi({ req, res, url, context })) return true
     if (await handleFeedbackApi({ req, res, url, context })) return true
     if (await handleControlApi({ req, res, url, context })) return true
     return false
 }
 
+function handleReactApp(req, res, pathname) {
+    if (req.method !== "GET") return false
+
+    if (
+        pathname.startsWith("/api/") ||
+        pathname === "/webhook" ||
+        pathname.startsWith("/public/") ||
+        pathname.startsWith("/assets/")
+    ) {
+        return false
+    }
+
+    if (pathname === "/admin" || pathname === "/admin/feedback") {
+        const session = auth.requireSession(req, res)
+        if (!session) return true
+    }
+
+    const browserRoutes = new Set([
+        "/",
+        "/status",
+        "/commands",
+        "/logs",
+        "/api",
+        "/ai",
+        "/docs",
+        "/sitemap",
+        "/admin",
+        "/admin/login"
+    ])
+    const statusCode = browserRoutes.has(pathname) ? 200 : 404
+
+    const distRoot = path.join(__dirname, "client", "dist")
+    const indexPath = path.join(distRoot, "index.html")
+
+    if (!fs.existsSync(indexPath)) {
+        return false
+    }
+
+    sendText(
+        res,
+        statusCode,
+        fs.readFileSync(indexPath),
+        "text/html; charset=utf-8"
+    )
+
+    return true
+}
+
+async function handleAdminLogin(req, res, url) {
+    if (url.pathname !== "/admin/login") return false
+
+    if (req.method === "GET") {
+        if (auth.getSessionFromRequest(req)) {
+            res.statusCode = 302
+            res.setHeader("Location", "/admin")
+            res.end()
+            return true
+        }
+        auth.issueLoginChallenge(req, res)
+        return false
+    }
+
+    if (req.method !== "POST") return false
+
+    const body = await parseBody(req)
+    const result = auth.login(req, res, String(body.password || ""))
+
+    if (!result.ok) {
+        sendJson(res, result.status || 401, {
+            ok: false,
+            error: result.message
+        })
+        return true
+    }
+
+    sendJson(res, 200, { ok: true, data: { redirect: "/admin" } })
+    return true
+}
+
 async function handleRequest(req, res) {
     const url = new URL(req.url, "http://localhost")
+
+    res.once("finish", () => {
+        try {
+            store.recordServerEvent({ method: req.method, path: url.pathname, statusCode: res.statusCode })
+        } catch {
+            // Telemetry must not prevent the request from being served.
+        }
+    })
 
     res.setHeader("X-Content-Type-Options", "nosniff")
     res.setHeader("Referrer-Policy", "same-origin")
@@ -470,10 +622,9 @@ async function handleRequest(req, res) {
 
     if (handleStatic(req, res, url.pathname)) return
     if (handleWebhook(req, res, url)) return
-    if (await handleAdminPages({ req, res, url, context })) return
+    if (await handleAdminLogin(req, res, url)) return
     if (await handleApi(req, res, url)) return
-    if (await handlePublicPages({ req, res, url, context })) return
-
+    if (handleReactApp(req, res, url.pathname)) return
     sendText(res, 404, "Not found\n")
 }
 
@@ -481,7 +632,7 @@ watchLogs()
 refreshAndBroadcastStatus()
 refreshAndBroadcastLogs()
 
-setInterval(refreshAndBroadcastStatus, 5000)
+setInterval(refreshAndBroadcastStatus, 1000)
 
 http.createServer((req, res) => {
     Promise.resolve(handleRequest(req, res)).catch(error => {
@@ -490,5 +641,7 @@ http.createServer((req, res) => {
         sendText(res, 500, "Internal server error\n")
     })
 }).listen(port, () => {
-    store.appendLogChunk(`dashboard server listening on port ${port}\n`)
+    const msg = `dashboard server listening on port ${port}\nVisit http${process.env.NODE_ENV === "production" ? "s" : ""}://${cookieSecure? "your-domain-here.com" : "localhost"}:${port} in your browser to see the dashboard.\n`
+    console.log(msg)
+    store.appendLogChunk(msg)
 })

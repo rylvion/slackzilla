@@ -33,7 +33,7 @@ jobs:
                   const path = require('path')
 
                   const commands = JSON.parse(
-                    fs.readFileSync('src/data/commands.json', 'utf8')
+                    fs.readFileSync('bot/data/commands.json', 'utf8')
                   )
 
                   let failed = false

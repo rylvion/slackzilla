@@ -40,6 +40,7 @@ async function sendFeedbackResponse({
     })
 
     const message = [
+        `<@${userId}>`,
         `Feedback ID: ${feedbackId}`,
         `Time Submitted: ${submittedAt}`,
         "",

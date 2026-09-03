@@ -1,0 +1,427 @@
+/* =========================================
+   Slackzilla Docs
+   ========================================= */
+
+.panel {
+    position: relative;
+    overflow: hidden;
+
+    border: 1px solid rgba(0, 255, 120, 0.22);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(0, 255, 120, 0.025),
+            transparent 45%
+        ),
+        rgba(3, 10, 7, 0.92);
+
+    box-shadow:
+        0 0 20px rgba(0, 255, 120, 0.035),
+        inset 0 0 30px rgba(0, 255, 120, 0.012);
+}
+
+/* Subtle CRT scanlines */
+
+.panel::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    pointer-events: none;
+
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0,
+        transparent 3px,
+        rgba(0, 255, 120, 0.012) 4px
+    );
+}
+
+.panel > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* =========================================
+   Headers
+   ========================================= */
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding: 15px 20px;
+
+    border-bottom: 1px solid rgba(0, 255, 120, 0.16);
+
+    background: rgba(0, 255, 120, 0.025);
+}
+
+.panel-header h1,
+.panel-header h2 {
+    margin: 0;
+
+    color: #00ff78;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 1rem;
+    font-weight: 600;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
+    text-shadow:
+        0 0 9px rgba(0, 255, 120, 0.3);
+}
+
+.panel-header h1::before,
+.panel-header h2::before {
+    content: "> ";
+
+    color: rgba(0, 255, 120, 0.4);
+}
+
+.panel-subtitle {
+    color: #527064;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 0.68rem;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* =========================================
+   Documentation grid
+   ========================================= */
+
+.doc-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 1px;
+
+    background: rgba(0, 255, 120, 0.12);
+}
+
+/* =========================================
+   Documentation cards
+   ========================================= */
+
+.doc-grid article {
+    position: relative;
+
+    min-width: 0;
+
+    padding: 22px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(0, 255, 120, 0.025),
+            rgba(0, 0, 0, 0.12)
+        ),
+        rgba(3, 10, 7, 0.96);
+
+    transition:
+        background 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.doc-grid article:hover {
+    background:
+        linear-gradient(
+            135deg,
+            rgba(0, 255, 120, 0.05),
+            rgba(0, 0, 0, 0.1)
+        ),
+        rgba(3, 10, 7, 0.96);
+
+    box-shadow:
+        inset 0 0 25px rgba(0, 255, 120, 0.025);
+}
+
+/* Small green corner indicator */
+
+.doc-grid article::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    width: 28px;
+    height: 2px;
+
+    background: #00ff78;
+
+    box-shadow:
+        0 0 8px rgba(0, 255, 120, 0.5);
+}
+
+/* =========================================
+   Eyebrow / section identifier
+   ========================================= */
+
+.eyebrow {
+    display: block;
+
+    margin-bottom: 10px;
+
+    color: #397054;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 0.68rem;
+    font-weight: 600;
+
+    letter-spacing: 0.12em;
+}
+
+/* Active number */
+
+.eyebrow::before {
+    content: "[ ";
+
+    color: #234b36;
+}
+
+.eyebrow::after {
+    content: " ]";
+
+    color: #234b36;
+}
+
+/* =========================================
+   Documentation titles
+   ========================================= */
+
+.doc-grid article h2 {
+    margin: 0 0 10px;
+
+    color: #caffdf;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 0.95rem;
+    font-weight: 600;
+
+    letter-spacing: 0.02em;
+}
+
+.doc-grid article h2::before {
+    content: "// ";
+
+    color: #315342;
+}
+
+.doc-grid article p {
+    margin: 0;
+
+    color: #769487;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 0.75rem;
+
+    line-height: 1.75;
+}
+
+.doc-grid article code,
+.panel-body code {
+    padding: 2px 5px;
+
+    border: 1px solid rgba(0, 255, 120, 0.12);
+
+    background: rgba(0, 255, 120, 0.035);
+
+    color: #8effbd;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 0.72rem;
+}
+
+.panel-body {
+    padding: 20px;
+}
+
+.panel-body p {
+    margin: 0;
+
+    color: #769487;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 0.76rem;
+
+    line-height: 1.8;
+}
+
+.docs-content {
+    padding: 24px;
+}
+
+.docs-lead,
+.docs-section p {
+    max-width: 82ch;
+    color: #a4bcae;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.78rem;
+    line-height: 1.8;
+}
+
+.docs-lead {
+    margin: 0 0 30px;
+    color: #caffdf;
+    font-size: 0.86rem;
+}
+
+.docs-section {
+    padding: 24px 0;
+    border-top: 1px solid rgba(0, 255, 120, 0.12);
+}
+
+.docs-section:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.docs-section h2 {
+    margin: 0 0 12px;
+    color: #caffdf;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 1rem;
+}
+
+.docs-section h3 {
+    margin: 0 0 10px;
+    color: #8effbd;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.82rem;
+}
+
+.docs-section p {
+    margin: 0 0 14px;
+}
+
+.docs-section p:last-child {
+    margin-bottom: 0;
+}
+
+.docs-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 18px;
+}
+
+.docs-three article p {
+    margin-bottom: 14px;
+    font-size: 0.72rem;
+}
+
+.docs-steps {
+    max-width: 82ch;
+    margin: 0;
+    padding-left: 24px;
+    color: #a4bcae;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.78rem;
+    line-height: 2;
+}
+
+.docs-steps li {
+    padding-left: 8px;
+}
+
+.docs-section pre {
+    max-width: 90ch;
+    margin: 12px 0 18px;
+    overflow-x: auto;
+    padding: 16px;
+    border: 1px solid rgba(0, 255, 120, 0.14);
+    background: rgba(0, 0, 0, 0.3);
+    color: #b7f8cf;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    white-space: pre;
+}
+
+.panel:nth-child(2) {
+    margin-top: 16px;
+}
+
+.panel:nth-child(2) .panel-header {
+    border-bottom-color: rgba(0, 255, 120, 0.1);
+}
+
+.panel:nth-child(2) .panel-body {
+    position: relative;
+
+    border-left: 2px solid rgba(0, 255, 120, 0.2);
+}
+
+
+@media (max-width: 750px) {
+    .panel-header {
+        align-items: flex-start;
+
+        flex-direction: column;
+
+        gap: 7px;
+    }
+
+    .doc-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .docs-content {
+        padding: 18px;
+    }
+
+    .docs-three {
+        grid-template-columns: 1fr;
+    }
+
+    .doc-grid article {
+        padding: 18px;
+    }
+}

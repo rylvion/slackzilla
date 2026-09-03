@@ -18,6 +18,12 @@
         "usage_hint": "<question>"
       },
       {
+        "command": "/sz-ask",
+        "description": "asks a question to the bot",
+        "should_escape": false,
+        "usage_hint": "<question>"
+      },
+      {
         "command": "/sz-base64",
         "description": "generates a base64 encoded string",
         "should_escape": false,

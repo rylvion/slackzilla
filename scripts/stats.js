@@ -1,7 +1,7 @@
 const fs = require("fs")
 const path = require("path")
 
-const filePath = path.join(__dirname, "..", "src", "data", "commands.json")
+const filePath = path.join(__dirname, "..", "bot", "data", "commands.json")
 const commands = JSON.parse(fs.readFileSync(filePath, "utf8"))
 
 const list = Object.entries(commands).filter(([key]) => key !== "$schema")

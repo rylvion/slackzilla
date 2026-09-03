@@ -33,3 +33,11 @@ btw this isnt hosted (will host soon) or anything and to use it you have to use 
     </b>
   </em>
 </p>
+
+<p align="center">
+  <em><b>
+    <a href="./devlogs.md">
+      View all devlogs
+    </a>
+  </b></em>
+</p>

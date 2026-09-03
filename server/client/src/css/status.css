@@ -1,0 +1,505 @@
+.panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 255, 120, 0.22);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(0, 255, 120, 0.025),
+            rgba(0, 0, 0, 0.12)
+        ),
+        rgba(3, 10, 7, 0.9);
+    box-shadow:
+        0 0 18px rgba(0, 255, 120, 0.04),
+        inset 0 0 30px rgba(0, 255, 120, 0.015);
+}
+
+.panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0,
+        transparent 3px,
+        rgba(0, 255, 120, 0.012) 4px
+    );
+}
+
+.panel > * {
+    position: relative;
+    z-index: 1;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(0, 255, 120, 0.15);
+    background: rgba(0, 255, 120, 0.025);
+}
+
+.panel-header h1,
+.panel-header h2 {
+    margin: 0;
+    color: #00ff78;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(0, 255, 120, 0.3);
+}
+
+.panel-header h1::before,
+.panel-header h2::before {
+    content: "> ";
+    color: rgba(0, 255, 120, 0.4);
+}
+
+.panel-subtitle {
+    color: #527064;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.panel-subtitle {
+    position: relative;
+}
+
+.panel-subtitle:first-letter {
+    color: #00ff78;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(0, 255, 120, 0.12);
+}
+
+.metric-grid > * {
+    position: relative;
+    min-height: 110px;
+    padding: 20px;
+    background: rgba(3, 10, 7, 0.95);
+}
+
+.metric-grid > *::after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #00ff78;
+    box-shadow: 0 0 8px rgba(0, 255, 120, 0.8);
+}
+
+.stats {
+    display: grid;
+    gap: 1px;
+    background: rgba(0, 255, 120, 0.12);
+}
+
+.stats--two {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.stat {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 22px 20px;
+    background: rgba(3, 10, 7, 0.95);
+    transition: background 120ms ease;
+}
+
+.stat:hover {
+    background: rgba(0, 255, 120, 0.035);
+}
+
+.network-stat--inbound {
+    border-left: 3px solid #58d8ff;
+}
+
+.network-stat--inbound .stat-label,
+.network-stat--inbound .stat-value {
+    color: #8edfff;
+}
+
+.network-stat--outbound {
+    border-left: 3px solid #ffba5c;
+}
+
+.network-stat--outbound .stat-label,
+.network-stat--outbound .stat-value {
+    color: #ffd18c;
+}
+
+.stat-label {
+    color: #527064;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+}
+
+.stat-label::before {
+    content: "[";
+    color: #315342;
+    margin-right: 4px;
+}
+
+.stat-label::after {
+    content: "]";
+    color: #315342;
+    margin-left: 4px;
+}
+
+.stat-value {
+    color: #d6ffe7;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-shadow: 0 0 8px rgba(0, 255, 120, 0.15);
+}
+
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.connection-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00ff78;
+    box-shadow: 0 0 8px rgba(0, 255, 120, 0.8);
+}
+
+.is-reconnecting .connection-dot {
+    animation: status-pulse 1s infinite;
+}
+
+@keyframes status-pulse {
+    0%,
+    100% {
+        opacity: 0.3;
+        box-shadow: 0 0 2px rgba(0, 255, 120, 0.2);
+    }
+
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 10px rgba(0, 255, 120, 0.8);
+    }
+}
+
+.stat-value::before {
+    content: "$ ";
+    color: #00a653;
+}
+
+#overview,
+#resources,
+#network {
+    scroll-margin-top: 80px;
+}
+
+#resources,
+#network {
+    margin-top: 16px;
+}
+
+.metric-card {
+    position: relative;
+    min-height: 100px;
+    padding: 18px;
+    border: 1px solid rgba(0, 255, 120, 0.14);
+    background:
+        linear-gradient(
+            135deg,
+            rgba(0, 255, 120, 0.035),
+            rgba(0, 0, 0, 0.15)
+        ),
+        rgba(2, 9, 6, 0.95);
+    transition:
+        border-color 150ms ease,
+        background 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.metric-card:hover {
+    border-color: rgba(0, 255, 120, 0.35);
+    background:
+        linear-gradient(
+            135deg,
+            rgba(0, 255, 120, 0.055),
+            rgba(0, 0, 0, 0.15)
+        ),
+        rgba(2, 9, 6, 0.95);
+    box-shadow: 0 0 15px rgba(0, 255, 120, 0.05);
+}
+
+.metric-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 18px;
+}
+
+.metric-top span {
+    color: #527064;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+}
+
+.metric-top span::before {
+    content: "[ ";
+    color: #315342;
+}
+
+.metric-top span::after {
+    content: " ]";
+    color: #315342;
+}
+
+.metric-top strong {
+    color: #d6ffe7;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: right;
+    text-shadow: 0 0 8px rgba(0, 255, 120, 0.15);
+}
+
+.meter {
+    position: relative;
+    width: 100%;
+    height: 7px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 255, 120, 0.15);
+    background: rgba(0, 255, 120, 0.035);
+}
+
+.meter::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent 0,
+        transparent 8px,
+        rgba(0, 0, 0, 0.35) 8px,
+        rgba(0, 0, 0, 0.35) 10px
+    );
+}
+
+.meter span {
+    position: relative;
+    display: block;
+    z-index: 1;
+    height: 100%;
+    background: #00ff78;
+    box-shadow:
+        0 0 6px rgba(0, 255, 120, 0.7),
+        0 0 14px rgba(0, 255, 120, 0.25);
+    transition: width 500ms ease;
+}
+
+.meter span::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 3px;
+    height: 100%;
+    background: #caffdf;
+    box-shadow: 0 0 8px rgba(0, 255, 120, 0.9);
+}
+
+@media (max-width: 800px) {
+    .metric-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats--two {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .panel-header h1,
+    .panel-header h2 {
+        font-size: 0.9rem;
+    }
+
+    .panel-subtitle {
+        font-size: 0.65rem;
+    }
+}
+
+.telemetry-history {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 18px 0 20px;
+    padding: 0 0 12px;
+    border: 1px solid rgba(0, 255, 120, 0.12);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.telemetry-history > .telemetry-chart {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.telemetry-chart {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 16px;
+    padding: 12px 0;
+    border: 1px solid rgba(0, 255, 120, 0.1);
+    background: rgba(3, 10, 7, 0.8);
+}
+
+.telemetry-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 12px;
+    margin-bottom: 8px;
+    color: #caffdf;
+    font: 0.68rem var(--font-mono);
+}
+
+.telemetry-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: #769487;
+    font-size: 0.6rem;
+}
+
+.telemetry-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.telemetry-legend i {
+    width: 7px;
+    height: 7px;
+    display: inline-block;
+}
+
+.telemetry-chart-plot {
+    position: relative;
+}
+
+.telemetry-chart svg {
+    display: block;
+    width: 100%;
+    height: 150px;
+    max-height: 150px;
+    overflow: visible;
+    background: repeating-linear-gradient(0deg, rgba(0, 255, 120, 0.04) 0 1px, transparent 1px 30px);
+}
+
+.chart-axis {
+    stroke: rgba(170, 220, 190, 0.35);
+    stroke-width: 1;
+}
+
+.chart-scale {
+    display: block;
+    margin-top: 6px;
+    padding: 0 12px;
+    color: #527064;
+    font: 0.58rem var(--font-mono);
+    text-align: right;
+}
+
+.history-label {
+    margin-bottom: 10px;
+    color: #527064;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+}
+
+.history-bars {
+    display: flex;
+    align-items: end;
+    gap: 2px;
+    height: 42px;
+    overflow: hidden;
+}
+
+.history-bars span {
+    flex: 1 0 3px;
+    min-width: 2px;
+    max-width: 8px;
+    background: #00ff78;
+    opacity: 0.65;
+}
+
+@media (max-width: 750px) {
+    .telemetry-history {
+        margin: 14px;
+    }
+}
+
+.chart-point {
+    cursor: crosshair;
+    opacity: 0.01;
+    transition: opacity 120ms ease;
+}
+
+.telemetry-chart:hover .chart-point {
+    opacity: 0.18;
+}
+
+.chart-tooltip {
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 120px;
+    max-width: 190px;
+    padding: 8px 10px;
+    pointer-events: none;
+    transform: translate(-50%, calc(-100% - 10px));
+    border: 1px solid rgba(0, 255, 120, 0.3);
+    background: rgba(2, 9, 6, 0.96);
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.35);
+    color: #a4bcae;
+    font: 0.6rem/1.4 var(--font-mono);
+}
+
+.chart-tooltip strong {
+    margin-bottom: 2px;
+    color: #caffdf;
+}

@@ -16,6 +16,12 @@ function handleControlApi({ req, res, url, context }) {
             }
 
             const action = String(body.action || "").toLowerCase()
+            const dangerousActions = ["start", "stop", "restart", "redeploy"]
+
+            if (dangerousActions.includes(action) && body.confirmed !== true) {
+                context.sendError(res, 409, "CONFIRMATION_REQUIRED", "confirmation required for this action")
+                return true
+            }
 
             try {
                 if (action === "redeploy") {

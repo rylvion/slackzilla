@@ -1,0 +1,329 @@
+.panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 255, 120, 0.25);
+    background: rgba(2, 8, 5, 0.95);
+    box-shadow:
+        0 0 25px rgba(0, 255, 120, 0.04),
+        inset 0 0 35px rgba(0, 255, 120, 0.015);
+}
+
+.panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0,
+        transparent 3px,
+        rgba(0, 255, 120, 0.012) 4px
+    );
+}
+
+.panel-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(0, 255, 120, 0.18);
+    background: rgba(0, 255, 120, 0.025);
+}
+
+.panel-header h1 {
+    margin: 0;
+    color: #00ff78;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(0, 255, 120, 0.4);
+}
+
+.panel-header h1::before {
+    content: "> ";
+    color: rgba(0, 255, 120, 0.45);
+}
+
+.panel-subtitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #527064;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.panel-subtitle::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #00ff78;
+    box-shadow:
+        0 0 5px rgba(0, 255, 120, 0.8),
+        0 0 12px rgba(0, 255, 120, 0.35);
+}
+
+
+.panel-header .panel-subtitle {
+    transition: color 150ms ease;
+}
+
+.log-toolbar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid rgba(0, 255, 120, 0.12);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(0, 255, 120, 0.035),
+            rgba(0, 255, 120, 0.015)
+        );
+}
+
+.log-toolbar input {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid rgba(0, 255, 120, 0.18);
+    outline: none;
+    background: rgba(0, 0, 0, 0.45);
+    color: #caffdf;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.75rem;
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease,
+        background 120ms ease;
+}
+
+.log-toolbar input::placeholder {
+    color: #3f5c4e;
+}
+
+.log-toolbar input:focus {
+    border-color: rgba(0, 255, 120, 0.45);
+    background: rgba(0, 255, 120, 0.025);
+    box-shadow:
+        0 0 0 1px rgba(0, 255, 120, 0.08),
+        0 0 12px rgba(0, 255, 120, 0.05);
+}
+
+.log-toolbar input::before {
+    content: "$";
+}
+
+.log-toolbar .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid rgba(0, 255, 120, 0.22);
+    background: rgba(0, 255, 120, 0.045);
+    color: #00ff78;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.7rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.log-toolbar .button::before {
+    content: "./";
+    color: #3c805d;
+}
+
+.log-toolbar .button:hover {
+    border-color: rgba(0, 255, 120, 0.5);
+    background: rgba(0, 255, 120, 0.08);
+    box-shadow: 0 0 12px rgba(0, 255, 120, 0.08);
+    color: #caffdf;
+}
+
+.terminal {
+    position: relative;
+    height: min(70vh, 720px);
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 14px 16px;
+
+    background:
+        radial-gradient(
+            ellipse at top left,
+            rgba(0, 255, 120, 0.025),
+            transparent 45%
+        ),
+        #020604;
+
+    color: #a8cdb7;
+
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+
+    font-size: 0.75rem;
+    line-height: 1.6;
+    scrollbar-color: rgba(0, 255, 120, 0.25) transparent;
+    scrollbar-width: thin;
+}
+
+.terminal::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0,
+        transparent 2px,
+        rgba(0, 255, 120, 0.01) 3px
+    );
+}
+
+.terminal::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.terminal::-webkit-scrollbar-track {
+    background: #020604;
+}
+
+.terminal::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 120, 0.2);
+}
+
+.terminal::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 120, 0.35);
+}
+
+.log-lines {
+    position: relative;
+}
+
+.log-lines::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 43px;
+    width: 1px;
+    background: #2f3136;
+    pointer-events: none;
+}
+
+.log-line {
+    display: flex;
+    min-width: max-content;
+    padding: 1px 6px;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    white-space: pre;
+    transition: background 80ms ease;
+}
+
+.log-line-number {
+    flex: 0 0 32px;
+    color: #6e7681;
+    user-select: none;
+    text-align: right;
+    padding-right: 6px;
+    opacity: 0.7;
+}
+
+.log-line-text {
+    flex: 1;
+    min-width: 0;
+    padding-left: 18px;
+    padding-right: 24px;
+    white-space: pre-wrap;
+}
+
+.log-line:hover {
+    background: rgba(0, 255, 120, 0.025);
+}
+
+.highlight {
+    background: rgba(0, 255, 120, 0.08);
+    box-shadow: inset 0 0 8px rgba(0, 255, 120, 0.05);
+    transition: background 0.5s ease, box-shadow 0.5s ease;
+}
+
+.ansi-red {
+    color: #ff5f56;
+    text-shadow: 0 0 5px rgba(255, 95, 86, 0.25);
+}
+
+.ansi-green {
+    color: #00ff78;
+    text-shadow: 0 0 5px rgba(0, 255, 120, 0.25);
+}
+
+.ansi-yellow {
+    color: #f5d76e;
+    text-shadow: 0 0 5px rgba(245, 215, 110, 0.2);
+}
+
+.ansi-cyan {
+    color: #62e6e6;
+    text-shadow: 0 0 5px rgba(98, 230, 230, 0.2);
+}
+
+.ansi-muted {
+    color: #50665a;
+}
+
+.terminal > .muted {
+    color: #50665a;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    animation: terminal-blink 1.2s steps(2, start) infinite;
+}
+
+.terminal > .muted::after {
+    content: "█";
+    margin-left: 5px;
+    color: #00ff78;
+}
+
+@media (max-width: 700px) {
+    .panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .log-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .log-toolbar input { width: 100%; }
+    .log-toolbar .button { width: 100%;}
+
+    .terminal {
+        height: 65vh;
+        padding: 12px 10px;
+        font-size: 0.68rem;
+    }
+}
+
+@keyframes terminal-blink {
+    0%, 45% { opacity: 1; }
+    46%, 100% { opacity: 0.55;  }
+}

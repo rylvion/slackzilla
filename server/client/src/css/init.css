@@ -1,0 +1,324 @@
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-size: 1.5rem;
+}
+
+.loading-text::after {
+    content: "";
+    animation: dots 1s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0%   { content: ""; }
+    25%  { content: "."; }
+    50%  { content: ".."; }
+    75%  { content: "..."; }
+    100% { content: ""; }
+}
+
+
+.spinner {
+    border: 4px solid #ddd;
+    border-left-color: #000;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    animation: spin 1s linear infinite;
+    margin-right: 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.error-boundary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(0, 255, 120, 0.035),
+            transparent 55%
+        ),
+        #050805;
+
+    color: #d8ffe5;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+.error-boundary__content {
+    width: min(680px, 100%);
+    overflow: hidden;
+    border: 1px solid #174d2c;
+    border-radius: 8px;
+    background: #07100a;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.6),
+        0 0 35px rgba(0, 255, 100, 0.04);
+}
+
+.error-boundary__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #174d2c;
+    background: #08150b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.error-boundary__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #55d982;
+}
+
+.error-boundary__indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #39d353;
+    box-shadow:
+        0 0 6px rgba(57, 211, 83, 0.7),
+        0 0 12px rgba(57, 211, 83, 0.25);
+}
+
+.error-boundary__header-status { color: #4b805b; }
+.error-boundary__body { padding: 2rem; }
+
+.error-boundary__code {
+    margin-bottom: 0.75rem;
+    color: #32a852;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+.error-boundary__body h1 {
+    margin: 0 0 0.75rem;
+    color: #d8ffe5;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.error-boundary__status {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 1.5rem;
+    color: #72947b;
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.error-boundary__status span {
+    padding: 0.15rem 0.4rem;
+    border: 1px solid #205f35;
+    border-radius: 3px;
+    background: #0a1b0e;
+    color: #4bdc72;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.error-boundary__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.error-boundary__copy {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #205f35;
+    border-radius: 3px;
+    background: #0a1b0e;
+    color: #4bdc72;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.error-boundary__copy:hover {
+    border-color: #35a957;
+    background: #0e2915;
+    color: #8af5a7;
+}
+
+.error-boundary__copy:active {
+    background: #09160c;
+    transform: translateY(1px);
+}
+
+.error-boundary__reload {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #236b39;
+    border-radius: 5px;
+    background: #0b1d10;
+    color: #63e68a;
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.error-boundary__reload span {
+    color: #32d45d;
+}
+
+.error-boundary__reload:hover {
+    border-color: #35a957;
+    background: #0e2915;
+    color: #8af5a7;
+    box-shadow: 0 0 12px rgba(50, 210, 90, 0.08);
+}
+
+.error-boundary__reload:active {
+    background: #09160c;
+    transform: translateY(1px);
+}
+
+.error-boundary__details {
+    margin-top: 1.5rem;
+    overflow: hidden;
+    border: 1px solid #174d2c;
+    border-radius: 5px;
+    background: #040804;
+}
+
+.error-boundary__details-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid #174d2c;
+    background: #071209;
+    color: #397248;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.error-boundary__details-header span:last-child {
+    color: #2c9e4c;
+}
+
+.error-boundary__details-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid #174d2c;
+    background: #071209;
+    color: #397248;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.error-boundary__copy {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #205f35;
+    border-radius: 3px;
+    background: #0a1b0e;
+    color: #4bdc72;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.error-boundary__copy:hover {
+    border-color: #35a957;
+    background: #0e2915;
+    color: #8af5a7;
+}
+
+.error-boundary__copy:active {
+    background: #09160c;
+    transform: translateY(1px);
+}
+
+.error-boundary__error {
+    margin: 0;
+    padding: 1rem;
+    max-height: 260px;
+    overflow: auto;
+    color: #6ed88b;
+    font-family: inherit;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.error-boundary__error::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.error-boundary__error::-webkit-scrollbar-track {
+    background: #040804;
+}
+
+.error-boundary__error::-webkit-scrollbar-thumb {
+    background: #174d2c;
+    border-radius: 3px;
+}
+
+.error-boundary__error::-webkit-scrollbar-thumb:hover {
+    background: #236b39;
+}
+
+@media (max-width: 600px) {
+    .error-boundary {
+        padding: 1rem;
+    }
+
+    .error-boundary__body {
+        padding: 1.5rem;
+    }
+
+    .error-boundary__body h1 {
+        font-size: 1.25rem;
+    }
+
+    .error-boundary__status {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .error-boundary__header-status {
+        display: none;
+    }
+}

@@ -10,7 +10,10 @@ const deploymentFile = path.join(dataDir, "deployment.json")
 const botStateFile = path.join(dataDir, "bot-state.json")
 
 const defaultMetrics = {
-    commands: {}
+    commands: {},
+    users: {},
+    channels: {},
+    events: []
 }
 
 const defaultDeployment = {
@@ -95,9 +98,9 @@ function readFeedback() {
     return readJsonArray(feedbackFile)
 }
 
-function normalizeFeedbackEntry(entry = {}) {
+function normaliseFeedbackEntry(entry = {}) {
     const status = String(entry.status || "unread").toLowerCase()
-    const normalizedStatus = ["unread", "read", "responded"].includes(status) ? status : "unread"
+    const normalisedStatus = ["unread", "read", "responded"].includes(status) ? status : "unread"
 
     return {
         id: entry.id,
@@ -105,7 +108,7 @@ function normalizeFeedbackEntry(entry = {}) {
         username: entry.username || null,
         message: String(entry.message || "").trim(),
         timestamp: entry.timestamp || new Date().toISOString(),
-        status: normalizedStatus,
+        status: normalisedStatus,
         response: typeof entry.response === "string" ? entry.response : "",
         responseSentAt: entry.responseSentAt || null,
         responseError: entry.responseError || null,
@@ -114,15 +117,15 @@ function normalizeFeedbackEntry(entry = {}) {
 }
 
 function saveFeedback(items) {
-    writeJson(feedbackFile, items.map(normalizeFeedbackEntry))
+    writeJson(feedbackFile, items.map(normaliseFeedbackEntry))
 }
 
 function addFeedback(entry) {
     const items = readFeedback()
-    const normalized = normalizeFeedbackEntry(entry)
-    items.unshift(normalized)
+    const normalised = normaliseFeedbackEntry(entry)
+    items.unshift(normalised)
     saveFeedback(items)
-    return normalized
+    return normalised
 }
 
 function updateFeedback(id, patch) {
@@ -133,9 +136,9 @@ function updateFeedback(id, patch) {
         return null
     }
 
-    const current = normalizeFeedbackEntry(items[index])
+    const current = normaliseFeedbackEntry(items[index])
     const nextStatus = String(patch.status || current.status).toLowerCase()
-    items[index] = normalizeFeedbackEntry({
+    items[index] = normaliseFeedbackEntry({
         ...current,
         ...patch,
         status: ["unread", "read", "responded"].includes(nextStatus) ? nextStatus : current.status,
@@ -216,10 +219,32 @@ function saveMetrics(metrics) {
     writeJson(metricsFile, metrics)
 }
 
+function recordServerEvent(event = {}) {
+    const metrics = readMetrics()
+    metrics.serverEvents = Array.isArray(metrics.serverEvents) ? metrics.serverEvents : []
+    metrics.serverEvents.unshift({
+        source: "server",
+        time: new Date().toISOString(),
+        method: event.method || null,
+        path: event.path || null,
+        type: event.type || "request",
+        statusCode: Number(event.statusCode) || null
+    })
+    metrics.serverEvents = metrics.serverEvents.slice(0, 1000)
+    saveMetrics(metrics)
+}
+
+function getServerEvents(limit = 100) {
+    const metrics = readMetrics()
+    return (metrics.serverEvents || []).slice(0, limit)
+}
+
 function recordCommandUsage(commandName, command) {
     const metrics = readMetrics()
     const key = String(commandName || "unknown").replace(/^\//, "")
     const existing = metrics.commands[key] || { count: 0, lastUsedAt: null, lastUser: null, lastUserId: null }
+    const userId = command?.user_id || null
+    const channelId = command?.channel_id || null
 
     metrics.commands[key] = {
         ...existing,
@@ -228,6 +253,32 @@ function recordCommandUsage(commandName, command) {
         lastUser: command?.user_name || null,
         lastUserId: command?.user_id || null
     }
+
+    metrics.users = metrics.users || {}
+    metrics.channels = metrics.channels || {}
+    metrics.events = Array.isArray(metrics.events) ? metrics.events : []
+
+    if (userId) {
+        metrics.users[userId] = {
+            name: command?.user_name || null,
+            lastUsedAt: new Date().toISOString()
+        }
+    }
+
+    if (channelId) {
+        metrics.channels[channelId] = {
+            lastUsedAt: new Date().toISOString()
+        }
+    }
+
+    metrics.events.unshift({
+        command: key,
+        user: command?.user_name || null,
+        userId,
+        channelId,
+        time: new Date().toISOString()
+    })
+    metrics.events = metrics.events.slice(0, 1000)
 
     saveMetrics(metrics)
 }
@@ -240,6 +291,19 @@ function getCommandStats() {
             ...value
         }))
         .sort((a, b) => b.count - a.count)
+}
+
+function getBotMetrics() {
+    const metrics = readMetrics()
+    const commandStats = getCommandStats()
+
+    return {
+        commandsExecuted: commandStats.reduce((sum, cmd) => sum + (cmd.count || 0), 0),
+        uniqueUsers: Object.keys(metrics.users || {}).length,
+        uniqueChannels: Object.keys(metrics.channels || {}).length,
+        commandStats,
+        recentActivity: (metrics.events || []).slice(0, 50)
+    }
 }
 
 function readDeploymentState() {
@@ -278,6 +342,9 @@ module.exports = {
     recordBotHeartbeat,
     recordCommandUsage,
     getCommandStats,
+    getBotMetrics,
+    recordServerEvent,
+    getServerEvents,
     readDeploymentState,
     saveDeploymentState,
     setDeploymentOutput

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bot metrics response data",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "commandsExecuted": { "type": "number" },
+    "uniqueUsers": { "type": "number" },
+    "uniqueChannels": { "type": "number" },
+    "commandStats": { "type": "array" }
+  }
+}

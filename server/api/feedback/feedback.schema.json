@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Feedback response data",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "feedback": { "type": "array" },
+    "delivery": { "type": "object" }
+  }
+}

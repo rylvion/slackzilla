@@ -1,115 +1,280 @@
 # Slackzilla
 
-slackzilla has a modular slash-command system, a manifest generator, a hosted server dashboard, and a local preview that mirrors the server.
+Slackzilla is a modular Slack bot with a hosted React dashboard, HTTP API, GitHub deployment webhook, telemetry, feedback management, and a repository-aware AI assistant.
 
 ## Links
-- [Hosted dashboard](https://rylvion.hackclub.app/) - https://rylvion.hackclub.app/
-- [Local preview](https://rylvion.github.io/slackzilla/) - https://rylvion.github.io/slackzilla/
-- [Wiki](https://github.com/rylvion/slackzilla/wiki) - https://rylvion.github.io/slackzilla/wiki
-- [devlogs (stardance/hackclub)](https://stardance.hackclub.com/projects/4967) - https://stardance.hackclub.com/projects/4967
-- [devlogs (github)](https://github.com/rylvion/slackzilla/blob/main/assets/devlogs/devlogs.md) - https://github.com/rylvion/slackzilla/blob/main/assets/devlogs/devlogs.md
-- [docs](https://rylvion.github.io/slackzilla/docs/) - https://rylvion.github.io/slackzilla/docs/
-- [slackzilla help](https://app.slack.com/client/E09V59WQY1E/C0B8NGLD7K2) - https://app.slack.com/client/E09V59WQY1E/C0B8NGLD7K2
-- [repo](https://github.com/rylvion/slackzilla) - https://github.com/rylvion/slackzilla
 
-## What it does
-It has 5 main components: *See more info at [the docs](https://rylvion.github.io/slackzilla/docs/)*
+- [Hosted dashboard](https://rylvion.hackclub.app/)
+- [Static preview](https://rylvion.github.io/slackzilla/)
+- [Documentation](https://rylvion.github.io/slackzilla/docs/)
+- [Wiki](https://github.com/rylvion/slackzilla/wiki)
+- [Repository](https://github.com/rylvion/slackzilla)
+- [GitHub devlogs](https://github.com/rylvion/slackzilla/blob/main/assets/devlogs/devlogs.md)
+- [Stardance devlogs](https://stardance.hackclub.com/projects/4967)
 
-1. A Slack bot that runs on a server and responds to slash commands (through a command system that is data-driven and modular, allowing for easy addition of new commands.)
-2. A webhook handler that recieves a push from GitHub and triggers 2 actions: a server restart with the latest changes and a manifest rebuild.
-3. A manifest generator that builds the Slack app manifest from the source data.
-4. A hosted dashboard that shows live server status, logs, and an admin control panel. [Not implemented yet]
-5. A local preview that mirrors the hosted dashboard and can be built into static pages.
+## What It Does
 
+Slackzilla has two main runtime processes:
+
+1. A Slack bot in `bot/` that uses Slack Bolt Socket Mode and responds to data-driven slash commands.
+2. A dashboard and webhook server in `server/` that serves the React interface, APIs, telemetry, logs, admin controls, feedback management, and GitHub deployment flow.
+
+Other project capabilities include:
+
+- 23 modular slash commands defined in `bot/data/commands.json`.
+- Generated Slack app manifest support.
+- Public status, metrics, logs, commands, and AI APIs.
+- Admin sessions with signed cookies, PBKDF2 password verification, CSRF protection, and rate limiting.
+- Feedback filtering, read/unread status, replies, and deletion.
+- CPU, memory, disk, network, bot, command, and server request telemetry.
+- React pages for the dashboard, status, commands, API reference, AI assistant, documentation, logs, sitemap, and admin workflows.
+- GitHub push webhook validation with HMAC-SHA256 and branch filtering.
+- Related repository image assets in AI responses, such as calculator flowcharts.
+
+## Architecture
+
+```text
+Slack Socket Mode -> bot/bot.js -> bot/cmds/*
+                              -> server/database and server/logs
+
+Browser/GitHub -> server/server.js
+               -> React dashboard
+               -> server/api/*
+               -> authentication and telemetry
+               -> deployment webhook
+```
+
+The backend uses Node's built-in `http` module rather than Express. API modules are explicit handlers imported and registered in `server/server.js`. Persistent runtime data is currently stored through the JSON-backed adapter in `server/database/store.js`; an external database is not required.
+
+Read the detailed guides in [`docs/`](docs/docs.md):
+
+- [Setup](docs/setup.md)
+- [Architecture](docs/architecture.md)
+- [API](docs/api.md)
+- [RAG assistant](docs/rag.md)
+- [Security](docs/security.md)
+- [Webhook](docs/webhook.md)
+- [Server setup](docs/server-setup.md)
+
+## Requirements
+
+- Node.js with npm.
+- A Slack app with Socket Mode enabled.
+- Git for deployment features.
+- Linux and systemd for the production service files.
+- An AI provider key for model-backed AI answers.
 
 ## Setup
 
-1. Install dependencies with `npm ci`.
-2. Copy `src/.env.example` to `src/.env` and fill in the Slack bot credentials.
-3. Copy `server/.env.example` to `server/.env` and fill in the dashboard and deployment settings.
-4. Run the bot with `npm start`.
-5. Run the dashboard server with `node server/server.js` or the systemd service from `server/`.
-6. Build the static local preview with `npm run build:pages`.
+Install dependencies:
 
-## Environment files
-
-### `src/.env`
-
-- `SLACK_BOT_TOKEN` - to get this token, go to your Slack app settings, click "Install App" in the left sidebar, and copy the "Bot User OAuth Token" from the page.
-- `SLACK_APP_TOKEN` - go on the general page and create a token name called `slackzilla-socket` (or any it doesnt matter) with the scope `connections:write` and copy the token. 
-- `SLACK_SIGNING_SECRET` - on the general page, click "Show" under "App Credentials" and copy the "Signing Secret".
-and optional ai service keys for commands that use AI.
-- `AI_API_KEY` - to get this key go to https://ai.hackclub.com to get a free token to get an ai
-- `AI_MODEL` - `openai/gpt-oss-20b:free` is free (max output: 32,768 tokens, context windows: 131,072 tokens) check https://ai.hackclub.com/models/openai/gpt-oss-20b:free for more info
-- `AI_URL` - https://ai.hackclub.com/proxy/v1/chat/completions
-
-### `server/.env`
-
-1. `WEBHOOK_SECRET` - Use any secure random generator to create a 32‑byte hex token. Examples:
-1.1. `/sz-hash rand 32`, on the bot in slack (dont worry the server wont store the token!)
-1.2. `open-ssl rand -hex 32` in wsl/linux
-1.3. `[Convert]::ToHexString((1..32 | ForEach-Object { Get-Random -Maximum 256 })).ToLower()` on `pwsh` 7.0 or later
-1.4. `-join ((1..32 | ForEach-Object { '{0:x2}' -f (Get-Random -Maximum 256) }))` on `windows powershell` 5.1 or later
-2. Copy it and paste it into the `WEBHOOK_SECRET` field in `server/.env`. This token is used to verify that incoming webhook requests are from GitHub.
-3. In your GitHub repository, go to "Settings" > "Secrets and Variables" > "New Repositary Secret". Paste the `WEBHOOK_SECRET` token into the "Secret" field.
-
-- `PORT` - the port the server will listen on, default is `9000`, this is the main port for dashboard, webhook handler and api.
-- `PROJECT_DIR` - the path to the project directory, default is `~/projs/slackzilla` (the current directory)
-- `REPO_URL`- the URL of the GitHub repository, default is `https://github.com/rylvion/slackzilla.git`
-- `BRANCH` - the branch to pull from, default is `main`
-- `SERVICE_NAME` - the name of the systemd service, default is `slackzilla`
-
-1. `ADMIN_PASSWORD_HASH` - Generate a PBKDF2‑SHA512 hash using any preferred method. Examples:
-1.1. `/sz-hash pbkdf2 sha512 600000 mypassword`, on the bot in slack (dont worry the server wont store the password!)
-1.2. `python3 -c "import hashlib, os, binascii, secrets, string; chars=string.ascii_letters+string.digits; password=''.join(secrets.choice(chars) for _ in range(24)); print('Password:', password); salt=os.urandom(16); dk=hashlib.pbkdf2_hmac('sha512', password.encode(), salt, 600000); print('Hash:', f'pbkdf2\$sha512\$600000\${binascii.hexlify(salt).decode()}\${binascii.hexlify(dk).decode()}')"` in cli/python3 3.6 or later
-1.3. 
 ```bash
-$chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';$p=-join(1..24|%{$chars[(Get-Random -Maximum $chars.Length)]});$s=New-Object byte[] 16;[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($s);$pb=[System.Text.Encoding]::UTF8.GetBytes($p);Write-Output "Password: $p";$h=(New-Object System.Security.Cryptography.Rfc2898DeriveBytes($pb,$s,600000,[System.Security.Cryptography.HashAlgorithmName]::SHA512)).GetBytes(64);$saltHex=($s|%{$_.ToString('x2')})-join '';$hashHex=($h|%{$_.ToString('x2')})-join '';Write-Output "Hash: pbkdf2`$sha512`$600000`$$saltHex`$$hashHex"
+npm ci
 ```
-use this on `powershell` any version (including both 5.1 and 7.0+)
-1.4. `ruby -rsecurerandom -ropenssl -e 'chars=("a".."z").to_a+("A".."Z").to_a+("0".."9").to_a;pwd=24.times.map{chars[SecureRandom.random_number(chars.length)]}.join;salt=OpenSSL::Random.random_bytes(16);iter=600000;dk=OpenSSL::PKCS5.pbkdf2_hmac(pwd,salt,iter,64,"sha512");puts "Password: #{pwd}";puts "Hash: pbkdf2$sha512$#{iter}$#{salt.unpack1(%q{H*})}$#{dk.unpack1(%q{H*})}"'` - linux/wsl/ruby
 
-2. Copy it and paste it into the `ADMIN_PASSWORD_HASH` field in `server/.env`. This hash is used to verify the admin password for the dashboard.
-3. Log in to `/admin` with the original password you hashed here, not with the hash string itself.
+Copy the environment templates:
 
-1. `ADMIN_SESSION_SECRET` - Create a 32‑byte hex secret using any secure random generator:
-1.1. do `/sz-hash rand 32`, on the bot in slack (dont worry the server wont store the secret!)
-1.2. `open-ssl rand -hex 32` in wsl/linux
-1.3. `[Convert]::ToHexString((1..32 | ForEach-Object { Get-Random -Maximum 256 })).ToLower()` on `pwsh` 7.0 or later
-1.4. `-join ((1..32 | ForEach-Object { '{0:x2}' -f (Get-Random -Maximum 256) }))` on `windows powershell` 5.1 or later
-2. Copy it and paste it into the `ADMIN_SESSION_SECRET` field in `server/.env`. This secret is used to sign the session cookies for the dashboard.
-
-- `COOKIE_SECURE` - `bool` value that determines if the dashboard cookies should be secure (only sent over HTTPS). Set to `true` if the dashboard is behind HTTPS, otherwise set to `false` for plain HTTP testing.
-
-See `server/.env.example` for the full set of current server defaults.
-
-## Commands
-
+```bash
+cp bot/.env.example bot/.env
+cp server/.env.example server/.env
 ```
---------------------------------------------------
-Category                 Count     Percent
---------------------------------------------------
-Core                     4         17.4%
-Entertainment            7         30.4%
-Utility                  12        52.2%
---------------------------------------------------
-Total                    23        100%
---------------------------------------------------
-```
-The slash commands are data-driven. If you want to add or update one, edit `src/data/commands.json` and add the logic in `src/cmds/`. View [The Command Guide](https://github.com/rylvion/slackzilla/wiki/Adding-a-New-Command) for more details.
 
-Utility commands also has a help command associated to it (e.g., `/sz-[cmd] help`) so users can see usage and examples.
+On Windows, copy the files using Explorer or PowerShell instead. Fill in the Slack credentials in `bot/.env`:
+
+```text
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_APP_TOKEN=xapp-...
+SLACK_SIGNING_SECRET=...
+```
+
+Optional AI settings belong in `bot/.env`:
+
+```text
+AI_API_KEY=...
+AI_MODEL=openai/gpt-oss-20b:free
+AI_URL=https://ai.hackclub.com/proxy/v1/chat/completions
+```
+
+Configure `server/.env` with at least:
+
+```text
+WEBHOOK_SECRET=...
+PORT=9000
+PROJECT_DIR=/absolute/path/to/slackzilla
+BRANCH=main
+REPO_URL=https://github.com/your-user/slackzilla.git
+ADMIN_PASSWORD_HASH=pbkdf2$sha512$600000$salt$derived-key
+ADMIN_SESSION_SECRET=...
+COOKIE_SECURE=false
+```
+
+Set `SLACK_BOT_TOKEN` in `server/.env` as well when dashboard feedback replies need to send Slack DMs. The dashboard can fall back to `bot/.env` during local development.
+
+Generate an admin password hash with the bot command:
+
+```text
+/sz-hash pbkdf2 sha512 600000 your-password
+```
+
+Copy the returned `pbkdf2$...` value into `ADMIN_PASSWORD_HASH`, then log in using the original password. See [Security](docs/security.md) for the technical details.
+
+## Running Locally
+
+Run the complete local runtime:
+
+```bash
+npm start
+```
+
+This builds and lints the React client, then starts the bot and dashboard server. Open:
+
+```text
+http://localhost:9000
+```
+
+For dashboard-only development:
+
+```bash
+npm run build
+npm run server
+```
+
+For React hot reload:
+
+```bash
+npm run dev
+```
+
+Vite serves the client at `http://localhost:5173`, but the Vite-only workflow does not provide the real backend APIs, logs, telemetry, or bot connection.
+
+Windows supports the dashboard, APIs, telemetry, React pages, and command runner. Linux-specific service operations such as `systemctl` and Bash deployment are expected to fail locally on Windows.
+
+## Dashboard Pages
+
+| Path | Purpose |
+| --- | --- |
+| `/` | Public bot and server dashboard. |
+| `/status` | Runtime, CPU, memory, disk, and network telemetry with charts. |
+| `/commands` | Command reference and trusted command runner. |
+| `/ai` | Repository-aware AI questions, sources, and related visual assets. |
+| `/api` | API endpoint reference. |
+| `/docs` | In-app developer documentation. |
+| `/logs` | ANSI-aware live log viewer. |
+| `/admin/login` | Admin login and session creation. |
+| `/admin` | Authenticated controls, feedback management, and server activity. |
+
+Unknown browser routes return the React NotFound page with HTTP status `404`.
+
+## API Quick Reference
+
+Public endpoints:
+
+```text
+GET  /api/status
+GET  /api/status/stream
+GET  /api/metrics
+GET  /api/logs
+GET  /api/logs/stream
+GET  /api/logs/download
+GET  /api/commands
+GET  /api/commands/:id
+POST /api/commands/:id
+GET  /api/ask
+POST /api/ask
+```
+
+Admin endpoints require a valid session cookie and CSRF protection for state-changing requests:
+
+```text
+GET  /api/admin/summary
+GET  /api/admin/events
+GET  /api/admin/feedback
+GET  /api/admin/feedback/:id
+POST /api/admin/feedback/:id
+POST /api/admin/control
+```
+
+Example command API request:
+
+```bash
+curl -X POST http://localhost:9000/api/commands/calculator \
+  -H "Content-Type: application/json" \
+  -d '{"text":"2 + 3"}'
+```
+
+Example AI request:
+
+```bash
+curl -X POST http://localhost:9000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"How does feedback authentication work?"}'
+```
+
+## RAG Assistant
+
+The `/ai` page and `/api/ask` endpoint retrieve relevant repository text before asking the configured AI model to answer. Retrieval excludes `priv/`, `.env` files, logs, dependencies, build output, and Git metadata. Related image assets are identified by filename and can be displayed without reading their binary contents.
+
+The assistant can execute a command only when a recognised slash command is explicitly requested. Command execution reuses the existing Slack command module and may have side effects, so command APIs should be restricted before production exposure.
+
+## Slack Commands
+
+Commands are defined in `bot/data/commands.json` and implemented in `bot/cmds/`. To add a command:
+
+1. Add its metadata to `bot/data/commands.json`.
+2. Add the implementation to `bot/cmds/`.
+3. Register it using the existing command module pattern.
+4. Run `npm run validate-commands`.
+5. Run `npm run generate-manifest` if the Slack manifest changed.
+6. Restart the bot.
+
+Utility commands generally support a `<command> help` form with usage examples.
+
+## GitHub Deployment Webhook
+
+The dashboard accepts signed push events at `POST /webhook`. It verifies `X-Hub-Signature-256` with `WEBHOOK_SECRET`, requires a `push` event, checks `payload.ref` against `BRANCH`, records deployment state, and runs `server/deploy.sh`.
+
+Read the [webhook guide](docs/webhook.md) before exposing the endpoint publicly.
+
+## Production
+
+For Linux deployment:
+
+```bash
+npm ci
+npm run build
+sudo cp server/slackzilla.service /etc/systemd/system/
+sudo cp server/slackzilla-webhook.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now slackzilla.service slackzilla-webhook.service
+```
+
+Use a reverse proxy for HTTPS and set `COOKIE_SECURE=true`. Restart the appropriate service after code or environment changes.
 
 ## Scripts
 
-- `npm start` - start the bot
-- `npm run generate-manifest` - rebuild the Slack manifest from the source data
-- `npm run validate-manifest` - validate the generated manifest
-- `npm run validate-commands` - validate `src/data/commands.json`
-- `npm run build:pages` - build the local preview into `dist/`
-- `npm run cmd-stats` - print command usage stats
+| Command | Purpose |
+| --- | --- |
+| `npm start` | Build, lint, and start bot plus dashboard. |
+| `npm run bot` | Start only the Slack bot. |
+| `npm run server` | Start only the dashboard server. |
+| `npm run dev` | Start Vite client development mode. |
+| `npm run build` | Build the React client. |
+| `npm run lint` | Lint the React client. |
+| `npm run generate-manifest` | Generate `manifest.json`. |
+| `npm run validate-manifest` | Validate the Slack manifest. |
+| `npm run validate-commands` | Validate command metadata. |
+| `npm run cmd-stats` | Print command usage statistics. |
+| `npm run build:pages` | Build the static preview when that workflow is used. |
+
+## Validation
+
+```bash
+npm run build
+npm run lint
+npm run validate-manifest
+npm run validate-commands
+```
 
 ## License
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/rylvion/slackzilla/blob/main/LICENSE)
 
-no need for credits, but if your using this code in a project, i'd love to see what you do with it so if you make something cool with it, please share it with me! 
+MIT. See [LICENSE](LICENSE).

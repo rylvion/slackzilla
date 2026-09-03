@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Status response data",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "botOnline": { "type": "boolean" },
+    "uptimeText": { "type": "string" },
+    "nodeVersion": { "type": "string" },
+    "commandsExecuted": { "type": "number" },
+    "uniqueUsers": { "type": "number" },
+    "uniqueChannels": { "type": "number" },
+    "commandStats": { "type": "array" }
+  }
+}

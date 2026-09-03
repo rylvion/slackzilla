@@ -1,8 +1,11 @@
 const os = require("os")
 const path = require("path")
+const fs = require("fs")
 const childProcess = require("child_process")
 
 const { readDeploymentState, readBotState, saveDeploymentState } = require("../database/store")
+
+let previousNetworkSample = null
 
 function execCommand(command, args = [], options = {}) {
     return new Promise((resolve, reject) => {
@@ -76,7 +79,8 @@ function getProcessCpuPercent(previousSample) {
     const usage = process.cpuUsage(previousSample.usage)
     const elapsedMicros = Number(process.hrtime.bigint() - previousSample.hrtime) / 1000
     const cpuMicros = usage.user + usage.system
-    const percent = elapsedMicros > 0 ? (cpuMicros / elapsedMicros) * 100 : 0
+    const coreCount = Math.max(1, os.cpus().length)
+    const percent = elapsedMicros > 0 ? (cpuMicros / elapsedMicros) * 100 / coreCount : 0
 
     return {
         usage,
@@ -136,12 +140,108 @@ function getBotConnectionState() {
     }
 }
 
+function readNetworkBytes() {
+    if (process.platform !== "win32") {
+        try {
+            const content = fs.readFileSync("/proc/net/dev", "utf8")
+            return content
+            .split(/\r?\n/)
+            .slice(2)
+            .reduce((totals, line) => {
+                const separator = line.indexOf(":")
+                if (separator === -1) return totals
+
+                const values = line.slice(separator + 1).trim().split(/\s+/).map(Number)
+                if (values.length < 9) return totals
+
+                return {
+                    rxBytes: totals.rxBytes + (values[0] || 0),
+                    txBytes: totals.txBytes + (values[8] || 0)
+                }
+            }, { rxBytes: 0, txBytes: 0 })
+        } catch {
+            return null
+        }
+    }
+
+    try {
+        const result = childProcess.spawnSync("netstat", ["-e"], { encoding: "utf8" })
+        const output = `${result.stdout || ""}\n${result.stderr || ""}`
+        const labelled = output.match(/Bytes Received\s+(\d+)[\s\S]*?Bytes Sent\s+(\d+)/i)
+        const table = output.match(/^Bytes\s+(\d+)\s+(\d+)\s*$/im)
+        const received = labelled?.[1] || table?.[1]
+        const sent = labelled?.[2] || table?.[2]
+
+        if (!received || !sent) return null
+
+        return {
+            rxBytes: Number(received),
+            txBytes: Number(sent)
+        }
+    } catch {
+        return null
+    }
+}
+
+function getNetworkUsage() {
+    const current = readNetworkBytes()
+    const now = Date.now()
+
+    if (!current) {
+        return {
+            rxBytes: null,
+            txBytes: null,
+            rxRate: null,
+            txRate: null
+        }
+    }
+
+    const elapsedSeconds = previousNetworkSample
+        ? Math.max((now - previousNetworkSample.at) / 1000, 0.001)
+        : null
+    const usage = {
+        rxBytes: current.rxBytes,
+        txBytes: current.txBytes,
+        rxRate: elapsedSeconds ? Math.max(0, (current.rxBytes - previousNetworkSample.rxBytes) / elapsedSeconds) : 0,
+        txRate: elapsedSeconds ? Math.max(0, (current.txBytes - previousNetworkSample.txBytes) / elapsedSeconds) : 0
+    }
+
+    previousNetworkSample = { ...current, at: now }
+    return usage
+}
+
+function getDiskUsage(projectDir) {
+    const candidates = [projectDir, process.cwd(), path.parse(process.cwd()).root]
+
+    for (const candidate of candidates) {
+        if (!candidate) continue
+
+        try {
+            const stats = fs.statfsSync(candidate)
+        const total = Number(stats.blocks) * Number(stats.bsize)
+        const free = Number(stats.bavail) * Number(stats.bsize)
+
+            return {
+                total,
+                free,
+                used: Math.max(0, total - free)
+            }
+        } catch {
+            continue
+        }
+    }
+
+    return { total: null, free: null, used: null }
+}
+
 function getRuntimeSnapshot(previousSample, projectDir, botServiceName) {
     const git = readGitInfo(projectDir)
     const deployment = readDeploymentState()
     const cpu = getProcessCpuPercent(previousSample)
     const memory = process.memoryUsage()
     const bot = getBotConnectionState(botServiceName)
+    const disk = getDiskUsage(projectDir)
+    const network = getNetworkUsage()
 
     return {
         botOnline: bot.status,
@@ -162,6 +262,8 @@ function getRuntimeSnapshot(previousSample, projectDir, botServiceName) {
         systemFreeMemory: os.freemem(),
         systemLoadAverage: os.loadavg(),
         cpuPercent: cpu.percent,
+        disk,
+        network,
         previousSample: cpu
     }
 }

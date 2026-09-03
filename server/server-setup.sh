@@ -26,8 +26,8 @@ echo "installing npm dependencies..."
 npm ci
 
 echo "setting up environment files..."
-if [ ! -f src/.env ]; then
-	cp src/.env.example src/.env
+if [ ! -f bot/.env ]; then
+	cp bot/.env.example bot/.env
 fi
 if [ ! -f server/.env ]; then
 	cp server/.env.example server/.env
@@ -53,5 +53,5 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now slackzilla.service slackzilla-webhook.service
 
 echo "slackzilla server setup complete."
-echo "edit src/.env for the bot tokens if needed, then set the github webhook secret and url."
+echo "edit bot/.env for the bot tokens if needed, then set the github webhook secret and url."
 echo "use journalctl -u slackzilla.service -f output=cat and journalctl -u slackzilla-webhook.service -f to view the logs."

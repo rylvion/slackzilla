@@ -58,6 +58,11 @@ function handleFeedbackApi({ req, res, url, context }) {
             }
 
             if (action === "delete") {
+                if (body.confirmed !== true) {
+                    context.sendError(res, 409, "CONFIRMATION_REQUIRED", "confirmation required before deleting feedback")
+                    return true
+                }
+
                 const ok = context.store.deleteFeedback(id)
                 if (ok) {
                     context.broadcast(context.adminClients, "summary", context.buildAdminSummary(session.csrfToken))

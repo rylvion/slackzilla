@@ -71,6 +71,14 @@ Summary: Added a server hosted dashboard for slackzilla, it is hosted on the sam
 <div style="display: flex; align-items: center;">
   <img src="../attachments/d8/dashboard.png" alt="dashboard" width="400">
 </div>
+
+## [Devlog 9: React Dashboard](./devlog9.md)
+Summary: Migrated from the old EJS dashboard to a new React-based dashboard, added RAG modal for repository-aware AI assistance, implemented command execution API, and introduced telemetry with responsive graphs.
+
+<div style="display: flex; align-items: center;">
+  <img src="../attachments/d9/dashboard.png" alt="React Dashboard" width="400">
+</div>
+
 ---
 
 - [Devlog 1: Initial Setup](./devlog1.md)
@@ -81,7 +89,7 @@ Summary: Added a server hosted dashboard for slackzilla, it is hosted on the sam
 - [Devlog 6: Command Updates](./devlog6.md)
 - [Devlog 7: Github Pages Prototype](./devlog7.md)
 - [Devlog 8: Server Hosted Dashboard](./devlog8.md)
-
+- [Devlog 9: React Dashboard](./devlog9.md)
 
 ---
 
@@ -89,6 +97,14 @@ Summary: Added a server hosted dashboard for slackzilla, it is hosted on the sam
   <em><b>
     <a href="https://stardance.hackclub.com/projects/4967" target="_blank">
       visit stardance devlogs
+    </a>
+  </b></em>
+</p>
+
+<p align="center">
+  <em><b>
+    <a href="./devlog1.md">
+      visit devlog 1
     </a>
   </b></em>
 </p>

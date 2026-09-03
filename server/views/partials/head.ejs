@@ -1,9 +1,0 @@
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Slackzilla server dashboard" />
-<meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
-<title><%= title %></title>
-<link rel="stylesheet" href="/public/css/dashboard.css" />
-<script>
-    window.__SLACKZILLA__ = <%- serializeState(state || {}) %>
-</script>

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Control response data",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "action": { "type": "string" },
+    "status": { "type": "object" },
+    "state": { "type": "object" },
+    "size": { "type": "number" }
+  }
+}

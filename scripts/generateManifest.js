@@ -7,10 +7,10 @@ const { buildStats } = require('./stats')
 
 const rootDir = path.join(__dirname, '..')
 
-const commandsPath = path.join(rootDir, 'src', 'data', 'commands.json')
+const commandsPath = path.join(rootDir, 'bot', 'data', 'commands.json')
 const commandSchemaPath = path.join(rootDir, 'schemas', 'command.schema.json')
 const manifestSchemaPath = path.join(rootDir, 'schemas', 'manifest.schema.json')
-const metaPath = path.join(rootDir, 'src', 'meta.js')
+const metaPath = path.join(rootDir, 'bot', 'meta.js')
 const packagePath = path.join(rootDir, 'package.json')
 const manifestPath = path.join(rootDir, 'manifest.json')
 

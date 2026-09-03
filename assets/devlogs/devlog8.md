@@ -1,4 +1,4 @@
-[Dashboard](../attachments/d8/dashboard.png)
+![Dashboard](../attachments/d8/dashboard.png)
 
 # Devlog 8 - server hosted dashboard finally happened
 time logged: 17hr 47min 45s
