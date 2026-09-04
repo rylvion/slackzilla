@@ -18,8 +18,6 @@ const {
     saveDeploymentState
 } = require("./lib/system")
 
-const { handlePublicPages } = require("./pages/public")
-const { handleAdminPages } = require("./pages/admin")
 const { handleStatusApi } = require("./api/status")
 const { handleLogsApi } = require("./api/logs")
 const { handleMetricsApi } = require("./api/metrics")
