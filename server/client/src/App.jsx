@@ -31,7 +31,7 @@ function renderRoutes(routes) {
 
 function App() {
     if (isDebugMode) {
-        console.log("DEBUG MODE ENABLED: React app is running in developer mode [Port: 5173]")
+        console.log("DEBUG MODE ENABLED!!!")
     }
 
     // if (isDebugMode) { throw new Error("Test error boundary") } // uncomment to test error boundary

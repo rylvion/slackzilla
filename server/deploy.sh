@@ -46,6 +46,10 @@ echo "[>] Installing dependencies..."
 npm ci
 
 echo
+echo "[>] Building React client..."
+npm run build
+
+echo
 echo "[>] Restarting service..."
 sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl restart nginx

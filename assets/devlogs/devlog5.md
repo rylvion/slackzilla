@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="../attachments/d5/image.png">
+    <img src="../attachments/d5/manifest-workflow-flowchart.png" alt="Manifest Workflow Flowchart">
 </p>
 
 # Devlog 5 - manifest workflow
@@ -14,6 +14,8 @@ i spent way too long debugging an `invalid_refresh_token` error. note that slack
 
 TL;DR slackzilla now auto generates its slack manifest validates everything with AJV rotates configuration tokens syncs the manifest during deployment and updates the bot server with minimal manual work. after a lot of debugging around token rotation schema mismatches and github actions quirks the deployment pipeline is basically self maintaining except refreshing the github PAT every ninety days.
 
+
+<img src="../attachments/d5/workflows.png" alt="Manifest Workflow Drawio" height=700px>
 
 ---
 

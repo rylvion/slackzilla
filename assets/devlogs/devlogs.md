@@ -16,16 +16,15 @@
 Summary: Created the initial setup for the Slack bot project, including basic command handling
 
 <div style="display: flex; align-items: center;">
-  <img src="../attachments/d1/image.jpg" alt="Devlog 1 Image" width="400">
+  <img src="../attachments/d1/slack.jpg" alt="slakzilla output" width="400">
 </div>
 
 ### [Devlog 2: Server Setup and Modular Command System](./devlog2.md)
 Summary: Set up the nest server to make the bot run 24/7 and made commands into multiple files so they are modular 
 
 <div style="display: flex; align-items: center;">
-  <img src="../attachments/d2/image1.png" alt="Devlog 2 Image 1" width="400">
-  <img src="../attachments/d2/image2.png" alt="Devlog 2 Image 2" width="400">
-  <img src="../attachments/d2/image3.png" alt="Devlog 2 Image 3" width="400">
+  <img src="../attachments/d2/htop-output.png" alt="htop output" width="400">
+  <img src="../attachments/d2/logs.png" alt="coloured logs output" width="400">
 </div>
 
 ### [Devlog 3: Github Actions Webhook](./devlog3.md)
@@ -46,7 +45,7 @@ Summary: Added a calculator command that can evaluate mathematical expressions w
 Summary: Added a manifest generator that auto generates the slack manifest from `commands.json` and `meta.js`, validates everything with AJV, rotates configuration tokens, syncs the manifest during deployment and updates the bot server with minimal manual work.
 
 <div style="display: flex; align-items: center;">
-  <img src="../attachments/d5/image.png" alt="Manifest Generator" width="400">
+  <img src="../attachments/d5/manifest-workflow-flowchart.png" alt="manifest workflow flowchart" width="400">
 </div>
 
 ## [Devlog 6: Command Updates](./devlog6.md)
@@ -76,7 +75,7 @@ Summary: Added a server hosted dashboard for slackzilla, it is hosted on the sam
 Summary: Migrated from the old EJS dashboard to a new React-based dashboard, added RAG modal for repository-aware AI assistance, implemented command execution API, and introduced telemetry with responsive graphs.
 
 <div style="display: flex; align-items: center;">
-  <img src="../attachments/d9/dashboard.png" alt="React Dashboard" width="400">
+  <img src="../attachments/d9/dashboard-status.png" alt="Dashboard Status" width="400">
 </div>
 
 ---

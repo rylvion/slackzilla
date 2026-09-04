@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="../attachments/d1/image.jpg" height=700px>
+  <img src="../attachments/d1/slack.jpg" alt="slackzilla output" height=700px>
 </div>
 
 # Devlog 1 - slackzilla
