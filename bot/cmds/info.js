@@ -1,3 +1,4 @@
+const { getBotState } = require("../../server/database/store")
 const { log } = require("../utils/logger.js")
 const { getTotal, getCategoryCounts, getTotalCategoryCount } = require("../../scripts/stats.js")
 
@@ -17,36 +18,37 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        const botMeta = global.botMeta
+        const botState = getBotState()
 
-        const uptime = formatUptime(Date.now() - botMeta.startedAt)
-        const memory = (botMeta.memory() / 1024 / 1024).toFixed(1)
+        if (!botState.startedAt) {
+            log.error("{user} used {cmd} but bot state is not available, curr state: {0} ", command, botState)
+            await respond("bot state is not available. Please check the bot logs for errors and report them using the `/sz-feedback` command.")
+            return
+        }
 
-        log.info("{user} used {cmd}", command)
+        const uptime = formatUptime(Date.now() - new Date(botState.startedAt).getTime())
+        const memory = (botState.memory / 1024 / 1024).toFixed(1)
 
-        log.success(
-            "{user} checked bot status (uptime: {0}, memory: {1}MB)",
-            command,
-            uptime,
-            memory
-        )
 
         await respond(
             `
 🤖 Slackzilla status
 
-version: ${botMeta.version}
-node: ${botMeta.nodeVersion}
-platform: ${botMeta.platform}
+**version:** ${botState.version}
+**node:** ${botState.nodeVersion}
+**platform:** ${botState.platform}
 
-uptime: ${uptime}
-memory: ${memory}mb
+**uptime:** ${uptime}
+**memory:** ${memory}mb
 
-started: ${new Date(botMeta.startedAt).toLocaleString()}
+**started:** ${new Date(botState.startedAt).toLocaleString()}
 
-commands: ${getTotal()} total (${getTotalCategoryCount()} categories, avg ${(getTotal() / getTotalCategoryCount()).toFixed(1)} cmds per category)
-categories: ${Object.entries(getCategoryCounts()).map(([cat, count]) => `${cat}: ${count}`).join(", ")}
-            `
+**commands:** ${getTotal()} total (${getTotalCategoryCount()} categories, avg ${(getTotal() / getTotalCategoryCount()).toFixed(1)} cmds per category)
+**categories:** ${Object.entries(getCategoryCounts()).map(([cat, count]) => `${cat}: ${count}`).join(", ")}
+**hosted on:** ${process.platform == "win32" ? "http://localhost:9000 (could be a different port)": "https://rylvion.hackclub.app/"}
+`
         )
+
+        log.success("{user} used {cmd} to check bot status (uptime: {0}, memory: {1}MB)", command, uptime, memory)
     })
 }

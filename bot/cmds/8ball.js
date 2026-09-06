@@ -27,8 +27,6 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         const question = command.text?.trim()
 
         if (!question || !question.endsWith("?")) {
@@ -40,7 +38,7 @@ module.exports = (app, meta) => {
 
         const answer = answers[Math.floor(Math.random() * answers.length)]
 
-        log.success("{user} asked the 8ball via {cmd}", command)
+        log.success("{user} used {cmd} to ask the 8ball and it sadly responded with: {0}", command, answer)
 
         await respond(answer)
     })

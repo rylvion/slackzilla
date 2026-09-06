@@ -201,6 +201,10 @@ function saveBotState(patch) {
     return state
 }
 
+function getBotState() {
+    return readBotState()
+}
+
 function recordBotHeartbeat(patch = {}) {
     const now = new Date().toISOString()
 
@@ -339,6 +343,7 @@ module.exports = {
     listFeedback,
     readBotState,
     saveBotState,
+    getBotState,
     recordBotHeartbeat,
     recordCommandUsage,
     getCommandStats,

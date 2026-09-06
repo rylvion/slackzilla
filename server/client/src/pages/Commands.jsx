@@ -13,6 +13,8 @@ function Commands() {
     const [error, setError] = useState("")
     const [busy, setBusy] = useState(false)
 
+    const selectedCommand = commands.find(command => command.id === commandId)
+
     useEffect(() => {
         getJson("/api/commands")
             .then(data => setCommands(data.commands || []))
@@ -63,7 +65,7 @@ function Commands() {
                                 {commands.map(command => <option key={command.id} value={command.id}>{command.command} - {command.description}</option>)}
                             </select>
                             <label htmlFor="command-text">Arguments</label>
-                            <input id="command-text" value={commandText} onChange={event => setCommandText(event.target.value)} placeholder="Optional command arguments" />
+                            <input id="command-text" value={commandText} onChange={event => setCommandText(event.target.value)} placeholder={selectedCommand?.usageHint || "No usage hint available"} />
                             <button className="button command-run-button" type="submit" disabled={busy || !commandId}>{busy ? "Running..." : "Run command"}</button>
                         </form>
                         {error && <p className="command-error">{error}</p>}

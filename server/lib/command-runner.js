@@ -69,7 +69,8 @@ function runCommand(id, text = "", identity = {}) {
         user_id: identity.userId || "api-user",
         user_name: identity.username || "API user",
         channel_id: identity.channelId || "api",
-        team_id: identity.teamId || "api"
+        team_id: identity.teamId || "api",
+        botMeta: identity.botMeta
     }
 
     const result = Promise.resolve(handler({

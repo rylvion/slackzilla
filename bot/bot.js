@@ -3,10 +3,10 @@ const fs = require('fs')
 require('dotenv').config({ path: path.resolve(__dirname, '.env') })
 
 const { App } = require('@slack/bolt')
-const { log, cyan} = require('./utils/logger')
+const { log } = require('./utils/logger')
 const { recordCommandUsage } = require('./utils/metrics')
 const { recordBotHeartbeat } = require("../server/database/store")
-const staticMeta = require('./meta')
+const { initialiseBotMeta, getBotMeta } = require("../server/lib/bot-meta")
 
 const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
@@ -29,23 +29,19 @@ app.command = (commandName, handler) => {
     })
 }
 
-global.botMeta = {
-    ...staticMeta,
-    startedAt: Date.now(),
-    nodeVersion: process.version,
-    platform: process.platform,
-    memory: () => process.memoryUsage().rss,
-    scopes: [...staticMeta.oauthScopes]
-}
+initialiseBotMeta()
 
 function updateBotHeartbeat() {
     try {
+        const botMeta = getBotMeta()
+        
         recordBotHeartbeat({
             pid: process.pid,
-            startedAt: new Date(global.botMeta.startedAt).toISOString(),
-            version: global.botMeta.version,
-            nodeVersion: global.botMeta.nodeVersion,
-            platform: global.botMeta.platform
+            startedAt: new Date(botMeta.startedAt).toISOString(),
+            version: botMeta.version,
+            nodeVersion: botMeta.nodeVersion,
+            platform: botMeta.platform,
+            memory: process.memoryUsage().rss
         })
     } catch (err) {
         log.error("failed to update bot heartbeat: {0}", null, err.message)

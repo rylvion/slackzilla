@@ -1,6 +1,8 @@
 const { log } = require("../utils/logger")
 const { answerQuestion, listCommands } = require("../../server/lib/rag")
 
+const ANONYMOUS_MODE = false
+
 function getHelp() {
     return (
         "🤖 *Slackzilla AI help*\n" +
@@ -19,12 +21,6 @@ module.exports = (app, meta) => {
         await ack()
 
         const question = command.text?.trim()
-
-        log.info(
-            "{user} executed {cmd} command with arguments: {0}",
-            command,
-            question || "(none)"
-        )
 
         if (!question || question.toLowerCase() === "help") {
             await respond(getHelp())
@@ -48,20 +44,16 @@ module.exports = (app, meta) => {
 
             await respond(result.answer)
 
-            log.success(
-                "{user} successfully completed {cmd} command",
-                command
-            )
-        } catch (error) {
-            log.error(
-                "{user} failed to execute {cmd}: {0}",
-                command,
-                error.message
-            )
 
-            await respond(
-                "❌ I couldn't get an answer right now. Please try again later."
-            )
+            if (ANONYMOUS_MODE) {
+                log.info(result)
+                log.success("{user} successfully executed {cmd} command with arguments: {0}, ", command, question || "(none)")
+            } else {
+                log.success("{user} successfully executed {cmd} command", command)
+            }
+        } catch (error) {
+            log.error("{user} failed to execute {cmd}: {0}", command,error.message)
+            await respond("❌ I couldn't get an answer right now. Please try again later.")
         }
     })
 }
