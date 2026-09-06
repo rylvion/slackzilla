@@ -86,7 +86,7 @@
         "description": "rolls a dice",
         "category": "utility",
         "file": "roll.js",
-        "usage_hint": "[side][n][rolls]+[modifier]"
+        "usage_hint": "<side><n><rolls>+<modifier>"
     },
 
     "base64": {

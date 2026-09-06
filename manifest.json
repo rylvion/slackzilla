@@ -121,7 +121,7 @@
         "command": "/sz-roll",
         "description": "rolls a dice",
         "should_escape": false,
-        "usage_hint": "[side][n][rolls]+[modifier]"
+        "usage_hint": "<side><n><rolls>+<modifier>"
       },
       {
         "command": "/sz-rps",
