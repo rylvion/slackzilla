@@ -7,11 +7,16 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Slackzilla Bot",
+            "name": "Launch Bot + react + api",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\src\\bot.js",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "start"
+            ],
             "console": "externalTerminal"
         },
         {
@@ -24,9 +29,22 @@
                 "run",
                 "dev"
             ],
-            "console": "integratedTerminal"
+            "console": "externalTerminal"
         },
 
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Bot Server",
+            "cwd": "${workspaceFolder}/server/bot",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "bot"
+            ],
+            "console": "externalTerminal"
+        },
+        
         {
             "type": "node",
             "request": "launch",

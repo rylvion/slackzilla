@@ -25,7 +25,7 @@ function Home() {
                 <div className="panel-body">
                     <p className="hero-copy">
                         Welcome to the Slackzilla control surface. Monitor the bot, inspect activity,
-                        and keep an eye on the host from one terminal-inspired dashboard.
+                        ask questions to the ai assistant, and provide feedback to me.
                     </p>
                     <div className="live-indicator">
                         <span className={connected ? "dot" : "dot dot--red"} />
