@@ -1,5 +1,6 @@
 const fs = require("fs")
 const path = require("path")
+const crypto = require("crypto")
 const { parseJavaScript } = require("./code-parser")
 const { listCommands, getCommand, runCommand } = require("./command-runner")
 
@@ -8,6 +9,7 @@ const ragDirectory = path.join(projectRoot, ".rag")
 const indexPath = path.join(ragDirectory, "index.json")
 
 const ignoredDirectories = new Set([".git", ".rag", "node_modules", "dist", "logs", ".vscode", "priv"])
+const ignoredFiles = new Set(["package-lock.json"])
 const allowedExtensions = new Set([".js", ".jsx", ".mjs", ".json", ".md", ".css", ".html", ".yml", ".service", ".conf", ".example" ])
 
 const imageExtensions = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp" ])
@@ -18,9 +20,19 @@ const CHUNK_SIZE = 60
 const CHUNK_STEP = 40
 const MAX_SOURCE_LENGTH = 3500
 
+function emitActivity(onActivity, event) {
+    if (typeof onActivity === "function") {
+        onActivity({
+            timestamp: Date.now(),
+            ...event
+        })
+    }
+}
+
 function collectFiles(directory, files = []) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
         if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue
+        if (entry.isFile() && ignoredFiles.has(entry.name)) continue
 
         const fullPath = path.join(directory, entry.name)
         
@@ -40,6 +52,7 @@ function collectFiles(directory, files = []) {
 function collectImages(directory, images = []) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
         if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue
+         if (entry.isFile() && ignoredFiles.has(entry.name)) continue
 
         const fullPath = path.join(directory, entry.name)
 
@@ -84,6 +97,44 @@ function extractFileReferences(question) {
     ) || []
 
     return [...new Set(matches.map(normalisePath))]
+}
+
+function resolveFileReference(fromFile, reference) {
+    if (!reference) { return null }
+
+    const fromDirectory = path.dirname( path.join(projectRoot, fromFile) )
+    const candidate = path.resolve(fromDirectory, reference)
+
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        return relativePath(candidate)
+    }
+
+    return null
+}
+
+function extractPathReferences(filePath, code) {
+    const references = []
+
+    const pathJoinRegex = /path\.join\s*\(\s*(?:__dirname|__filename)\s*,\s*["'`]([^"'`]+)["'`]\s*\)/g
+    const pathResolveRegex = /path\.resolve\s*\(\s*(?:__dirname|__filename)\s*,\s*["'`]([^"'`]+)["'`]\s*\)/g
+
+    for (const regex of [pathJoinRegex, pathResolveRegex]) {
+        let match
+
+        while ((match = regex.exec(code)) !== null) {
+            const resolved = resolveFileReference(
+                filePath,
+                match[1]
+            )
+
+            if (resolved) {
+                references.push(resolved)
+            }
+        }
+    }
+
+
+    return references
 }
 
 function getFileType(filePath) {
@@ -172,10 +223,29 @@ function resolveImport(fromFile, importPath) {
 }
 
 function getDependencies(filePath, index = loadIndex()) {
-    const file = index.files.find( item => item.path === filePath )
+    const file = index.files.find(
+        item => item.path === filePath
+    )
 
-    if (!file?.code) { return [] }
-    return (file.code.imports || []).map(item => resolveImport(file.path, item.source) ).filter(Boolean)
+    if (!file?.code) {
+        return []
+    }
+
+    const importDependencies = (file.code.imports || [])
+        .map(item => resolveImport(file.path, item.source))
+        .filter(Boolean)
+
+    const pathDependencies = extractPathReferences(
+        file.path,
+        file.code.content || ""
+    )
+
+    return [
+        ...new Set([
+            ...importDependencies,
+            ...pathDependencies
+        ])
+    ]
 }
 
 function buildIndex() {
@@ -779,34 +849,144 @@ function formatCodebaseContext(context) {
     return sections.join("\n\n")
 }
 
+/**
+ * e.g. parameter: 
+ * {
+ *   question: "How does the authentication flow work?",
+ *   commandId: "sz-hash",
+ *   commandText: "pbkdf2 sha256 10000 mypassword",
+ *   identity: { userId: "user123", userName: "Alice" },
+ *   onActivity: (activity) => console.log(activity)
+ * }
+ */
 async function answerQuestion({
     question,
     commandId,
     commandText,
-    identity
-} = {}) {
+    identity,
+    onActivity
+} = {}, withAi = true) {
     const cleanQuestion = String(question || "").trim()
 
     if (!cleanQuestion) {
         throw new Error("question is required")
     }
 
-    const inferredCommand = !commandId? inferCommandInvocation(cleanQuestion): null
+    const activities = []
+
+    const emit = (event) => {
+        const activity = {
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+            ...event
+        }
+
+        activities.push(activity)
+
+        if (typeof onActivity === "function") {
+            onActivity(activity)
+        }
+    }
+
+    const inferredCommand = !commandId ? inferCommandInvocation(cleanQuestion) : null
     commandId = commandId || inferredCommand?.id
     commandText = commandText || inferredCommand?.text
     let commandResult = null
 
     if (commandId) {
-        if (!getCommand(commandId)) { throw new Error(`unknown command: ${commandId}`) }
+        if (!getCommand(commandId)) {
+            throw new Error(`unknown command: ${commandId}`)
+        }
 
-        commandResult = await runCommand( commandId, commandText, identity )
+        emit({
+            type: "command",
+            activityId: commandId,
+            status: "started",
+            message: `Executing command ${commandId} with arguments: ${commandText || "(none)"}`
+        })
+
+        commandResult = await runCommand(commandId, commandText, identity)
+
+        emit({
+            type: "command",
+            activityId: commandId,
+            status: "completed",
+            message: `Command ${commandId} executed successfully`
+        })
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    emit({
+        type: "retrieval",
+        activityId: "sources",
+        status: "started",
+        message: "Searching repository..."
+    })
+
     const sources = retrieve(cleanQuestion)
+
+    emit({
+        type: "retrieval",
+        activityId: "sources",
+        status: "completed",
+        message: `Retrieved ${sources.length} source${sources.length === 1 ? "" : "s"}`
+    })
+
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    emit({
+        type: "retrieval",
+        activityId: "images",
+        status: "started",
+        message: "Searching for visual assets..."
+    })
+
     const images = retrieveImages(cleanQuestion)
+
+    emit({
+        type: "retrieval",
+        activityId: "images",
+        status: "completed",
+        message: `Retrieved ${images.length} image${images.length === 1 ? "" : "s"}`
+    })
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    emit({
+        type: "context",
+        activityId: "codebase",
+        status: "started",
+        message: "Building codebase context..."
+    })
+
     const index = loadIndex()
     const codebaseContext = buildCodebaseContext(cleanQuestion, index)
     const codebaseText = formatCodebaseContext(codebaseContext)
+
+    emit({
+        type: "context",
+        activityId: "codebase",
+        status: "completed",
+        message: "Built codebase context",
+        metadata: {
+            symbols: codebaseContext.symbols.map(symbol => ({
+                name: symbol.name,
+                file: symbol.file,
+                line: symbol.line,
+                length: symbol.length,
+                endLine: symbol.endLine,
+                score: symbol.score,
+                "available at": `${symbol.file}:${symbol.line}-${symbol.endLine || symbol.line}`
+            })),
+            routes: codebaseContext.routes.length,
+            files: codebaseContext.files.size,
+            dependencies: codebaseContext.dependencies.size,
+            dependants: codebaseContext.dependants.size,
+            environmentVariables: codebaseContext.environmentVariables.length,
+            codeContexts: codebaseContext.code.length
+        }
+    })
 
     const sourceText = sources
         .map(source => {
@@ -815,25 +995,43 @@ async function answerQuestion({
                 `LINES: ${source.start}-${source.end}`,
                 `TYPE: ${source.type}`
             ]
-        
-            if (source.heading) { metadata.push(`SECTION: ${source.heading}`) }
+
+            if (source.heading) {
+                metadata.push(`SECTION: ${source.heading}`)
+            }
+
             return `${metadata.join("\n")}\n${source.text}`
-        }).join("\n\n")
+        })
+        .join("\n\n")
 
-    const imageText = images.map(image => `IMAGE ASSET: ${image.path} (available at ${image.url})` ).join("\n")
-    const commandTextResult = commandResult? `\nCOMMAND RESULT (${commandResult.command}):\n${formatResponses(commandResult.responses)}`: ""
+    const imageText = images
+        .map(image => `IMAGE ASSET: ${image.path} (available at ${image.url})`)
+        .join("\n")
 
-    if (!process.env.AI_API_KEY) {
+    const commandTextResult = commandResult
+        ? `\nCOMMAND RESULT (${commandResult.command}):\n${formatResponses(commandResult.responses)}`
+        : ""
+
+    if (!process.env.AI_API_KEY && withAi) {
+        emit({
+            type: "ai",
+            activityId: "request",
+            status: "failed",
+            message: "AI_API_KEY is not configured"
+        })
+
         return {
+            question: cleanQuestion,
             answer: commandResult
                 ? formatResponses(commandResult.responses)
                 : "AI_API_KEY is not configured. Retrieved relevant code sources are available for inspection.",
             sources: sources.map(
-                ({relativePath, start, end, type, heading,score }) => 
-                ({path: relativePath, start, end, type, heading, score })
+                ({ relativePath, start, end, type, heading, score }) =>
+                    ({ path: relativePath, start, end, type, heading, score })
             ),
             images,
-            command: commandResult
+            command: commandResult,
+            activities
         }
     }
 
@@ -845,6 +1043,35 @@ async function answerQuestion({
     const endpoint = configuredUrl.endsWith("/chat/completions")
         ? configuredUrl
         : `${configuredUrl}/chat/completions`
+
+    if (!withAi) {
+        emit({
+            type: "ai",
+            activityId: "request",
+            status: "skipped",
+            message: "AI generation skipped"
+        })
+
+        return {
+            question: cleanQuestion,
+            answer: "AI response is disabled. Retrieved relevant code sources are available for inspection.",
+            activities,
+            sources: sources.map(
+                ({ relativePath, start, end, type, heading, score }) =>
+                    ({ path: relativePath, start, end, type, heading, score })
+            ),
+            images,
+            command: commandResult,
+            context: codebaseText || codebaseContext || "No matching codebase context."
+        }
+    }
+
+    emit({
+        type: "ai",
+        activityId: "request",
+        status: "started",
+        message: `Sending request to AI model ${model} at ${endpoint}`
+    })
 
     const response = await fetch(endpoint, {
         method: "POST",
@@ -871,7 +1098,24 @@ async function answerQuestion({
 
     const responseBody = await response.json().catch(() => ({}))
 
+    emit({
+        type: "ai",
+        activityId: "request",
+        status: "received",
+        message: `Received response from AI model ${model}`,
+    })
+
     if (!response.ok) {
+        emit({
+            type: "ai",
+            activityId: "request",
+            status: "failed",
+            message:
+                responseBody.error?.message ||
+                responseBody.error ||
+                `AI request failed with ${response.status}`
+        })
+
         throw new Error(
             responseBody.error?.message ||
             responseBody.error ||
@@ -880,20 +1124,39 @@ async function answerQuestion({
     }
 
     const answer = responseBody.choices?.[0]?.message?.content
-    if (!answer) { throw new Error("AI returned an empty response") }
+
+    if (!answer) {
+        emit({
+            type: "ai",
+            activityId: "request",
+            status: "failed",
+            message: "AI returned an empty response"
+        })
+
+        throw new Error("AI returned an empty response")
+    }
+
+    emit({
+        type: "ai",
+        activityId: "request",
+        status: "completed",
+        message: `Processed response from AI model ${model}`
+    })
 
     return {
         answer,
         sources: sources.map(
-            ({relativePath, start, end, type, heading, score}) => 
-            ({path: relativePath, start, end, type, heading, score})
+            ({ relativePath, start, end, type, heading, score }) =>
+                ({ path: relativePath, start, end, type, heading, score })
         ),
         images,
-        command: commandResult
+        command: commandResult,
+        activities
     }
 }
 
 module.exports = {
+    emitActivity,
     answerQuestion,
     retrieve,
     retrieveImages,

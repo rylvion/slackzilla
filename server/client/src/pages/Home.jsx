@@ -15,7 +15,7 @@ function Home() {
     ]
 
     return (
-        <PageShell title="Dashboard" description="Slackzilla server overview" active="dashboard" state={state} links={internalLinks} >
+        <PageShell title="Dashboard" description="Slackzilla server overview" links={internalLinks} >
             <section id="overview" className="panel">
                 <div className="panel-header">
                     <h1>Dashboard</h1>

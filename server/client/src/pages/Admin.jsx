@@ -73,7 +73,7 @@ function Admin() {
 
     if (error && !summary) {
         return (
-            <PageShell title="Admin" description="Slackzilla admin controls" active="admin">
+            <PageShell title="Admin" description="Slackzilla admin controls" active="admin-login">
                 <section className="panel">
                     <div className="panel-body">
                         <p>{error}</p>
@@ -88,7 +88,7 @@ function Admin() {
     const serverEvents = summary?.serverEvents || []
 
     return (
-        <PageShell title="Admin" description="Authenticated Slackzilla admin controls" active="admin" state={adminStatus}>
+        <PageShell title="Admin" description="Authenticated Slackzilla admin controls" active="admin-login">
             <section className="panel">
                 <div className="panel-header">
                     <h1>Control Room</h1>

@@ -5,7 +5,6 @@ import { getJson } from "../components/utils/api"
 import "../css/commands.css"
 
 function Commands() {
-    const state = window.__SLACKZILLA__ || {}
     const [commands, setCommands] = useState([])
     const [commandId, setCommandId] = useState("")
     const [commandText, setCommandText] = useState("")
@@ -45,7 +44,7 @@ function Commands() {
 
     return (
         <>
-            <PageShell title="Commands" description="Slackzilla command reference" active="commands" state={state}>
+            <PageShell title="Commands" description="Slackzilla command reference">
                 <section id="commands" className="panel">
                     <div className="panel-header">
                         <h1>Commands</h1>

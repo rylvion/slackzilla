@@ -88,3 +88,15 @@ To test a valid request, calculate the HMAC over the exact body bytes with `WEBH
 | GitHub timeout | Inspect deployment state; the server acknowledges before the script completes. |
 
 The webhook service user needs access to the working tree, Git credentials, deployment script, and required system commands.
+
+## What does `deploy.sh` do?
+The deployment script is responsible for fetching the latest code, building the project, and restarting services in a safe, automated sequence. It runs only after the webhook server has validated the GitHub push event and confirmed the branch matches the configured deployment branch. it does the following:
+
+* ensures the local repository matches the remote branch
+* installs dependencies and builds the React client
+* restarts the main Slackzilla service, Nginx, and schedules a safe restart of the webhook service
+* skips deployment entirely if no new commits exist
+
+
+## Summary
+it makes slackzilla automatically be up to date after every commit and makes it easier to deploy slackzilla without having to manually do it

@@ -43,7 +43,7 @@ function AdminLogin() {
     }
 
     return (
-        <PageShell title="Admin Login" description="Login to the admin panel" active="admin-login">
+        <PageShell title="Admin Login" description="Login to the admin panel">
             <section className="panel">
                 <div className="panel-header">
                     <h1>Admin Login</h1>

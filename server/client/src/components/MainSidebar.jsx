@@ -1,13 +1,20 @@
 import { Fragment } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import routes from "./utils/routes"
 
-function RouteLinks({ routes, active }) {
+function RouteLinks({ active, pathname }) {
     return routes.map(route => (
         <Fragment key={route.id}>
             {!route.api && !route.hidden && (
                 <Link
-                    className={active === route.id ? "active" : ""}
+                    className={
+                        active
+                            ? active === route.id ? "active" : ""
+                            : (
+                                pathname === route.to ||
+                                (route.to !== "/" && pathname.startsWith(`${route.to}/`))
+                            ) ? "active" : ""
+                    }
                     to={route.to}
                 >
                     {route.label}
@@ -18,6 +25,7 @@ function RouteLinks({ routes, active }) {
                 <RouteLinks
                     routes={route.children}
                     active={active}
+                    pathname={pathname}
                 />
             )}
         </Fragment>
@@ -25,6 +33,9 @@ function RouteLinks({ routes, active }) {
 }
 
 function MainSidebar({ active, state }) {
+    const location = useLocation()
+    const pathname = location.pathname
+
     const sidebarStatus =
         state?.botOnline ||
         state?.summary?.botOnline ||
@@ -42,6 +53,7 @@ function MainSidebar({ active, state }) {
                 <RouteLinks
                     routes={routes}
                     active={active}
+                    pathname={pathname}
                 />
             </nav>
 

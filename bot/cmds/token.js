@@ -51,7 +51,7 @@ module.exports = (app, meta) => {
         if (length === null) {
             log.error("{user} used {cmd} with invalid length: {0}", command, command.text?.trim() || "<empty>")
 
-            await respond("❌ give me a length between 1 and 256")
+            await respond("i couldnt infer a valid length so the default of 32 will be used\n \> give me a length between 1 and 256\n `/sz-token 32`")
             return
         }
 

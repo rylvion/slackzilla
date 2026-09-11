@@ -6,12 +6,12 @@
 time logged: 29hr 1m
 date: 03/09/2026
 
-The React dashboard is finally here! I completely mitigrated the old EJS dashboard with a new React app. THIS ~will be~ IS the biggest devlog yet, as it covers a lot of changes and new features. main features added is mitigration, codebase assistance, graphs, telemetary and a new api.
+The React dashboard is finally here! I completely migrated the old EJS dashboard with a new React app. THIS ~will be~ IS the biggest devlog yet, as it covers a lot of changes and new features. main features added is migration, codebase assistance, graphs, telemetry and a new api.
 
 Heres a summary of what i changed
 
 * renamed `src/` to `bot/` - this is because its related to the bot and not the server and its not where all the main files are
-* mitigrated the EJS dashboard into a React app
+* migrated the EJS dashboard into a React app
 * overhauled the UI
 * deleted the pages system and the workflow to build it
 * added a new RAG modal that answers questions about the repo and shows related visual assets (also includes a new `rag.js` file that handles retrieval and generation of answers)
@@ -58,8 +58,8 @@ Linux systemd controls and deployment scripts are intended for the hosted enviro
 <p align="right">
   <em>
     <b>
-      <a href="#">
-        visit non existent devlog 10 (coming soon)
+      <a href="devlog10.md">
+        visit devlog 10
       </a>
     </b>
   </em>

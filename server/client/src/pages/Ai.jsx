@@ -34,7 +34,7 @@ function Ai() {
     }
 
     return (
-        <PageShell title="AI Assistant" description="Ask questions about Slackzilla" active="ai">
+        <PageShell title="AI Assistant" description="Ask questions about Slackzilla">
             <section className="panel ai-panel">
                 <div className="panel-header">
                     <h1>Slackzilla AI</h1>

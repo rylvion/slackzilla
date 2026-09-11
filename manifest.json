@@ -118,6 +118,12 @@
         "usage_hint": "<min> <max>"
       },
       {
+        "command": "/sz-release",
+        "description": "displays the latest release notes",
+        "should_escape": false,
+        "usage_hint": "<version>"
+      },
+      {
         "command": "/sz-roll",
         "description": "rolls a dice",
         "should_escape": false,

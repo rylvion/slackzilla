@@ -191,5 +191,13 @@
         "category": "utility",
         "file": "ask.js",
         "usage_hint": "<question>"
+    },
+
+    "release": {
+        "cmd": "/sz-release",
+        "description": "displays the latest release notes",
+        "category": "utility",
+        "file": "release.js",
+        "usage_hint": "<version>"
     }
 }

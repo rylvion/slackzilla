@@ -15,6 +15,8 @@ module.exports = (app, meta) => {
         return `${h}h ${m}m ${s}s`
     }
 
+    const link = process.platform == "win32" ? "http://localhost:9000" : "https://rylvion.hackclub.app/"
+
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
@@ -22,7 +24,7 @@ module.exports = (app, meta) => {
 
         if (!botState.startedAt) {
             log.error("{user} used {cmd} but bot state is not available, curr state: {0} ", command, botState)
-            await respond("bot state is not available. Please check the bot logs for errors and report them using the `/sz-feedback` command.")
+            await respond(`bot state is not available. Please check the [bot logs](${link}/logs) for errors and report them using the \`/sz-feedback\` command.`)
             return
         }
 
@@ -34,18 +36,18 @@ module.exports = (app, meta) => {
             `
 🤖 Slackzilla status
 
-**version:** ${botState.version}
-**node:** ${botState.nodeVersion}
-**platform:** ${botState.platform}
+*version:* ${botState.version}
+*node:* ${botState.nodeVersion}
+*platform:* ${botState.platform}
 
-**uptime:** ${uptime}
-**memory:** ${memory}mb
+*uptime:* ${uptime}
+*memory:* ${memory}mb
 
-**started:** ${new Date(botState.startedAt).toLocaleString()}
+*started:* ${new Date(botState.startedAt).toLocaleString()}
 
-**commands:** ${getTotal()} total (${getTotalCategoryCount()} categories, avg ${(getTotal() / getTotalCategoryCount()).toFixed(1)} cmds per category)
-**categories:** ${Object.entries(getCategoryCounts()).map(([cat, count]) => `${cat}: ${count}`).join(", ")}
-**hosted on:** ${process.platform == "win32" ? "http://localhost:9000 (could be a different port)": "https://rylvion.hackclub.app/"}
+*commands:* ${getTotal()} total (${getTotalCategoryCount()} categories, avg ${(getTotal() / getTotalCategoryCount()).toFixed(1)} cmds per category)
+*categories:* ${Object.entries(getCategoryCounts()).map(([cat, count]) => `${cat}: ${count}`).join(", ")}
+*link:* ${link == "http://localhost:9000" ? "http://localhost:9000 (could be a different port)" : link}
 `
         )
 

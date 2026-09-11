@@ -3,7 +3,7 @@ import "../css/docs.css"
 
 function Docs() {
     return (
-        <PageShell title="Docs" description="Slackzilla operations and extension guide" active="docs">
+        <PageShell title="Docs" description="Slackzilla operations and extension guide">
             <section className="panel">
                     <div className="panel-header">
                         <h1>API developer guide</h1>

@@ -1,0 +1,83 @@
+{
+    "v0.9.0-beta": {
+        "summary": "v0.9.0-beta is the biggest release in ALL OF Slackzilla's history, introducing the new React dashboard, repository-aware RAG, expanded APIs, telemetry, command execution, and a major dashboard architecture overhaul.",
+        "changes": [
+            "migrated the dashboard from EJS to React with Vite and React Router",
+            "renamed `src/` to `bot/` (since before it was just intended to be a simple bot, but now it has a dashboard, APIS and A FRIGGEN RAG MODEL)",
+            "overhauled the dashboard UI/UX and introduced a new component-based architecture",
+            "added 10 dashboard pages covering Home, Admin, API, Commands, Docs, Logs, AI, Sitemap, and Status",
+            "added loads of new React components including a dedicated 404 page and Error Boundary",
+            "added a repository-aware RAG system for answering questions about the Slackzilla codebase",
+            "added the `/sz-ask` & `/api/ask` to question the repository-aware AI assistant",
+            "added command APIs for listing, viewing, and executing Slackzilla commands",
+            "added stable command IDs, command help, and captured command responses to the command API",
+            "added CPU, memory, disk, and network telemetry with responsive graphs w hover tooltips",
+            "added admin feedback controls for filtering, viewing, replying, marking read or unread, and deleting feedback",
+            "documented authentication, CSRF, webhook, API registration, setup, and RAG behaviour in `docs/`",
+            "separated the React client build from the server using `server/client/src/` and `server/client/dist/`",
+            "introduced explicit Node HTTP API handlers under `server/api/`",
+            "added related image asset detection to RAG without parsing binary image contents"
+        ]
+    },
+
+    "v0.9.1-beta": {
+        "summary": "v0.9.1-beta - added AST-based codebase intelligence & dependency analysis for RAG",
+        "changes": [
+            "added 2 new core dependencies `acorn` & `acorn-walk` for javascript AST parsing and walking",
+            "added `npm run build` to `deploy.sh` for the webhook to build the react app before restarting the server",
+            "added `code-parser.js` to extract `exports`, `functions`, `function calls`, `env variables`, and `routes`",
+            "RAG: added persistent `.rag/index.json` containing file metadata, chunks, tokens, file types, and AST structure", 
+            "RAG: replaced token-based search with an indexed, code-aware retrieval system",
+            "RAG: added codebase indexing, file references, symbol search, dependency analysis, and automatic index rebuilding", 
+            "RAG: added richer code context, source metadata, API route discovery, environment variable lookup, and improved image retrieval"
+        ]
+    },
+    "v0.9.2-beta": {
+        "summary": "v0.9.2-beta removed/cleaned up unused EJS & pages dependencies and files ",
+        "changes": [
+            "removed 3 core dependencies `@openrouter/sdk`, `ejs` & `requests`",
+            "removed 4 dev dependencies `clean-css`, `terser`, `terser-brunch`, `html-minifier-terser`",
+            "removed the `pages` folder and all its contents (`scripts/build-pages.js`, `server/lib/pages.js`)"
+
+        ]
+    },
+    "v0.9.2.1-beta": {
+        "summary": "v0.9.2.1-beta fixed several bugs affecting bot metadata, RAG privacy controls, and command usage hints",
+        "changes": [
+            "(/sz-info) fixed the bot not accessing the bot meta information outside of the process causing api to fail when retrieving the bot meta information",
+            "added an anonymous code flag to RAG (/sz-ask) to prevent the bot from storing the question in the logs (rn its on for testing purposes)",
+            "fixed `Commands.jsx` not displaying usage hints for commands that have them"
+        ]
+    },
+    "v0.9.3-beta": {
+        "summary": "v0.9.3-beta - migrated to chart.js for status page",
+        "changes": [
+            "on `.vscode/launch.json` added a new launch config for launching the server instead of manually typing npm start in the terminal",
+            "added 2 new core dependencies `chart.js` & `react-chartjs-2",
+            "migrated from svg telemetary graph to chart.js in Status Page",
+            "improved Status Page UI/UX"
+
+        ]
+    },
+    "v0.9.4-beta": {
+        "summary": "v0.9.4-beta offers more advanced logs filtering & navigation, and RAG enhancements (also fixed some bugs)",
+        "changes": [
+            "added navigation controls",
+            "fixed the sidebar active page not receiving the active class",
+            "fixed the download button displaying plain text instead of downloading",
+            "fixed the bot showing offline on the sidebar (by adding the state property default)",
+            "made page state load dynamically/automatically when the page is initialised",
+            "registered `/webhook` route to `api-routes.js` (yes still that script is just documentaton for now..)",
+            "LOGS: Added line jumping with ?line=21",
+            "LOGS: Added log filtering with ?q=filter+text",
+            "LOGS: Added First Line, Prev 100, Next 100 and Latest buttons",
+            "LOGS: Newly added logs are now highlighted",
+            "CMDS: Added /sz-release utility command to check for the latest release notes",
+            "CMDS: token now defaults to 32 if the 2nd argument is incorrect instead of throwing an error",
+            "added `release-history.json` so /sz-release 2nd arg can pull the release history",
+            "RAG: Added an emitActivity event thatll tell what actions the bot is doing (e.g. fetching, generating, etc.)",
+            "RAG: Added a withAi flag to `askQuestion` so i can debug and see some of the context is being sent to the AI model",
+            "RAG: added 2 new functions `resolveFileReference` and `extractPathReferences` to detect path-based dependencies inside code"
+        ]
+    }
+}

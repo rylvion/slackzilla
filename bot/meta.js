@@ -8,6 +8,7 @@ module.exports = {
   author: packageJson.author,
   themeColor: '#101f4d',
   version: packageJson.version,
+  releaseNotes: packageJson.releaseNotes,
 
   socketMode: true,
 

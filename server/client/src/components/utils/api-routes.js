@@ -1,9 +1,23 @@
-// Not an actual API route.
+// Some of these routes may not be implemented this is utilised as a frontend
 // This file documents and describes API routes available in the backend.
 const API_ROUTES = [
     {
         version: "1.0.0",
         routes: [
+            /*
+            {
+                id: "api-some-unique-id", // (DO NOT make it the same as any other route's id)
+                operationId: "someUniqueOperationId", // so if in the future i want an mcp or expand RAG to use api then this is the unique identifier for this operation
+                uuid: "some-unique-uuid", // (DO NOT make it the same as any other route's uuid)
+                tags: ["tag1", "tag2"], // for grouping and filtering in the API reference
+                method: "GET", // or POST, PUT, DELETE, PATCH, etc. (if there are 2 different methods then make another route object with the same path but different method)
+                path: "/api/some-path", // the path of the route, relative to the server root
+                description: "A brief description of what this route does.",
+                categories: ["public", "private", "admin", "core", "monitoring", "commands", "logs", "streaming", "feedback", "control"], // for grouping and filtering in the API reference
+                livesAt: "/server/api/some-path/index.js", // the file where this route is implemented
+                schema: "/server/api/some-path/some-path.schema.json", // the JSON schema file for this route's request 
+            }
+            */
             {
                 id: "api-commands",
                 operationId: "listCommands",
@@ -16,7 +30,7 @@ const API_ROUTES = [
                 livesAt: "/server/api/commands/index.js",
                 schema: null,
                 parameters: [],
-                responses: { "200": { description: "Command metadata", schema: null } }
+                responses: { "200": { description: "Command metadata", schema: null }},
             },
             {
                 id: "api-command",
@@ -29,7 +43,10 @@ const API_ROUTES = [
                 categories: ["public", "commands"],
                 livesAt: "/server/api/commands/index.js",
                 schema: null,
-                parameters: [{ name: "id", in: "path", required: true, type: "string" }, { name: "text", in: "body", required: false, type: "string" }],
+                parameters: [
+                    { name: "id", in: "path", required: true, type: "string" },
+                    { name: "text", in: "body", required: false, type: "string" }
+                ],
                 responses: { "200": { description: "Captured command responses", schema: null }, "404": { description: "Command not found", schema: null } }
             },
             {
@@ -57,7 +74,11 @@ const API_ROUTES = [
                 categories: ["public", "assistant", "codebase"],
                 livesAt: "/server/api/ask/index.js",
                 schema: null,
-                parameters: [{ name: "question", in: "body", required: true, type: "string" }, { name: "commandId", in: "body", required: false, type: "string" }, { name: "commandText", in: "body", required: false, type: "string" }],
+                parameters: [
+                    { name: "question", in: "body", required: true, type: "string" },
+                    { name: "commandId", in: "body", required: false, type: "string" },
+                    { name: "commandText", in: "body", required: false, type: "string" }
+                ],
                 responses: { "200": { description: "Answer, sources, and optional command result", schema: null } }
             },
             {
@@ -157,7 +178,10 @@ const API_ROUTES = [
                 schema: "/server/api/admin/admin.schema.json",
                 parameters: [],
                 authentication: "admin session cookie",
-                responses: { "200": { description: "Admin summary", schema: "/server/api/admin/admin.schema.json" }, "401": { description: "Admin session required", schema: null } }
+                responses: { 
+                    "200": { description: "Admin summary", schema: "/server/api/admin/admin.schema.json" }, 
+                    "401": { description: "Admin session required", schema: null } 
+                }
             },
             {
                 id: "api-admin-events",
@@ -172,7 +196,10 @@ const API_ROUTES = [
                 schema: "/server/api/admin/admin.schema.json",
                 parameters: [],
                 authentication: "admin session cookie",
-                responses: { "200": { description: "text/event-stream admin events", schema: "/server/api/admin/admin.schema.json" }, "401": { description: "Admin session required", schema: null } }
+                responses: { 
+                    "200": { description: "text/event-stream admin events", schema: "/server/api/admin/admin.schema.json" }, 
+                    "401": { description: "Admin session required", schema: null }
+                }
             },
             {
                 id: "api-admin-control",
@@ -180,14 +207,20 @@ const API_ROUTES = [
                 uuid: "4b95a8e6-8ed3-4d4a-9a8a-cc2c1c1d6e40",
                 tags: ["admin", "control"],
                 method: "POST",
-                path: "/api/admin/control",
+                path: "/api/admin/control", // accepts 
                 description: "Run an authenticated service or refresh action.",
                 categories: ["admin", "private", "control"],
                 livesAt: "/server/api/control/index.js",
                 schema: "/server/api/control/control.schema.json",
-                parameters: [{ name: "action", in: "body", required: true, type: "string" }, { name: "csrf", in: "body", required: true, type: "string" }],
+                parameters: [
+                    { name: "action", in: "body", required: true, type: "string" },
+                    { name: "csrf", in: "body", required: true, type: "string" }
+                ],
                 authentication: "admin session cookie and CSRF token",
-                responses: { "200": { description: "Action result", schema: "/server/api/control/control.schema.json" }, "403": { description: "Invalid CSRF token", schema: null } }
+                responses: { 
+                    "200": { description: "Action result", schema: "/server/api/control/control.schema.json" },
+                    "403": { description: "Invalid CSRF token", schema: null } 
+                }
             },
             {
                 id: "api-admin-feedback",
@@ -202,7 +235,10 @@ const API_ROUTES = [
                 schema: "/server/api/feedback/feedback.schema.json",
                 parameters: [{ name: "q", in: "query", required: false, type: "string" }, { name: "status", in: "query", required: false, type: "string" }],
                 authentication: "admin session cookie",
-                responses: { "200": { description: "Feedback list", schema: "/server/api/feedback/feedback.schema.json" }, "401": { description: "Admin session required", schema: null } }
+                responses: { 
+                    "200": { description: "Feedback list", schema: "/server/api/feedback/feedback.schema.json" },
+                    "401": { description: "Admin session required", schema: null }
+                }
             },
             {
                 id: "api-admin-feedback-item",
@@ -217,7 +253,10 @@ const API_ROUTES = [
                 schema: "/server/api/feedback/feedback.schema.json",
                 parameters: [{ name: "id", in: "path", required: true, type: "string" }],
                 authentication: "admin session cookie",
-                responses: { "200": { description: "Feedback item", schema: "/server/api/feedback/feedback.schema.json" }, "404": { description: "Feedback not found", schema: null } }
+                responses: { 
+                    "200": { description: "Feedback item", schema: "/server/api/feedback/feedback.schema.json" },
+                    "404": { description: "Feedback not found", schema: null } 
+                }
             },
             {
                 id: "api-admin-feedback-action",
@@ -230,10 +269,38 @@ const API_ROUTES = [
                 categories: ["admin", "private", "feedback"],
                 livesAt: "/server/api/feedback/index.js",
                 schema: "/server/api/feedback/feedback.schema.json",
-                parameters: [{ name: "id", in: "path", required: true, type: "string" }, { name: "action", in: "body", required: true, type: "string" }, { name: "csrf", in: "body", required: true, type: "string" }],
+                parameters: [
+                    { name: "id", in: "path", required: true, type: "string" },
+                    { name: "action", in: "body", required: true, type: "string" },
+                    { name: "csrf", in: "body", required: true, type: "string" }
+                ],
                 authentication: "admin session cookie and CSRF token",
                 responses: { "200": { description: "Updated feedback item", schema: "/server/api/feedback/feedback.schema.json" }, "403": { description: "Invalid CSRF token", schema: null } }
+            },
+            {
+                id: "api-webhook",
+                operationId: "handleGitHubWebhook",
+                uuid: "c0c2b1a4-9f3d-4e8b-9c77-2a1f0d9e7abc",
+                tags: ["webhook", "deployment", "github"],
+                method: "POST",
+                path: "/webhook",
+                description: "Handle GitHub push events, verify HMAC signature, filter branch, and trigger deployment.",
+                categories: ["public", "webhook", "deployment"],
+                livesAt: "/server/server.js",
+                schema: null,
+                parameters: [
+                    { name: "X-GitHub-Event", in: "header", required: true, type: "string" },
+                    { name: "X-Hub-Signature-256", in: "header", required: true, type: "string" },
+                    { name: "Content-Type", in: "header", required: true, type: "string" },
+                    { name: "rawBody", in: "body", required: true, type: "string" }
+                ],
+                responses: {
+                    "202": { description: "Accepted deploy or ignored event", schema: null },
+                    "400": { description: "Invalid JSON payload", schema: null },
+                    "401": { description: "Invalid signature", schema: null }
+                }
             }
+
         ]
     }
 ]

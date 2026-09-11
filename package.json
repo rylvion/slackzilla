@@ -1,6 +1,27 @@
 {
   "name": "slackzilla",
-  "version": "v0.9.3-beta",
+  "version": "v0.9.4-beta",
+  "releaseNotes": {
+    "summary": "v0.9.4-beta offers more advanced logs filtering & navigation as well as URL query params. and also fixes some bugs.",
+    "changes": [
+      "added navigation controls",
+      "fixed the sidebar active page not receiving the active class",
+      "fixed the download button displaying plain text instead of downloading",
+      "fixed the bot showing offline on the sidebar (by adding the state property default)",
+      "made page state load dynamically/automatically when the page is initialised",
+      "registered `/webhook` route to `api-routes.js` (yes still that script is just documentaton for now..)",
+      "LOGS: Added line jumping with ?line=21",
+      "LOGS: Added log filtering with ?q=filter+text",
+      "LOGS: Added First Line, Prev 100, Next 100 and Latest buttons",
+      "LOGS: Newly added logs are now highlighted",
+      "CMDS: Added /sz-release utility command to check for the latest release notes",
+      "CMDS: token now defaults to 32 if the 2nd argument is incorrect instead of throwing an error",
+      "added `release-history.json` so /sz-release 2nd arg can pull the release history",
+      "RAG: Added an emitActivity event thatll tell what actions the bot is doing (e.g. fetching, generating, etc.)",
+      "RAG: Added a withAi flag to `askQuestion` so i can debug and see some of the context is being sent to the AI model",
+      "RAG: added 2 new functions `resolveFileReference` and `extractPathReferences` to detect path-based dependencies inside code"
+    ]
+  },
   "description": "slackatron mega 1x1x1x1 edition",
   "main": "bot/bot.js",
   "scripts": {

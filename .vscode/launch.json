@@ -22,7 +22,7 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Vite Dev Server",
+            "name": "Launch Vite Dev Server (No API, No Bot)",
             "cwd": "${workspaceFolder}/server/client",
             "runtimeExecutable": "npm",
             "runtimeArgs": [
@@ -35,8 +35,8 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Bot Server",
-            "cwd": "${workspaceFolder}/server/bot",
+            "name": "Launch Bot",
+            "cwd": "${workspaceFolder}",
             "runtimeExecutable": "npm",
             "runtimeArgs": [
                 "run",

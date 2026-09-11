@@ -1,4 +1,4 @@
-# Slackzilla Architecture Deep Dive
+# Slackzilla Architecture
 
 This document describes the active architecture in this repository. Slackzilla uses two Node.js processes and a shared file-backed store. It does not use Express, a database server, or automatic module discovery.
 
@@ -40,7 +40,7 @@ The bot maintains the Slack connection and executes commands. The dashboard serv
 
 ## Process Lifecycle
 
-`npm start` builds and lints the dashboard, then starts the bot and dashboard concurrently. Production service files run them separately: `slackzilla.service` starts the bot and `slackzilla-webhook.service` starts `server/server.js`.
+`npm start` builds and lints the dashboard, then starts the bot and dashboard concurrently. Production service files run them separately: `slackzilla.service` starts the bot and `slackzilla-webhook.service` starts `server/server.js`. (this should be for development only, not production), it should use actual service files for production. 
 
 The bot connects to Slack through Socket Mode using `SLACK_APP_TOKEN` and authenticates Web API calls with `SLACK_BOT_TOKEN`. The dashboard listens on `PORT`, normally `9000`, and serves browser traffic and the GitHub webhook. A reverse proxy can expose that one port over HTTPS.
 

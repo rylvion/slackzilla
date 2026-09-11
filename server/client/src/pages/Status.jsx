@@ -17,7 +17,7 @@ function Status() {
 
     return (
         <>
-            <PageShell title="Uptime" description="Slackzilla system and bot telemetry" active="status" state={status} links={internalLinks}>
+            <PageShell title="Uptime" description="Slackzilla system and bot telemetry" links={internalLinks}>
                 <section id="overview" className="panel">
                     <div className="panel-header">
                         <h1>Runtime Telemetry</h1>
@@ -49,7 +49,7 @@ function Status() {
                                 { key: "cpuPercent", label: "CPU", colour: "#00ff78"},
                                 { key: "memoryUsedPercent", label: "MEMORY", colour: "#58d8ff" },
                             ]}
-                            maximum={150} // leniency for CPU spikes 
+                            maximum={100} 
                         />
                     </div>
                 </section>

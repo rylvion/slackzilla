@@ -10,7 +10,13 @@ function handleLogsApi({ req, res, url, context }) {
 
     if (url.pathname === "/api/logs/download" && req.method === "GET") {
         const snapshot = context.store.getLogSnapshot()
-        context.sendText(res, 200, snapshot.content, "text/plain; charset=utf-8")
+
+        res.writeHead(200, {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Content-Disposition": 'attachment; filename="slackzilla.log"'
+        })
+
+        res.end(snapshot.content)
         return true
     }
 
