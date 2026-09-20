@@ -54,13 +54,13 @@ function handleControlApi({ req, res, url, context }) {
                 if (action === "refresh") {
                     const status = context.refreshAndBroadcastStatus()
                     context.broadcast(context.adminClients, "summary", context.buildAdminSummary(session.csrfToken))
-                    context.sendOk(res, { status })
+                    context.sendOk(res, { status: context.renderStatusSummary() })
                     return true
                 }
 
                 if (action === "refresh-status") {
                     const status = context.refreshAndBroadcastStatus()
-                    context.sendOk(res, { status })
+                    context.sendOk(res, { status: context.renderStatusSummary() })
                     return true
                 }
 

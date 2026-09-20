@@ -13,4 +13,7 @@
 ## Project References
 
 * [Devlogs](../assets/devlogs/devlogs.md) - Development history and implementation notes.
+* [Stardance Devlogs](https://stardance.hackclub.com/projects/4967) - Hack Club project showcase and devlog series.
 * [Frontend docs](../server/client/src/pages/Docs.jsx) - In-app developer guide.
+* [Repository](https://github.com/rylvion/slackzilla) - Source code
+* [Hosted dashboard](https://rylvion.hackclub.app/) - Live React dashboard and bot interface.

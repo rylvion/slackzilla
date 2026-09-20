@@ -78,6 +78,8 @@ Summary: Migrated from the old EJS dashboard to a new React-based dashboard, add
   <img src="../attachments/d9/dashboard-status.png" alt="Dashboard Status" width="400">
 </div>
 
+## [Devlog 10: RAG Enhancements](./devlog10.md)
+
 ---
 
 - [Devlog 1: Initial Setup](./devlog1.md)

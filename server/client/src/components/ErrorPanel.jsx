@@ -4,7 +4,7 @@ import { ERROR_CODES, CLIENT_ERRORS } from "./utils/errors.js"
 function ErrorPanel({
     code,
     error = null,
-    action = null,
+    action = () => window.location.reload(),
     actionLabel = "reload",
     showDetails = false
 }) {

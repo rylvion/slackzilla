@@ -32,6 +32,59 @@ export async function getJson(url, options = {}) {
     return body?.data ?? body
 }
 
+export async function streamJson(url, options = {}, onEvent = () => {}) {
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            Accept: "text/event-stream",
+            ...(options.headers || {})
+        }
+    })
+
+    if (!response.ok) {
+        const text = await response.text()
+        let body = null
+
+        try { body = JSON.parse(text) }
+        catch { /* The server may return plain text for transport errors. */ }
+
+        throw new Error(body?.error || `Request failed with ${response.status}`)
+    }
+
+    if (!response.body) throw new Error("Streaming response is not supported by this browser")
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    const processEvent = rawEvent => {
+        const lines = rawEvent.split(/\r?\n/)
+        const event = lines.find(line => line.startsWith("event:"))?.slice(6).trim() || "message"
+        const data = lines
+            .filter(line => line.startsWith("data:"))
+            .map(line => line.slice(5).trim())
+            .join("\n")
+
+        if (!data) return
+
+        try { onEvent(event, JSON.parse(data)) }
+        catch { onEvent(event, data) }
+    }
+
+    while (true) {
+        const { done, value } = await reader.read()
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+
+        const events = buffer.split(/\r?\n\r?\n/)
+        buffer = events.pop() || ""
+        events.forEach(processEvent)
+
+        if (done) break
+    }
+
+    if (buffer.trim()) processEvent(buffer)
+}
+
 export function useStatusStream(initial = {}) {
     const [status, setStatus] = useState(initial || {})
     const [connected, setConnected] = useState(false)
@@ -147,4 +200,30 @@ export function formatBytes(value) {
 
 export function formatRate(value) {
     return value === null || value === undefined ? "unavailable" : `${formatBytes(value)}/s`
+}
+
+export function useTelemetryStream(initial = {}) {
+    const [telemetry, setTelemetry] = useState(initial || {})
+    const [connected, setConnected] = useState(false)
+
+    useEffect(() => {
+        let alive = true
+        const stream = new EventSource("/api/telemetry/stream")
+
+        stream.addEventListener("telemetry", event => {
+            if (!alive) return
+            setTelemetry(JSON.parse(event.data))
+            setConnected(true)
+        })
+        stream.onerror = () => {
+            if (alive) setConnected(false)
+        }
+
+        return () => {
+            alive = false
+            stream.close()
+        }
+    }, [])
+
+    return { telemetry, connected }
 }

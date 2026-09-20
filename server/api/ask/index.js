@@ -1,4 +1,6 @@
-const { answerQuestion } = require("../../lib/rag")
+const { answerQuestion } = require("../../lib/rag/rag")
+const { createRagTools } = require("../../lib/rag/rag-tools")
+const { createRagToolContext } = require("../../lib/rag/rag-tool-context")
 
 function handleAskApi({ req, res, url, context }) {
     if (url.pathname !== "/api/ask") return false
@@ -10,7 +12,13 @@ function handleAskApi({ req, res, url, context }) {
             body: {
                 question: "Your question",
                 commandId: "optional command ID",
-                commandText: "optional command arguments"
+                commandText: "optional command arguments",
+                identity: {
+                    userId: "optional user ID",
+                    username: "optional username",
+                    channelId: "optional channel ID",
+                    teamId: "optional team ID"
+                }
             }
         })
         return true
@@ -22,6 +30,14 @@ function handleAskApi({ req, res, url, context }) {
     }
 
     return context.parseBody(req).then(async body => {
+        context.sendSseHeaders(res)
+
+        const send = (event, data) => {
+            if (!res.writableEnded && !res.destroyed) context.sendSse(res, event, data)
+        }
+
+        const tools = createRagTools(createRagToolContext(context))
+
         const result = await answerQuestion({
             question: body.question,
             commandId: body.commandId,
@@ -31,12 +47,22 @@ function handleAskApi({ req, res, url, context }) {
                 username: body.username,
                 channelId: body.channelId,
                 teamId: body.teamId
-            }
+            },
+            tools,
+            onActivity: activity => send("activity", activity),
+            onToken: token => send("token", { token })
         })
-        context.sendOk(res, result)
+
+        send("complete", result)
+        if (!res.writableEnded) res.end()
         return true
     }).catch(error => {
-        context.sendError(res, 500, "ASK_FAILED", error.message)
+        if (!res.headersSent) {
+            context.sendError(res, 500, "ASK_FAILED", error.message)
+        } else if (!res.writableEnded && !res.destroyed) {
+            context.sendSse(res, "error", { error: error.message })
+            res.end()
+        }
         return true
     })
 }

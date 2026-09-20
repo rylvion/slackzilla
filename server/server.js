@@ -19,12 +19,15 @@ const {
 } = require("./lib/system")
 
 const { handleStatusApi } = require("./api/status")
+const { handleTelemetryApi } = require("./api/telemetry")
 const { handleLogsApi } = require("./api/logs")
 const { handleMetricsApi } = require("./api/metrics")
 const { handleAdminApi } = require("./api/admin")
 const { handleFeedbackApi } = require("./api/feedback")
 const { handleControlApi } = require("./api/control")
 const { handleCommandsApi } = require("./api/commands")
+const { handleRoutesApi } = require("./api/routes")
+const { handleReleaseApi } = require("./api/release")
 const { handleAskApi } = require("./api/ask")
 
 const port = Number(process.env.PORT || 9000)
@@ -170,23 +173,20 @@ function sendSse(res, event, data) {
     res.write(`data: ${JSON.stringify(data)}\n\n`)
 }
 
-function createStreamSet() {
-    return new Set()
-}
+const createStreamSet = () => new Set()
 
 const logClients = createStreamSet()
 const statusClients = createStreamSet()
+const telemetryClients = createStreamSet()
+const metricsClients = createStreamSet()
 const adminClients = createStreamSet()
 const telemetryHistory = []
 let latestStatusPayload = null
 
 function broadcast(clients, event, data) {
     for (const client of clients) {
-        try {
-            sendSse(client, event, data)
-        } catch {
-            clients.delete(client)
-        }
+        try {sendSse(client, event, data)}
+        catch { clients.delete(client) }
     }
 }
 
@@ -196,15 +196,11 @@ function registerStreamClient(clients, req, res, onClose) {
 
     req.on("close", () => {
         clients.delete(res)
-        if (typeof onClose === "function") {
-            onClose()
-        }
+        if (typeof onClose === "function") onClose()
     })
 }
 
-function splitLogLines(content) {
-    return String(content || "").split(/\r?\n/).filter(Boolean)
-}
+const splitLogLines = (content) => String(content || "").split(/\r?\n/).filter(Boolean)
 
 function renderStatusPayload() {
     const snapshot = refreshRuntimeSnapshot()
@@ -225,12 +221,28 @@ function renderStatusPayload() {
     return payload
 }
 
+function renderStatusSummary() {
+    const { telemetryHistory, ...status } = renderStatusPayload()
+    return status
+}
+
+function renderMetricsPayload() {
+    renderStatusPayload()
+    return telemetryHistory
+}
+
+function renderTelemetryPayload() {
+    const status = latestStatusPayload || renderStatusPayload()
+    return { telemetryHistory: status.telemetryHistory || [] }
+}
+
 function buildAdminSummary(csrfToken = "") {
+    const { telemetryHistory, ...status } = latestStatusPayload || renderStatusPayload()
+
     return {
-        status: latestStatusPayload || renderStatusPayload(),
+        status,
         feedback: store.listFeedback({ status: "all" }).slice(0, 5),
         commandStats: store.getBotMetrics().commandStats.slice(0, 8),
-        serverEvents: store.getServerEvents(50),
         logs: splitLogLines(store.getLogSnapshot().content).slice(-20),
         runtimeConfig,
         csrfToken
@@ -239,10 +251,12 @@ function buildAdminSummary(csrfToken = "") {
 
 function refreshAndBroadcastStatus() {
     const status = renderStatusPayload()
-    broadcast(statusClients, "status", status)
-    broadcast(adminClients, "status", status)
+    const { telemetryHistory, ...statusSnapshot } = status
+    broadcast(statusClients, "status", statusSnapshot)
+    broadcast(adminClients, "status", statusSnapshot)
     broadcast(statusClients, "summary", {
-        commandStats: store.getBotMetrics().commandStats.slice(0, 8)
+        commandStats: store.getBotMetrics().commandStats.slice(0, 8),
+        recentActivity: store.getBotMetrics().recentActivity
     })
     broadcast(adminClients, "summary", buildAdminSummary())
     return status
@@ -252,16 +266,8 @@ function refreshAndBroadcastLogs() {
     const snapshot = store.getLogSnapshot()
     const lines = splitLogLines(snapshot.content)
 
-    broadcast(logClients, "snapshot", {
-        lines,
-        size: snapshot.size
-    })
-
-    broadcast(adminClients, "logs", {
-        lines: lines.slice(-50),
-        size: snapshot.size
-    })
-
+    broadcast(logClients, "snapshot", { lines, size: snapshot.size })
+    broadcast(adminClients, "logs", { lines: lines.slice(-50), size: snapshot.size })
     broadcast(adminClients, "summary", buildAdminSummary())
 
     return snapshot
@@ -295,48 +301,32 @@ function watchLogs() {
 }
 
 function verifyWebhookSignature(signature, body) {
-    if (!signature || typeof signature !== "string") {
-        return false
-    }
+    if (!signature || typeof signature !== "string") return false
 
-    const expected = `sha256=${crypto
-        .createHmac("sha256", webhookSecret)
-        .update(body)
-        .digest("hex")}`
+    const expected = `sha256=${crypto.createHmac("sha256", webhookSecret).update(body).digest("hex")}`
 
     const expectedBuffer = Buffer.from(expected)
     const signatureBuffer = Buffer.from(signature)
 
-    if (expectedBuffer.length !== signatureBuffer.length) {
-        return false
-    }
-
+    if (expectedBuffer.length !== signatureBuffer.length) return false
     return crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
 }
 
 function handleStatic(req, res, pathname) {
-    if (req.method !== "GET") {
-        return false
-    }
+    if (req.method !== "GET") { return false }
 
     let filePath
     let rootPath
 
     if (pathname.startsWith("/public/")) {
         rootPath = path.join(__dirname, "public")
-        filePath = path.normalize(
-            path.join(rootPath, pathname.slice("/public/".length))
-        )
+        filePath = path.normalize( path.join(rootPath, pathname.slice("/public/".length)) )
     } else if (pathname.startsWith("/assets/attachments/")) {
         rootPath = path.join(__dirname, "..", "assets")
-        filePath = path.normalize(
-            path.join(rootPath, pathname.slice("/assets/".length))
-        )
+        filePath = path.normalize( path.join(rootPath, pathname.slice("/assets/".length)) )
     } else if (pathname.startsWith("/assets/")) {
         rootPath = path.join(__dirname, "client", "dist")
-        filePath = path.normalize(
-            path.join(rootPath, pathname.slice(1))
-        )
+        filePath = path.normalize( path.join(rootPath, pathname.slice(1)) )
     } else if (pathname === "/favicon.svg") {
         rootPath = path.join(__dirname, "client", "dist")
         filePath = path.join(rootPath, "favicon.svg")
@@ -376,9 +366,7 @@ function handleStatic(req, res, pathname) {
 }
 
 function handleWebhook(req, res, url) {
-    if (url.pathname !== "/webhook") {
-        return false
-    }
+    if (url.pathname !== "/webhook") { return false }
 
     if (req.method !== "POST") {
         sendText(res, 405, "Method not allowed\n")
@@ -440,9 +428,7 @@ function handleWebhook(req, res, url) {
         broadcast(adminClients, "deploy", deployment)
 
         try {
-            const result = await runDeployScript(deployScript, process.env, chunk => {
-                store.appendLogChunk(chunk)
-            })
+            const result = await runDeployScript(deployScript, process.env, chunk => { store.appendLogChunk(chunk) })
 
             const state = store.saveDeploymentState({
                 status: "success",
@@ -480,29 +466,23 @@ const context = {
     sendText,
     sendJson,
     sendHtml,
-    sendOk: (res, data, statusCode) => {
-        sendJson(res, statusCode || 200, {
-            ok: true,
-            data
-        })
-    },
-    sendError: (res, statusCode, code, error, details = {}) => {
-        sendJson(res, statusCode, {
-            ok: false,
-            code,
-            error,
-            ...details
-        })
-    },
+    sendOk: (res, data, statusCode) => { sendJson(res, statusCode || 200, { ok: true, data }) },
+    sendError: (res, statusCode, code, error, details = {}) => { sendJson(res, statusCode, {ok: false, code, error, ...details})},
     parseBody,
+    sendSseHeaders,
     sendSse,
     registerStreamClient,
     broadcast,
     statusClients,
+    telemetryClients,
+    metricsClients,
     logClients,
     adminClients,
     splitLogLines,
     getBotMetrics: () => store.getBotMetrics(),
+    getMetricsHistory: () => telemetryHistory,
+    renderTelemetryPayload,
+    renderStatusSummary,
     renderStatusPayload,
     buildAdminSummary,
     refreshAndBroadcastStatus,
@@ -514,8 +494,11 @@ const context = {
 
 async function handleApi(req, res, url) {
     if (await handleCommandsApi({ req, res, url, context })) return true
+    if (await handleRoutesApi({ req, res, url, context })) return true
+    if (await handleReleaseApi({ req, res, url, context })) return true
     if (await handleAskApi({ req, res, url, context })) return true
     if (await handleStatusApi({ req, res, url, context })) return true
+    if (await handleTelemetryApi({ req, res, url, context })) return true
     if (await handleLogsApi({ req, res, url, context })) return true
     if (await handleMetricsApi({ req, res, url, context })) return true
     if (await handleAdminApi({ req, res, url, context })) return true
@@ -536,7 +519,7 @@ function handleReactApp(req, res, pathname) {
         return false
     }
 
-    if (pathname === "/admin" || pathname === "/admin/feedback") {
+    if (pathname === "/admin" || pathname === "/admin/events" || pathname === "/admin/feedback") {
         const session = auth.requireSession(req, res)
         if (!session) return true
     }
@@ -551,6 +534,7 @@ function handleReactApp(req, res, pathname) {
         "/docs",
         "/sitemap",
         "/admin",
+        "/admin/events",
         "/admin/login"
     ])
     const statusCode = browserRoutes.has(pathname) ? 200 : 404
@@ -558,16 +542,8 @@ function handleReactApp(req, res, pathname) {
     const distRoot = path.join(__dirname, "client", "dist")
     const indexPath = path.join(distRoot, "index.html")
 
-    if (!fs.existsSync(indexPath)) {
-        return false
-    }
-
-    sendText(
-        res,
-        statusCode,
-        fs.readFileSync(indexPath),
-        "text/html; charset=utf-8"
-    )
+    if (!fs.existsSync(indexPath)) {return false}
+    sendText(res, statusCode, fs.readFileSync(indexPath), "text/html; charset=utf-8" )
 
     return true
 }
@@ -610,7 +586,7 @@ async function handleRequest(req, res) {
         try {
             store.recordServerEvent({ method: req.method, path: url.pathname, statusCode: res.statusCode })
         } catch {
-            // Telemetry must not prevent the request from being served.
+            // telemetry must not prevent the request from being served.
         }
     })
 
@@ -626,20 +602,35 @@ async function handleRequest(req, res) {
     sendText(res, 404, "Not found\n")
 }
 
-watchLogs()
-refreshAndBroadcastStatus()
-refreshAndBroadcastLogs()
+function startBackgroundTasks() {
+    watchLogs()
+    refreshAndBroadcastStatus()
+    refreshAndBroadcastLogs()
 
-setInterval(refreshAndBroadcastStatus, 1000)
+    setInterval(() => {
+        const status = refreshAndBroadcastStatus()
+        broadcast(telemetryClients, "telemetry", renderTelemetryPayload())
+        return status
+    }, 1000)
+}
 
-http.createServer((req, res) => {
-    Promise.resolve(handleRequest(req, res)).catch(error => {
-        console.error("DASHBOARD REQUEST FAILED:", error)
-        store.appendLogChunk(`dashboard server request failed: ${error.message}\n`)
-        sendText(res, 500, "Internal server error\n")
+function startServer() {
+    http.createServer((req, res) => {
+        Promise.resolve(handleRequest(req, res)).catch(error => {
+            console.error("DASHBOARD REQUEST FAILED:", error)
+            store.appendLogChunk(`dashboard server request failed: ${error.message}\n`)
+            sendText(res, 500, "Internal server error\n")
+        })
+    }).listen(port, () => {
+        const msg = `dashboard server listening on port ${port}\nVisit http${process.env.NODE_ENV === "production" ? "s" : ""}://${cookieSecure ? "https://rylvion.hackclub.app/" : "localhost"}:${port} in your browser to see the dashboard.\n`
+        console.log(msg)
+        store.appendLogChunk(msg)
     })
-}).listen(port, () => {
-    const msg = `dashboard server listening on port ${port}\nVisit http${process.env.NODE_ENV === "production" ? "s" : ""}://${cookieSecure? "your-domain-here.com" : "localhost"}:${port} in your browser to see the dashboard.\n`
-    console.log(msg)
-    store.appendLogChunk(msg)
-})
+}
+
+if (require.main === module) {
+    startBackgroundTasks()
+    startServer()
+}
+
+module.exports = context

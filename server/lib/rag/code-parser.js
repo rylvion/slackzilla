@@ -1,12 +1,24 @@
 const acorn = require("acorn")
 const walk = require("acorn-walk")
+const fs = require("fs")
+const path = require("path")
 
-function parseJavaScript(content) {
-    const ast = acorn.parse(content, {
-        ecmaVersion: "latest",
-        sourceType: "unambiguous",
-        locations: true
-    })
+function parseJavaScript(content, options = {}) {
+    let ast
+
+    try {
+        ast = acorn.parse(content, {
+            ecmaVersion: "latest",
+            sourceType: "module",
+            locations: true
+        })
+    } catch (moduleError) {
+        ast = acorn.parse(content, {
+            ecmaVersion: "latest",
+            sourceType: "script",
+            locations: true
+        })
+    }
 
     const result = {
         imports: [],
@@ -65,6 +77,17 @@ function parseJavaScript(content) {
             }
         },
 
+        MemberExpression(node) {
+            const environmentVariable = getEnvironmentVariable({ callee: node })
+
+            if (environmentVariable) {
+                result.environmentVariables.push({
+                    name: environmentVariable,
+                    line: node.loc.start.line
+                })
+            }
+        },
+
         VariableDeclaration(node) {
             for (const declaration of node.declarations) {
                 if (
@@ -113,8 +136,22 @@ function parseJavaScript(content) {
                     line: node.loc.start.line
                 })
             }
+        },
+
+        IfStatement(node) {
+            const route = getPathRoute(node.test)
+
+            if (route) result.routes.push(route)
         }
     })
+
+    if (options.filePath && options.projectRoot) {
+        result.pathReferences = extractPathReferences(
+            options.filePath,
+            content,
+            options.projectRoot
+        )
+    }
 
     return deduplicate(result)
 }
@@ -156,11 +193,11 @@ function getEnvironmentVariable(node) {
     if (
         callee?.type === "MemberExpression" &&
         callee.object?.type === "MemberExpression" &&
-        callee.object.object?.type === "MemberExpression" &&
-        callee.object.object.object?.name === "process" &&
-        callee.object.object.property?.name === "env"
+        callee.object.object?.type === "Identifier" &&
+        callee.object.object.name === "process" &&
+        callee.object.property?.name === "env"
     ) {
-        return callee.object.property?.name || null
+        return callee.property?.name || null
     }
 
     return null
@@ -237,6 +274,117 @@ function deduplicate(result) {
     return result
 }
 
+function getPathRoute(test) {
+    if (
+        !test ||
+        test.type !== "BinaryExpression" ||
+        !["===", "!==", "==", "!=", "<", ">"].includes(test.operator)
+    ) {
+        return null
+    }
+
+    const pathname = test.left
+    const path = test.right
+
+    if (
+        pathname?.type !== "MemberExpression" ||
+        pathname.object?.name !== "url" ||
+        pathname.property?.name !== "pathname" ||
+        path?.type !== "Literal" ||
+        typeof path.value !== "string" ||
+        !path.value.startsWith("/")
+    ) {
+        return null
+    }
+
+    return {
+        method: "HTTP",
+        path: path.value,
+        line: test.loc.start.line
+    }
+}
+
+function resolveFileReference(projectRoot, fromFile, reference, baseName = "") {
+    if (!reference) return null
+
+    const fromDirectory = path.dirname(path.join(projectRoot, fromFile))
+    const baseDirectory = ["__dirname", "__filename"].includes(baseName)
+        ? fromDirectory
+        : projectRoot
+    const candidate = path.resolve(baseDirectory, reference)
+
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        return path.relative(projectRoot, candidate).replaceAll(path.sep, "/")
+    }
+
+    return null
+}
+
+function extractPathReferences(filePath, code, projectRoot) {
+    const references = []
+    const regex = /path\.(?:join|resolve)\s*\(\s*(__dirname|__filename|[A-Za-z_$][\w$]*)\s*,\s*([^\)]+)\)/g
+    let match
+
+    while ((match = regex.exec(code)) !== null) {
+        const parts = [...match[2].matchAll(/["'`]([^"'`]+)["'`]/g)].map(item => item[1])
+        if (!parts.length) continue
+
+        const reference = parts.join(path.sep)
+        const resolved = resolveFileReference(projectRoot, filePath, reference, match[1])
+
+        if (resolved) references.push(resolved)
+    }
+
+    return [...new Set(references)]
+}
+
+function getFileType(filePath) {
+    const extension = path.extname(filePath).toLowerCase()
+
+    if ([".js", ".jsx", ".mjs"].includes(extension)) return "javascript"
+    if (extension === ".md") return "markdown"
+    if (extension === ".json") return "json"
+    if (extension === ".yml") return "yaml"
+    if (extension === ".css") return "css"
+    if (extension === ".html") return "html"
+    if ([".service", ".conf", ".example"].includes(extension)) return "config"
+
+    return "text"
+}
+
+function getHeading(lines, start) {
+    for (let index = start; index >= 0; index--) {
+        const match = lines[index]?.match(/^\s{0,3}#{1,6}\s+(.+)$/)
+        if (match) return match[1].trim()
+    }
+
+    return null
+}
+
+function createChunks(content, filePath, chunkSize = 60, chunkStep = 40) {
+    const lines = content.split(/\r?\n/)
+    const type = getFileType(filePath)
+    const chunks = []
+
+    for (let start = 0; start < lines.length; start += chunkStep) {
+        const chunkLines = lines.slice(start, start + chunkSize)
+        if (!chunkLines.length) continue
+
+        chunks.push({
+            start: start + 1,
+            end: Math.min(start + chunkSize, lines.length),
+            type,
+            heading: type === "markdown" ? getHeading(lines, start) : null,
+            text: chunkLines.join("\n")
+        })
+    }
+
+    return chunks
+}
+
 module.exports = {
-    parseJavaScript
+    parseJavaScript,
+    createChunks,
+    extractPathReferences,
+    getFileType
 }

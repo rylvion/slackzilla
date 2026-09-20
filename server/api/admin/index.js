@@ -7,6 +7,17 @@ function handleAdminApi({ req, res, url, context }) {
         return true
     }
 
+    if (url.pathname === "/api/admin/server-events" && req.method === "GET") {
+        const session = context.auth.requireSession(req, res)
+        if (!session) return true
+
+        const requestedLimit = Number(url.searchParams.get("limit") || 1000)
+        const limit = Math.min(1000, Math.max(1, Number.isFinite(requestedLimit) ? requestedLimit : 1000))
+        const events = context.store.getServerEvents(limit)
+        context.sendOk(res, { events, count: events.length, limit })
+        return true
+    }
+
     if (url.pathname === "/api/admin/events" && req.method === "GET") {
         const session = context.auth.requireSession(req, res)
         if (!session) return true

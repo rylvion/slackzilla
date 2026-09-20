@@ -2,16 +2,11 @@
 
 Slackzilla's RAG assistant answers questions about the repository by retrieving relevant project context before asking an AI model to produce an answer. RAG means Retrieval-Augmented Generation:
 
-```text
-user question
-    -> retrieve relevant repository context
-    -> optionally retrieve related image assets
-    -> optionally execute an explicitly named command
-    -> send context and results to the model
-    -> return answer, sources, images, and command result
-```
+The implementation is in `server/lib/rag/rag.js`. The HTTP endpoint is `POST /api/ask`; the Slack interface is `/sz-ask`; and the public dashboard client is the `/ai` page.
 
-The implementation is in `server/lib/rag.js`. The HTTP endpoint is `POST /api/ask`; the Slack interface is `/sz-ask`; and the public dashboard client is the `/ai` page.
+The dashboard request is streamed. `server/client/src/pages/Ai.jsx` submits the question with `streamJson()` from `server/client/src/components/utils/api.js`. `server/api/ask/index.js` opens an SSE response and forwards `activity`, `token`, `complete`, and `error` events. The RAG service emits activity events while it retrieves sources, finds images, builds code context, and calls the model. The client appends activity events immediately and appends AI tokens as they arrive.
+
+When the dashboard request has live-tool access, the model can choose from a fixed set of Slackzilla tools: `getStatus`, `getCommands`, `getReleaseInfo`, `runCommand`, `getLogs`, `getMetrics`, and `getRoutes`. `getCommands` provides command discovery and metadata, supporting exact and field-based filtering as well as fuzzy search, while an unfiltered request returns a compact list of command IDs. `runCommand` executes a registered Slackzilla command using its command ID and optional input, with commands explicitly blocked from AI execution excluded from tool use. These tools are internal adapters over Slackzilla's existing status, release, command, log, metrics, and repository-index data. There is no generic URL tool. Tool execution is bounded by a timeout and response-size limit, sanitised before reaching the model, and recorded as activity events. API-backed tools are recorded as `api_request` events, while `runCommand` is recorded separately as a `command_tool` event. Status evidence omits the high-volume `telemetryHistory` series. A failed tool returns structured failure data so repository-based answering can continue.
 
 ## What RAG Does Here
 
@@ -62,16 +57,23 @@ The response contains a browser URL such as:
 
 The React AI page renders returned image assets as related visual references. The model receives the image path and URL as metadata, but the current server does not perform OCR, computer-vision analysis, or image embeddings.
 
+### 4. Codebase context
+
+After retrieval, `buildCodebaseContext()` seeds its working set from retrieved paths and expands it with the highest-scoring JavaScript files for the question. It then analyses matching symbols and routes, resolves imports and path-based dependencies, finds dependant files, detects environment variables, and creates structural code contexts. The `context` activity completion event reports these values in its metadata: `symbols`, `routes`, `files`, `dependencies`, `dependants`, `environmentVariables`, and `codeContexts`.
+
+The persistent `.rag/index.json` is rebuilt when repository files change or when its index version changes. `server/lib/code-parser.js` parses both CommonJS scripts and ES modules, detects `process.env.NAME` access, and recognises both `app.get(...)` routes and API handlers guarded by `url.pathname`.
+
 ## Model Generation
 
 If `AI_API_KEY` is absent, the service does not call an external provider. It returns a local response explaining that the key is not configured, together with retrieved source metadata. An explicitly executed command can still return its local result without an AI key.
 
-When configured, the service sends an OpenAI-compatible request to `AI_URL`:
+When configured, the service sends a streaming OpenAI-compatible request to `AI_URL`:
 
 ```text
 POST <AI_URL>/chat/completions
-Authorization: Bearer <AI_API_KEY>
-Content-Type: application/json
+    Authorization: Bearer <AI_API_KEY>
+    Content-Type: application/json
+    Body: { "stream": true, "stream_options": { "include_usage": true }, ... }
 ```
 
 `AI_URL` may be either a provider base URL, such as:
@@ -86,9 +88,9 @@ or a complete endpoint:
 https://ai.hackclub.com/proxy/v1/chat/completions
 ```
 
-The service normalises both forms and avoids appending `/chat/completions` twice. `AI_MODEL` selects the model, defaulting to `openai/gpt-oss-20b:free`.
+The service normalises both forms and avoids appending `/chat/completions` twice. `AI_MODEL` selects the model, defaulting to `openrouter/free`.
 
-The model receives a system instruction that requires it to answer from supplied repository context, acknowledge insufficient context, include relevant paths, and avoid claiming command execution unless a command result is present.
+The model receives a system instruction that requires it to answer from supplied repository context, acknowledge insufficient context, include relevant paths, and avoid claiming command execution unless a command result is present. Provider usage is accumulated across tool and answer requests and reported as input, output, and total token metadata on the completed AI activity.
 
 ## HTTP API
 
@@ -100,25 +102,22 @@ curl -X POST http://localhost:9000/api/ask \
   -d '{"question":"How does admin authentication work?"}'
 ```
 
-A successful response is wrapped in the standard Slackzilla envelope:
+A successful request returns `Content-Type: text/event-stream`. Events use the standard SSE format:
 
-```json
-{
-  "ok": true,
-  "data": {
-    "answer": "...",
-    "sources": [
-      {
-        "path": "server/lib/auth.js",
-        "start": 1,
-        "score": 3
-      }
-    ],
-    "images": [],
-    "command": null
-  }
-}
+```text
+event: activity
+data: {"type":"retrieval","status":"started","message":"Searching repository..."}
+
+event: token
+data: {"token":"The request starts in ..."}
+
+event: complete
+data: {"answer":"...","sources":[],"images":[],"command":null,"activities":[]}
 ```
+
+The `activity` event metadata includes the individual retrieved sources or images. The `complete` event contains the final answer and result collections. If parsing or upstream generation fails after the SSE response starts, the server emits an `error` event. `GET /api/ask` still returns a small description of the POST request format, and other methods receive `405 METHOD_NOT_ALLOWED`.
+
+For local diagnostics, run `npm run rag:debug -- --no-ai "How does /api/ask work?"`. Omit `--no-ai` to test provider streaming and token accounting directly.
 
 `GET /api/ask` returns a small description of the POST request format. Other methods receive `405 METHOD_NOT_ALLOWED`.
 
@@ -135,8 +134,6 @@ Command execution is opt-in. A request can identify a stable command metadata ID
 ```
 
 The server loads the existing command module, supplies a synthetic command object, captures calls to `respond()`, waits for asynchronous responses, and includes the captured result in `data.command`.
-
-Commands are not sandboxed. They may generate secrets, call external APIs, send Slack messages, write files, or perform other side effects. The command API and RAG command execution must therefore be treated as trusted functionality, even though the endpoint is currently public in the local architecture.
 
 ## Natural-Language Command Requests
 
@@ -201,7 +198,7 @@ Run the normal project checks:
 ```bash
 npm run build
 npm run lint
-node --check server/lib/rag.js
+node --check server/lib/rag/rag.js
 node --check server/lib/command-runner.js
 node --check server/api/ask/index.js
 ```

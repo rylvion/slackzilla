@@ -22,6 +22,7 @@ const routes = [
     ]},
     { id: "sitemap", label: "Sitemap", to: "/sitemap", description: "Routes and machine surfaces", danger: false, api: false, hidden: false, component: lazy(() => import("../../pages/Sitemap")), children: [] },
     { id: "admin", label: "Admin Dashboard", to: "/admin", description: "Manage, view, control administrative controls", danger: true, api: false, hidden: true, component: lazy(() => import("../../pages/Admin")), children: [] },
+    { id: "admin-events", label: "Server Events", to: "/admin/events", description: "Full authenticated server event history", danger: true, api: false, hidden: true, component: lazy(() => import("../../pages/ServerEvents")), children: [] },
     { id: "admin-login", label: "Admin", to: "/admin/login", description: "Login to the admin panel", danger: true, api: false, hidden: false, component: lazy(() => import("../../pages/admin/Login")), children: [] }, // this isnt listed as a child of admin because it should be accessible without being logged in (bcs its very important)
     // API 
     {id: "api-status", label: "Public status JSON", to: "/api/status", description: "Use this for integrations and monitoring.", danger: false, api: true, hidden: true, component: null, children: []},

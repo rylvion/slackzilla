@@ -4,6 +4,27 @@ import PageShell from "../components/PageShell"
 import { getJson, useStatusStream } from "../components/utils/api"
 import "../css/admin.css"
 
+function formatFeedbackTime(timestamp) {
+    if (!timestamp) return "time unavailable"
+
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) return "time unavailable"
+
+    return date.toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "medium"
+    })
+}
+
+function sortServerEvents(events) {
+    return [...events].sort((a, b) => {
+        const aCritical = Number(a.statusCode) >= 400
+        const bCritical = Number(b.statusCode) >= 400
+        if (aCritical !== bCritical) return Number(bCritical) - Number(aCritical)
+        return new Date(b.time || 0).getTime() - new Date(a.time || 0).getTime()
+    })
+}
+
 function Admin() {
 
     const [summary, setSummary] = useState(null)
@@ -13,11 +34,19 @@ function Admin() {
     const [selectedFeedback, setSelectedFeedback] = useState(null)
     const [responseText, setResponseText] = useState("")
     const [feedback, setFeedback] = useState([])
+    const [serverEvents, setServerEvents] = useState([])
     const { status } = useStatusStream({})
 
     useEffect(() => {
         getJson("/api/admin/summary").then(setSummary).catch(error => setError(error.message))
     }, [])
+
+    useEffect(() => {
+        if (!summary?.csrfToken) return
+        getJson("/api/admin/server-events?limit=1000")
+            .then(result => setServerEvents(result.events || []))
+            .catch(error => setError(error.message))
+    }, [summary?.csrfToken])
 
     useEffect(() => {
         if (!summary?.csrfToken) return
@@ -85,7 +114,7 @@ function Admin() {
     }
     const adminStatus = summary?.status || status || {}
     const stats = summary?.commandStats || []
-    const serverEvents = summary?.serverEvents || []
+    const orderedServerEvents = sortServerEvents(serverEvents)
 
     return (
         <PageShell title="Admin" description="Authenticated Slackzilla admin controls" active="admin-login">
@@ -133,6 +162,7 @@ function Admin() {
                         {selectedFeedback && <div className="feedback-detail">
                             <div className="feedback-meta">
                                 <span>{selectedFeedback.username || selectedFeedback.userId || "anonymous"}</span>
+                                <time className="feedback-time" dateTime={selectedFeedback.timestamp} title={selectedFeedback.timestamp}>logged {formatFeedbackTime(selectedFeedback.timestamp)}</time>
                                 <span className={`feedback-status feedback-status--${selectedFeedback.status}`}>{selectedFeedback.status}</span>
                             </div>
                             <code className="feedback-id" title={selectedFeedback.id}>{selectedFeedback.id}</code>
@@ -148,6 +178,7 @@ function Admin() {
                             <div className="feedback-item" key={item.id}>
                                 <div className="feedback-meta">
                                     <button className="feedback-select" onClick={() => { setSelectedFeedback(item); setResponseText(item.response || "") }}>{item.username || item.userId || "anonymous"}</button>
+                                    <time className="feedback-time" dateTime={item.timestamp} title={item.timestamp}>logged {formatFeedbackTime(item.timestamp)}</time>
                                     <span className={`feedback-status feedback-status--${item.status}`}>{item.status}</span>
                                 </div>
                                 <code className="feedback-id" title={item.id}>{item.id}</code>
@@ -163,7 +194,7 @@ function Admin() {
 
                 <div className="panel">
                     <div className="panel-header">
-                        <h2>Command pulse</h2>
+                        <h2>Recent Commands</h2>
                     </div>
                     <div className="panel-body">
                         <div className="mini-list">
@@ -180,16 +211,17 @@ function Admin() {
                 <div className="panel">
                     <div className="panel-header">
                         <h2>Server activity</h2>
-                        <span className="panel-subtitle">{serverEvents.length} recent events</span>
+                        <span className="panel-subtitle">{serverEvents.length} events · <Link to="/admin/events">open full event view</Link></span>
                     </div>
                     <div className="panel-body">
-                        <div className="mini-list">
-                            {serverEvents.slice(0, 10).map((event, index) => (
-                                <div key={`${event.time}-${index}`}>
-                                    <code>{event.method} {event.path}</code>
+                        <div className="mini-list server-events-list">
+                            {orderedServerEvents.slice(0, 10).map((event, index) => (
+                                <div className={Number(event.statusCode) >= 400 ? "server-event server-event--critical" : "server-event"} key={`${event.time}-${index}`}>
+                                    <span><code>{event.method} {event.path}</code><time>{formatFeedbackTime(event.time)}</time></span>
                                     <strong>{event.statusCode || "received"}</strong>
                                 </div>
                             ))}
+                            {!serverEvents.length && <p className="muted">No server events recorded.</p>}
                         </div>
                     </div>
                 </div>

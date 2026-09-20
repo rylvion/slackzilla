@@ -1,31 +1,36 @@
 const fs = require("fs")
 const path = require("path")
 const crypto = require("crypto")
-const { parseJavaScript } = require("./code-parser")
-const { listCommands, getCommand, runCommand } = require("./command-runner")
+const {
+    parseJavaScript,
+    createChunks,
+    getFileType
+} = require("./code-parser")
+const { listCommands, getCommand, runCommand } = require("../command-runner")
 
 const projectRoot = path.join(__dirname, "..", "..")
 const ragDirectory = path.join(projectRoot, ".rag")
 const indexPath = path.join(ragDirectory, "index.json")
 
 const ignoredDirectories = new Set([".git", ".rag", "node_modules", "dist", "logs", ".vscode", "priv"])
-const ignoredFiles = new Set(["package-lock.json"])
+const ignoredFiles = new Set(["package-lock.json", "feedback.json"])
 const allowedExtensions = new Set([".js", ".jsx", ".mjs", ".json", ".md", ".css", ".html", ".yml", ".service", ".conf", ".example" ])
 
 const imageExtensions = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp" ])
 
 const model = process.env.AI_MODEL || "openrouter/free"
 
-const CHUNK_SIZE = 60
-const CHUNK_STEP = 40
 const MAX_SOURCE_LENGTH = 3500
+const MAX_CONTEXT_TOKENS = 4000
+const MAX_CODE_CONTEXTS = 20
+const MAX_RELATIONSHIP_ROOTS = 8
+
+const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, "SYSTEM_PROMPT.txt"), "utf8")
+SYSTEM_PROMPT.trim()
 
 function emitActivity(onActivity, event) {
     if (typeof onActivity === "function") {
-        onActivity({
-            timestamp: Date.now(),
-            ...event
-        })
+        onActivity({ timestamp: Date.now(), ...event })
     }
 }
 
@@ -52,7 +57,7 @@ function collectFiles(directory, files = []) {
 function collectImages(directory, images = []) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
         if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue
-         if (entry.isFile() && ignoredFiles.has(entry.name)) continue
+        if (entry.isFile() && ignoredFiles.has(entry.name)) continue
 
         const fullPath = path.join(directory, entry.name)
 
@@ -76,6 +81,7 @@ function relativePath(filePath) {
 function tokens(value) {
     return new Set(
         String(value)
+            .replace(/([a-z])([A-Z])/g, "$1 $2")
             .toLowerCase()
             .replace(/[\/\\._-]+/g, " ")
             .match(/[a-z0-9]{2,}/g) || []
@@ -97,92 +103,6 @@ function extractFileReferences(question) {
     ) || []
 
     return [...new Set(matches.map(normalisePath))]
-}
-
-function resolveFileReference(fromFile, reference) {
-    if (!reference) { return null }
-
-    const fromDirectory = path.dirname( path.join(projectRoot, fromFile) )
-    const candidate = path.resolve(fromDirectory, reference)
-
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-        return relativePath(candidate)
-    }
-
-    return null
-}
-
-function extractPathReferences(filePath, code) {
-    const references = []
-
-    const pathJoinRegex = /path\.join\s*\(\s*(?:__dirname|__filename)\s*,\s*["'`]([^"'`]+)["'`]\s*\)/g
-    const pathResolveRegex = /path\.resolve\s*\(\s*(?:__dirname|__filename)\s*,\s*["'`]([^"'`]+)["'`]\s*\)/g
-
-    for (const regex of [pathJoinRegex, pathResolveRegex]) {
-        let match
-
-        while ((match = regex.exec(code)) !== null) {
-            const resolved = resolveFileReference(
-                filePath,
-                match[1]
-            )
-
-            if (resolved) {
-                references.push(resolved)
-            }
-        }
-    }
-
-
-    return references
-}
-
-function getFileType(filePath) {
-    const extension = path.extname(filePath).toLowerCase()
-
-    if ([".js", ".jsx", ".mjs"].includes(extension)) return "javascript"
-    if (extension === ".md") return "markdown"
-    if (extension === ".json") return "json"
-    if ([".yml"].includes(extension)) return "yaml"
-    if ([".css"].includes(extension)) return "css"
-    if ([".html"].includes(extension)) return "html"
-    if ([".service", ".conf", ".example"].includes(extension)) return "config"
-
-    return "text"
-}
-
-function getHeading(lines, start) {
-    for (let index = start; index >= 0; index--) {
-        const match = lines[index]?.match(/^\s{0,3}#{1,6}\s+(.+)$/)
-        if (match) { return match[1].trim() }
-    }
-
-    return null
-}
-
-function createChunks(content, filePath) {
-    const lines = content.split(/\r?\n/)
-    const type = getFileType(filePath)
-    const chunks = []
-
-    for (let start = 0; start < lines.length; start += CHUNK_STEP) {
-        const chunkLines = lines.slice(start, start + CHUNK_SIZE)
-
-        if (!chunkLines.length) continue
-
-        const text = chunkLines.join("\n")
-        const heading = type === "markdown"? getHeading(lines, start) : null
-
-        chunks.push({
-            start: start + 1,
-            end: Math.min(start + CHUNK_SIZE, lines.length),
-            type,
-            heading,
-            text
-        })
-    }
-
-    return chunks 
 }
 
 function getFileMetadata(filePath) {
@@ -214,7 +134,7 @@ function resolveImport(fromFile, importPath) {
     ]
 
     for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) {
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
             return relativePath(candidate)
         }
     }
@@ -235,10 +155,7 @@ function getDependencies(filePath, index = loadIndex()) {
         .map(item => resolveImport(file.path, item.source))
         .filter(Boolean)
 
-    const pathDependencies = extractPathReferences(
-        file.path,
-        file.code.content || ""
-    )
+    const pathDependencies = file.code.pathReferences || []
 
     return [
         ...new Set([
@@ -252,7 +169,7 @@ function buildIndex() {
     const files = collectFiles(projectRoot)
 
     const index = {
-        version: 1,
+        version: 5,
         generatedAt: new Date().toISOString(),
         files: []
     }
@@ -267,7 +184,12 @@ function buildIndex() {
             let code = null
 
             if (type === "javascript") {
-                try { code = parseJavaScript(content)}
+                try {
+                    code = parseJavaScript(content, {
+                        filePath: metadata.path,
+                        projectRoot
+                    })
+                }
                 catch { code = null}
             }
 
@@ -294,6 +216,7 @@ function buildIndex() {
 
 function isIndexCurrent(index) {
     if (!index?.files || !Array.isArray(index.files)) return false
+    if (index.version !== 5) return false
 
     const currentFiles = collectFiles(projectRoot)
     if (currentFiles.length !== index.files.length) { return false }
@@ -343,7 +266,10 @@ function findSymbols(question, index = loadIndex()) {
 
         for (const symbol of file.code.functions || []) {
             const symbolTokens = tokens(symbol.name)
-            const score = [...queryTokens].reduce((total, token) => total + (symbolTokens.has(token) ? 20 : 0), 0)
+            const symbolName = symbol.name.toLowerCase()
+            const questionText = String(question).toLowerCase()
+            const exactMatch = questionText.includes(symbolName) ? 100 : 0
+            const score = exactMatch + [...queryTokens].reduce((total, token) => total + (symbolTokens.has(token) ? 20 : 0), 0)
 
             if (score > 0) {
                 results.push({
@@ -417,7 +343,8 @@ function findRoutes(question, index = loadIndex()) {
                 `${route.method} ${route.path}`
             )
 
-            const score = [...queryTokens].reduce(
+            const exactMatch = String(question).toLowerCase().includes(route.path.toLowerCase()) ? 100 : 0
+            const score = exactMatch + [...queryTokens].reduce(
                 (total, token) =>
                     total +
                     (routeTokens.has(token) ? 20 : 0),
@@ -450,10 +377,6 @@ function getCodeContext(file, symbol = null) {
 
     if (file.code.functions?.length) {
         sections.push(`FUNCTIONS:\n${file.code.functions.map(item =>`- ${item.name} (${item.line}-${item.endLine})`).join("\n")}`)
-    }
-
-    if (file.code.environmentVariables?.length) {
-        sections.push(`ENVIRONMENT VARIABLES:\n${file.code.environmentVariables.map(item => `- ${item.name} (${item.line})`).join("\n")}`)
     }
 
     if (file.code.routes?.length) {
@@ -607,13 +530,25 @@ function retrieve(question, limit = 8) {
         }
     }
 
-    return documents
+    const rankedDocuments = documents
         .sort((left, right) => {
             if (right.score !== left.score) {
                 return right.score - left.score
             }
 
             return left.relativePath.localeCompare(right.relativePath)
+        })
+
+    const minimumScore = rankedDocuments.length
+        ? Math.max(1, Math.ceil(rankedDocuments[0].score * 0.85))
+        : 0
+    const selectedPaths = new Set()
+
+    return rankedDocuments
+        .filter(document => {
+            if (document.score < minimumScore || selectedPaths.has(document.relativePath)) return false
+            selectedPaths.add(document.relativePath)
+            return true
         })
         .slice(0, limit)
         .map(document => ({
@@ -737,7 +672,7 @@ function inferCommandInvocation(question) {
 }
 
 
-function buildCodebaseContext(question, index) {
+function buildCodebaseContext(question, index, retrievedSources = []) {
     const environmentVariables = extractEnvironmentVariables(question)
 
     const context = {
@@ -747,50 +682,133 @@ function buildCodebaseContext(question, index) {
         dependencies: new Set(),
         dependants: new Set(),
         environmentVariables: [],
-        code: []
+        code: [],
+        codeEntries: [],
+        directFiles: new Set(),
+        relatedFiles: new Set(),
+        fileScores: new Map()
+    }
+
+    const addFileScore = (filePath, score, group = "direct") => {
+        if (!filePath) return
+        context.fileScores.set(filePath, Math.max(context.fileScores.get(filePath) || 0, score))
+        context.files.add(filePath)
+        if (group === "related") context.relatedFiles.add(filePath)
+        else context.directFiles.add(filePath)
+    }
+
+    for (const source of retrievedSources) {
+        addFileScore(source.relativePath, 1000 + source.score, "direct")
+    }
+
+    const queryTokens = tokens(question)
+    const questionText = String(question).toLowerCase()
+    const contextCandidates = index.files
+        .filter(file => file.type === "javascript")
+        .map(file => ({
+            file,
+            score: [...queryTokens].reduce((score, token) => {
+                if (tokens(file.path).has(token)) return score + 30
+                if (file.tokens?.includes(token)) return score + 2
+                return score
+            }, 0) + (questionText.includes(file.path.toLowerCase()) ? 150 : 0)
+        }))
+        .filter(candidate => candidate.score > 0)
+        .sort((left, right) => right.score - left.score)
+        .slice(0, 12)
+
+    for (const candidate of contextCandidates) {
+        addFileScore(candidate.file.path, candidate.score, "direct")
     }
 
     context.symbols = findSymbols(question, index)
     context.routes = findRoutes(question, index)
 
     for (const symbol of context.symbols) {
-        if (symbol.file) { context.files.add(symbol.file) }
+        addFileScore(symbol.file, 500 + symbol.score, "direct")
     }
 
     for (const route of context.routes) {
-        if (route.file) { context.files.add(route.file) }
+        addFileScore(route.file, 500 + route.score, "direct")
     }
 
-    for (const filePath of context.files) {
+    const relationshipRoots = [...context.directFiles]
+        .sort((left, right) => (context.fileScores.get(right) || 0) - (context.fileScores.get(left) || 0))
+        .slice(0, MAX_RELATIONSHIP_ROOTS)
+
+    for (const filePath of relationshipRoots) {
         const dependencies = getDependencies(filePath, index)
         const dependants = getDependants(filePath, index)
 
-        for (const dependency of dependencies) { context.dependencies.add(dependency) }
-        for (const dependant of dependants) { context.dependants.add(dependant) }
+        for (const dependency of dependencies) {
+            context.dependencies.add(dependency)
+            addFileScore(dependency, Math.max(100, (context.fileScores.get(filePath) || 0) - 120), "related")
+        }
+        for (const dependant of dependants) {
+            context.dependants.add(dependant)
+            addFileScore(dependant, Math.max(90, (context.fileScores.get(filePath) || 0) - 150), "related")
+        }
     }
 
-    for (const filePath of context.dependencies) { context.files.add(filePath) }
-    for (const filePath of context.dependants) { context.files.add(filePath) }
     for (const variable of environmentVariables) { context.environmentVariables.push( ...findEnvironmentVariable(variable, index) ) }
 
+    const contextEnvironmentVariables = new Set(
+        context.environmentVariables.map(variable => `${variable.name}:${variable.file}:${variable.line}`)
+    )
+
     for (const filePath of context.files) {
-        const file = index.files.find(item => item.path === filePath )
+        const file = index.files.find(item => item.path === filePath)
 
+        for (const variable of file?.code?.environmentVariables || []) {
+            const key = `${variable.name}:${filePath}:${variable.line}`
+            if (contextEnvironmentVariables.has(key)) continue
+
+            contextEnvironmentVariables.add(key)
+            context.environmentVariables.push({
+                name: variable.name,
+                file: filePath,
+                line: variable.line
+            })
+        }
+    }
+
+    const orderedFiles = [...context.files]
+        .sort((left, right) => (context.fileScores.get(right) || 0) - (context.fileScores.get(left) || 0))
+
+    for (const filePath of orderedFiles) {
+        const file = index.files.find(item => item.path === filePath)
         if (!file) continue
-
-        const symbols = context.symbols.filter( symbol => symbol.file === filePath )
+        const symbols = context.symbols.filter(symbol => symbol.file === filePath)
 
         if (symbols.length) {
             for (const symbol of symbols) {
-                const codeContext = getCodeContext(file, symbol )
-                if (codeContext) { context.code.push(codeContext) }
+                const codeContext = getCodeContext(file, symbol)
+                if (codeContext) {
+                    context.codeEntries.push({
+                        file: filePath,
+                        text: codeContext,
+                        score: (context.fileScores.get(filePath) || 0) + symbol.score + 150,
+                        category: context.relatedFiles.has(filePath) ? "related" : "direct"
+                    })
+                }
             }
         } else {
             const codeContext = getCodeContext(file)
-
-            if (codeContext) { context.code.push(codeContext) }
+            if (codeContext) {
+                context.codeEntries.push({
+                    file: filePath,
+                    text: codeContext,
+                    score: context.fileScores.get(filePath) || 0,
+                    category: context.relatedFiles.has(filePath) ? "related" : "direct"
+                })
+            }
         }
     }
+
+    context.codeEntries.sort((left, right) => right.score - left.score)
+    context.codeContextCount = context.codeEntries.length
+    context.codeEntries = context.codeEntries.slice(0, MAX_CODE_CONTEXTS)
+    context.code = context.codeEntries.map(entry => entry.text)
 
     return context
 }
@@ -809,62 +827,118 @@ function formatCodebaseContext(context) {
 
     if (context.routes.length) {
         sections.push(
-            `RELEVANT ROUTES:\n${context.routes
-                .slice(0, 20)
+            `RELEVANT ROUTES:\n${context.routes.slice(0, 20)
                 .map(route =>`- ${route.method} ${route.path} in ${route.file}:${route.line}`)
                 .join("\n")}`
         )
     }
 
     if (context.dependencies.size) {
-        sections.push(
-            `DEPENDENCIES:\n${[...context.dependencies]
-                .map(file => `- ${file}`)
-                .join("\n")}`
-        )
+        sections.push( `DEPENDENCIES:\n${[...context.dependencies].map(file => `- ${file}`).join("\n")}` )
     }
 
     if (context.dependants.size) {
-        sections.push(
-            `DEPENDANTS:\n${[...context.dependants]
-                .map(file => `- ${file}`)
-                .join("\n")}`
-        )
-    }
-
-    if (context.environmentVariables.length) {
-        sections.push(
-            `ENVIRONMENT VARIABLES:\n${context.environmentVariables
-                .map(variable => `- ${variable.name} in ${variable.file}:${variable.line}`)
-                .join("\n")}`
-        )
+        sections.push(`DEPENDANTS:\n${[...context.dependants].map(file => `- ${file}`).join("\n")}`)
     }
 
     if (context.code.length) {
-        sections.push(
-            `CODE STRUCTURE:\n${context.code.join("\n\n")}`
-        )
+        sections.push(`CODE STRUCTURE:\n${context.code.join("\n\n")}`)
     }
 
     return sections.join("\n\n")
 }
 
-/**
- * e.g. parameter: 
- * {
- *   question: "How does the authentication flow work?",
- *   commandId: "sz-hash",
- *   commandText: "pbkdf2 sha256 10000 mypassword",
- *   identity: { userId: "user123", userName: "Alice" },
- *   onActivity: (activity) => console.log(activity)
- * }
- */
+function getChunkPriority(chunk) {
+    const kindBonus = {
+        code: 250,
+        structure: 100,
+        source: 0
+    }
+
+    const tokens = estimateTokenCount(chunk.text)
+    const sizePenalty = Math.min(tokens / 20, 100)
+
+    return chunk.score + (kindBonus[chunk.kind] || 0) - sizePenalty
+}
+
+function packContextChunks(chunks, budget = MAX_CONTEXT_TOKENS) {
+    const selected = []
+    const selectedKeys = new Set()
+    let usedTokens = 0
+
+    const ranked = [...chunks].sort(
+    (left, right) =>
+        getChunkPriority(right) - getChunkPriority(left)
+)
+
+    for (const chunk of ranked) {
+        if (selectedKeys.has(chunk.key)) continue
+
+        const chunkTokens = estimateTokenCount(chunk.text)
+        if (usedTokens + chunkTokens > budget) continue
+
+        selected.push(chunk)
+        selectedKeys.add(chunk.key)
+        usedTokens += chunkTokens
+    }
+
+    return { selected, usedTokens }
+}
+
+function packRepositoryContext(sources, context, budget = MAX_CONTEXT_TOKENS) {
+    const chunks = []
+
+    for (const source of sources) {
+        chunks.push({
+            key: `source:${source.relativePath}:${source.start}-${source.end}`,
+            file: source.relativePath,
+            kind: "source",
+            score: 1000 + source.score,
+            text: `SOURCE FILE: ${source.relativePath}\nLINES: ${source.start}-${source.end}\nTYPE: ${source.type}\n${source.text}`
+        })
+    }
+
+    const structuralContext = formatCodebaseContext({ ...context, code: [] })
+    if (structuralContext) {
+        chunks.push({
+            key: "codebase:structure",
+            kind: "structure",
+            score: 180,
+            text: structuralContext
+        })
+    }
+
+    for (const entry of (context.codeEntries || []).slice(0, MAX_CODE_CONTEXTS)) {
+        chunks.push({
+            key: `code:${entry.file}:${entry.text.slice(0, 80)}`,
+            file: entry.file,
+            kind: "code",
+            score: entry.score,
+            text: `CODE FILE: ${entry.file}\n${entry.text}`
+        })
+    }
+
+    const packed = packContextChunks(chunks, budget)
+    const selectedFiles = [...new Set(packed.selected.map(chunk => chunk.file).filter(Boolean))]
+    const selectedCodeContexts = packed.selected.filter(chunk => chunk.kind === "code").length
+
+    return {
+        text: packed.selected.map(chunk => chunk.text).join("\n\n"),
+        contextTokens: packed.usedTokens,
+        contextBudget: budget,
+        selectedFiles,
+        selectedCodeContexts
+    }
+}
+
 async function answerQuestion({
     question,
     commandId,
     commandText,
     identity,
-    onActivity
+    tools,
+    onActivity,
+    onToken
 } = {}, withAi = true) {
     const cleanQuestion = String(question || "").trim()
 
@@ -894,35 +968,15 @@ async function answerQuestion({
     let commandResult = null
 
     if (commandId) {
-        if (!getCommand(commandId)) {
-            throw new Error(`unknown command: ${commandId}`)
-        }
-
-        emit({
-            type: "command",
-            activityId: commandId,
-            status: "started",
-            message: `Executing command ${commandId} with arguments: ${commandText || "(none)"}`
-        })
-
+        if (!getCommand(commandId)) { throw new Error(`unknown command: ${commandId}`) }
+        emit({type: "command", activityId: commandId, status: "started", message: `Executing command ${commandId} with arguments: ${commandText || "(none)"}` })
         commandResult = await runCommand(commandId, commandText, identity)
-
-        emit({
-            type: "command",
-            activityId: commandId,
-            status: "completed",
-            message: `Command ${commandId} executed successfully`
-        })
+        emit({ type: "command", activityId: commandId, status: "completed", message: `Command ${commandId} executed successfully` })
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////
 
-    emit({
-        type: "retrieval",
-        activityId: "sources",
-        status: "started",
-        message: "Searching repository..."
-    })
+    emit({ type: "retrieval", activityId: "sources", status: "started", message: "Searching repository..." })
 
     const sources = retrieve(cleanQuestion)
 
@@ -930,17 +984,20 @@ async function answerQuestion({
         type: "retrieval",
         activityId: "sources",
         status: "completed",
-        message: `Retrieved ${sources.length} source${sources.length === 1 ? "" : "s"}`
+        message: `Retrieved ${sources.length} source${sources.length === 1 ? "" : "s"}`,
+        metadata: {
+            sources: sources.map(source => ({
+                path: source.relativePath,
+                lines: `${source.start}-${source.end}`,
+                type: source.type,
+                score: source.score
+            }))
+        }
     })
 
     //////////////////////////////////////////////////////////////////////////////////////
 
-    emit({
-        type: "retrieval",
-        activityId: "images",
-        status: "started",
-        message: "Searching for visual assets..."
-    })
+    emit({ type: "retrieval", activityId: "images", status: "started", message: "Searching for visual assets..." })
 
     const images = retrieveImages(cleanQuestion)
 
@@ -948,7 +1005,13 @@ async function answerQuestion({
         type: "retrieval",
         activityId: "images",
         status: "completed",
-        message: `Retrieved ${images.length} image${images.length === 1 ? "" : "s"}`
+        message: `Retrieved ${images.length} image${images.length === 1 ? "" : "s"}`,
+        metadata: {
+            images: images.map(image => ({
+                path: image.path,
+                score: image.score
+            }))
+        }
     })
 
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -961,8 +1024,19 @@ async function answerQuestion({
     })
 
     const index = loadIndex()
-    const codebaseContext = buildCodebaseContext(cleanQuestion, index)
-    const codebaseText = formatCodebaseContext(codebaseContext)
+    const isCommandRequest = /\b(run|execute|use|call|invoke)\b[\s\S]{0,100}\b(command|\/sz-[a-z0-9-]+)\b/i.test(cleanQuestion)
+    const codebaseContext = isCommandRequest
+        ? {
+            symbols: [],
+            routes: [],
+            files: new Set(),
+            dependencies: new Set(),
+            dependants: new Set(),
+            environmentVariables: [],
+            code: []
+        }
+        : buildCodebaseContext(cleanQuestion, index, sources)
+    const contextPack = packRepositoryContext(sources, codebaseContext)
 
     emit({
         type: "context",
@@ -984,41 +1058,19 @@ async function answerQuestion({
             dependencies: codebaseContext.dependencies.size,
             dependants: codebaseContext.dependants.size,
             environmentVariables: codebaseContext.environmentVariables.length,
-            codeContexts: codebaseContext.code.length
+            codeContexts: codebaseContext.codeContextCount ?? codebaseContext.codeEntries?.length ?? codebaseContext.code?.length ?? 0,
+            contextTokens: contextPack.contextTokens,
+            contextBudget: contextPack.contextBudget,
+            selectedFiles: contextPack.selectedFiles,
+            selectedCodeContexts: contextPack.selectedCodeContexts
         }
     })
 
-    const sourceText = sources
-        .map(source => {
-            const metadata = [
-                `FILE: ${source.relativePath}`,
-                `LINES: ${source.start}-${source.end}`,
-                `TYPE: ${source.type}`
-            ]
-
-            if (source.heading) {
-                metadata.push(`SECTION: ${source.heading}`)
-            }
-
-            return `${metadata.join("\n")}\n${source.text}`
-        })
-        .join("\n\n")
-
-    const imageText = images
-        .map(image => `IMAGE ASSET: ${image.path} (available at ${image.url})`)
-        .join("\n")
-
-    const commandTextResult = commandResult
-        ? `\nCOMMAND RESULT (${commandResult.command}):\n${formatResponses(commandResult.responses)}`
-        : ""
+    const imageText = images.map(image => `IMAGE ASSET: ${image.path} (available at ${image.url})`).join("\n")
+    const commandTextResult = commandResult ? `\nCOMMAND RESULT (${commandResult.command}):\n${formatResponses(commandResult.responses)}` : ""
 
     if (!process.env.AI_API_KEY && withAi) {
-        emit({
-            type: "ai",
-            activityId: "request",
-            status: "failed",
-            message: "AI_API_KEY is not configured"
-        })
+        emit({ type: "ai", activityId: "request", status: "failed", message: "AI_API_KEY is not configured" })
 
         return {
             question: cleanQuestion,
@@ -1035,22 +1087,12 @@ async function answerQuestion({
         }
     }
 
-    const configuredUrl = (
-        process.env.AI_URL ||
-        "https://ai.hackclub.com/proxy/v1"
-    ).replace(/\/$/, "")
+    const configuredUrl = (process.env.AI_URL ||"https://ai.hackclub.com/proxy/v1").replace(/\/$/, "")
 
-    const endpoint = configuredUrl.endsWith("/chat/completions")
-        ? configuredUrl
-        : `${configuredUrl}/chat/completions`
+    const endpoint = configuredUrl.endsWith("/chat/completions")? configuredUrl : `${configuredUrl}/chat/completions`
 
     if (!withAi) {
-        emit({
-            type: "ai",
-            activityId: "request",
-            status: "skipped",
-            message: "AI generation skipped"
-        })
+        emit({ type: "ai", activityId: "request", status: "skipped", message: "AI generation skipped" })
 
         return {
             question: cleanQuestion,
@@ -1062,18 +1104,24 @@ async function answerQuestion({
             ),
             images,
             command: commandResult,
-            context: codebaseText || codebaseContext || "No matching codebase context."
+            context: contextPack.text || "No matching repository context."
         }
     }
 
-    emit({
-        type: "ai",
-        activityId: "request",
-        status: "started",
-        message: `Sending request to AI model ${model} at ${endpoint}`
-    })
+    emit({ type: "ai", activityId: "request", status: "started", message: `Sending request to AI model ${model} at ${endpoint}` })
 
-    const response = await fetch(endpoint, {
+    const messages = [
+        {
+            role: "system",
+            content: SYSTEM_PROMPT
+        },
+        {
+            role: "user",
+            content: `Question:\n${cleanQuestion}\n\nRepository knowledge:\n${contextPack.text || "No matching repository context."}\n\nVisual assets:\n${imageText || "No matching visual assets."}${commandTextResult}`
+        }
+    ]
+
+    const requestAi = includeTools => fetch(endpoint, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${process.env.AI_API_KEY}`,
@@ -1081,31 +1129,22 @@ async function answerQuestion({
         },
         body: JSON.stringify({
             model,
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        "You are Slackzilla's codebase assistant. Answer only from the supplied repository context and command result. Treat file paths, line ranges, source types, sections, and retrieved code as repository facts. Do not invent files, functions, routes, behaviour, dependencies, or architecture. Say when the context is insufficient. Be concise and include relevant file paths. Do not claim to have executed a command unless a command result is supplied."
-                },
-                {
-                    role: "user",
-                    content:
-                        `Question:\n${cleanQuestion}\n\nRepository context:\n${sourceText || "No matching repository context."}\n\nCodebase context:\n${codebaseText || "No matching codebase context."}\n\nVisual assets:\n${imageText || "No matching visual assets."}${commandTextResult}`
-                }
-            ]
+            stream: true,
+            stream_options: { include_usage: true },
+            messages,
+            ...(includeTools && tools?.definitions?.length
+                ? { tools: tools.definitions, tool_choice: "auto" }
+                : {})
         })
     })
 
-    const responseBody = await response.json().catch(() => ({}))
+    let response = await requestAi(true)
 
-    emit({
-        type: "ai",
-        activityId: "request",
-        status: "received",
-        message: `Received response from AI model ${model}`,
-    })
+    emit({ type: "ai", activityId: "request", status: "received", message: `Received response from AI model ${model}` })
 
     if (!response.ok) {
+        const responseBody = await response.json().catch(() => ({}))
+
         emit({
             type: "ai",
             activityId: "request",
@@ -1117,30 +1156,76 @@ async function answerQuestion({
         })
 
         throw new Error(
-            responseBody.error?.message ||
-            responseBody.error ||
-            `AI request failed with ${response.status}`
+            responseBody.error?.message || responseBody.error || `AI request failed with ${response.status}`
         )
     }
 
-    const answer = responseBody.choices?.[0]?.message?.content
+    const tokenUsage = { input: 0, output: 0, total: 0 }
+    const addUsage = usage => {
+        tokenUsage.input += Number(usage?.input || 0)
+        tokenUsage.output += Number(usage?.output || 0)
+        tokenUsage.total += Number(usage?.total || 0)
+    }
 
-    if (!answer) {
-        emit({
-            type: "ai",
-            activityId: "request",
-            status: "failed",
-            message: "AI returned an empty response"
+    let result = await readAiResponse(response, onToken)
+    addUsage(result.usage)
+
+    let toolRound = 0
+
+    while (result.toolCalls.length && tools?.execute && toolRound < 1) {
+        toolRound += 1
+        messages.push({
+            role: "assistant",
+            content: result.answer || null,
+            tool_calls: result.toolCalls
         })
 
+        for (const toolCall of result.toolCalls) {
+            let args = {}
+
+            try { args = JSON.parse(toolCall.function?.arguments || "{}") }
+            catch { args = {} }
+
+            const toolResult = await tools.execute(toolCall.function?.name, args, emit)
+            messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                name: toolCall.function?.name,
+                content: `LIVE API DATA (current runtime evidence):\n${JSON.stringify(toolResult)}`
+            })
+        }
+
+        emit({ type: "ai", activityId: "request", status: "started", message: "Generating answer from repository and live API evidence" })
+
+        response = await requestAi(true)
+
+        if (!response.ok) { throw new Error(`AI request failed with ${response.status}`) }
+
+        result = await readAiResponse(response, onToken)
+        addUsage(result.usage)
+    }
+
+    const answer = result.answer
+
+    if (!answer) {
+        emit({ type: "ai", activityId: "request", status: "failed", message: "AI returned an empty response" })
         throw new Error("AI returned an empty response")
     }
+
+    if (!tokenUsage.input) tokenUsage.input = estimateTokenCount(JSON.stringify(messages))
+    if (!tokenUsage.output) tokenUsage.output = estimateTokenCount(answer)
+    if (!tokenUsage.total) tokenUsage.total = tokenUsage.input + tokenUsage.output
 
     emit({
         type: "ai",
         activityId: "request",
         status: "completed",
-        message: `Processed response from AI model ${model}`
+        message: `Processed response from AI model ${model}`,
+        metadata: {
+            inputTokens: tokenUsage.input,
+            outputTokens: tokenUsage.output,
+            totalTokens: tokenUsage.total
+        }
     })
 
     return {
@@ -1151,9 +1236,130 @@ async function answerQuestion({
         ),
         images,
         command: commandResult,
-        activities
+        activities,
+        usage: tokenUsage
     }
 }
+
+async function readAiResponse(response, onToken) {
+    let answer = ""
+    const toolCalls = {}
+    let usage = { input: 0, output: 0, total: 0 }
+    const isStreamingResponse = response.headers.get("content-type")?.includes("text/event-stream")
+
+    if (isStreamingResponse && response.body?.getReader) {
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        let finished = false
+
+        const processEvent = rawEvent => {
+            const data = rawEvent
+                .split(/\r?\n/)
+                .filter(line => line.startsWith("data:"))
+                .map(line => line.slice(5).trim())
+                .join("\n")
+
+            if (!data || data === "[DONE]") {
+                if (data === "[DONE]") finished = true
+                return
+            }
+
+            let payload
+            try { payload = JSON.parse(data) }
+            catch { return }
+
+            usage = normaliseUsage(payload.usage, usage)
+
+            const choice = payload.choices?.[0]
+            const token = choice?.delta?.content
+
+            if (token) {
+                answer += token
+                if (typeof onToken === "function") onToken(token)
+            }
+
+            for (const toolCall of choice?.delta?.tool_calls || []) {
+                const current = toolCalls[toolCall.index] || {
+                    id: toolCall.id,
+                    type: "function",
+                    function: { name: "", arguments: "" }
+                }
+
+                current.id ||= toolCall.id
+                current.function.name += toolCall.function?.name || ""
+                current.function.arguments += toolCall.function?.arguments || ""
+                toolCalls[toolCall.index] = current
+            }
+        }
+
+        while (!finished) {
+            const { done, value } = await reader.read()
+            buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+
+            const events = buffer.split(/\r?\n\r?\n/)
+            buffer = events.pop() || ""
+            events.forEach(processEvent)
+
+            if (done) break
+        }
+
+        if (buffer.trim()) processEvent(buffer)
+    } else {
+        const responseBody = await response.json().catch(() => ({}))
+        usage = normaliseUsage(responseBody.usage, usage)
+        const message = responseBody.choices?.[0]?.message || {}
+        answer = message.content || ""
+
+        for (const toolCall of message.tool_calls || []) {
+            toolCalls[toolCall.id] = toolCall
+        }
+
+        if (answer && typeof onToken === "function") onToken(answer)
+    }
+
+    const markupToolCalls = [...answer.matchAll(/<tool_call>\s*([A-Za-z][A-Za-z0-9_]*)\s*<\/tool_call>/gi)]
+
+    for (const [index, match] of markupToolCalls.entries()) {
+        const name = match[1]
+        const id = `markup-tool-${index}`
+
+        if (!Object.values(toolCalls).some(toolCall => toolCall.function?.name === name)) {
+            toolCalls[id] = {
+                id,
+                type: "function",
+                function: { name, arguments: "{}" }
+            }
+        }
+    }
+
+    answer = answer.replace(/<tool_call>\s*[A-Za-z][A-Za-z0-9_]*\s*<\/tool_call>/gi, "").trim()
+
+    return {
+        answer,
+        toolCalls: Object.values(toolCalls),
+        usage
+    }
+}
+
+function normaliseUsage(rawUsage, previous = { input: 0, output: 0, total: 0 }) {
+    if (!rawUsage) return previous
+
+    const input = Number(rawUsage.prompt_tokens ?? rawUsage.input_tokens ?? rawUsage.promptTokens ?? 0)
+    const output = Number(rawUsage.completion_tokens ?? rawUsage.output_tokens ?? rawUsage.completionTokens ?? 0)
+    const total = Number(rawUsage.total_tokens ?? rawUsage.totalTokens ?? (input + output))
+
+    return {
+        input: input || previous.input,
+        output: output || previous.output,
+        total: total || previous.total
+    }
+}
+
+function estimateTokenCount(value) {
+    return Math.max(1, Math.ceil(String(value || "").length / 4))
+}
+
 
 module.exports = {
     emitActivity,

@@ -70,7 +70,7 @@ const API_ROUTES = [
                 tags: ["rag", "assistant"],
                 method: "POST",
                 path: "/api/ask",
-                description: "Retrieve relevant Slackzilla source files and answer a codebase question; optionally execute an explicitly selected command.",
+                description: "Stream repository retrieval, live read-only tool activity, token events, and the final answer for a codebase question.",
                 categories: ["public", "assistant", "codebase"],
                 livesAt: "/server/api/ask/index.js",
                 schema: null,
@@ -79,7 +79,21 @@ const API_ROUTES = [
                     { name: "commandId", in: "body", required: false, type: "string" },
                     { name: "commandText", in: "body", required: false, type: "string" }
                 ],
-                responses: { "200": { description: "Answer, sources, and optional command result", schema: null } }
+                responses: { "200": { description: "text/event-stream activity, token, complete, and error events", schema: null } }
+            },
+            {
+                id: "api-routes",
+                operationId: "listIndexedRoutes",
+                uuid: "d3c7c3a4-3a0f-4b3a-9bc5-4ac98e5b0e2a",
+                tags: ["rag", "routes"],
+                method: "GET",
+                path: "/api/routes",
+                description: "List HTTP routes discovered by the repository code index.",
+                categories: ["public", "rag", "codebase"],
+                livesAt: "/server/api/routes/index.js",
+                schema: null,
+                parameters: [],
+                responses: { "200": { description: "Indexed repository routes", schema: null } }
             },
             {
                 id: "api-status",
@@ -94,6 +108,20 @@ const API_ROUTES = [
                 schema: "/server/api/status/status.schema.json",
                 parameters: [],
                 responses: { "200": { description: "Status payload", schema: "/server/api/status/status.schema.json" } }
+            },
+            {
+                id: "api-release",
+                operationId: "getReleaseInfo",
+                uuid: "e4a8a01e-8d96-46f6-b5a1-98b3ad75d4e1",
+                tags: ["release", "rag"],
+                method: "GET",
+                path: "/api/release",
+                description: "Return the current version, versioned release notes, and the /sz-release implementation sources.",
+                categories: ["public", "release", "rag"],
+                livesAt: "/server/api/release/index.js",
+                schema: null,
+                parameters: [{ name: "version", in: "query", required: false, type: "string" }],
+                responses: { "200": { description: "Current or requested release information", schema: null } }
             },
             {
                 id: "api-status-stream",

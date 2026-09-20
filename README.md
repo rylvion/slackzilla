@@ -5,9 +5,7 @@ Slackzilla is a modular Slack bot with a hosted React dashboard, HTTP API, GitHu
 ## Links
 
 - [Hosted dashboard](https://rylvion.hackclub.app/)
-- [Static preview](https://rylvion.github.io/slackzilla/)
 - [Documentation](https://rylvion.github.io/slackzilla/docs/)
-- [Wiki](https://github.com/rylvion/slackzilla/wiki)
 - [Repository](https://github.com/rylvion/slackzilla)
 - [GitHub devlogs](https://github.com/rylvion/slackzilla/blob/main/assets/devlogs/devlogs.md)
 - [Stardance devlogs](https://stardance.hackclub.com/projects/4967)
@@ -21,29 +19,17 @@ Slackzilla has two main runtime processes:
 
 Other project capabilities include:
 
-- 23 modular slash commands defined in `bot/data/commands.json`.
+- 25 modular slash commands defined in `bot/data/commands.json`.
 - Generated Slack app manifest support.
 - Public status, metrics, logs, commands, and AI APIs.
-- Admin sessions with signed cookies, PBKDF2 password verification, CSRF protection, and rate limiting.
+- Admin sessions with signed cookies, PBKDF2 password verification, CSRF protection, secure API access, and rate limiting.
 - Feedback filtering, read/unread status, replies, and deletion.
 - CPU, memory, disk, network, bot, command, and server request telemetry.
 - React pages for the dashboard, status, commands, API reference, AI assistant, documentation, logs, sitemap, and admin workflows.
 - GitHub push webhook validation with HMAC-SHA256 and branch filtering.
-- Related repository image assets in AI responses, such as calculator flowcharts.
+- Repository-aware AI assistant with lexical & deterministic retrieval, model generation, image asset discovery, and tools execution lists.
 
 ## Architecture
-
-```text
-Slack Socket Mode -> bot/bot.js -> bot/cmds/*
-                              -> server/database and server/logs
-
-Browser/GitHub -> server/server.js
-               -> React dashboard
-               -> server/api/*
-               -> authentication and telemetry
-               -> deployment webhook
-```
-
 The backend uses Node's built-in `http` module rather than Express. API modules are explicit handlers imported and registered in `server/server.js`. Persistent runtime data is currently stored through the JSON-backed adapter in `server/database/store.js`; an external database is not required.
 
 Read the detailed guides in [`docs/`](docs/docs.md):
@@ -58,11 +44,11 @@ Read the detailed guides in [`docs/`](docs/docs.md):
 
 ## Requirements
 
-- Node.js with npm.
+- Node.js with npm. (make sure all dependencies are installed with `npm ci` before running)
 - A Slack app with Socket Mode enabled.
 - Git for deployment features.
-- Linux and systemd for the production service files.
-- An AI provider key for model-backed AI answers.
+- Linux and systemd for the production service files. (Admin controls relies on bot service file being active too stop & start the bot)
+- An AI provider key for model-backed AI answers. (optional, but recommended for the `/ai` page, `/api/ask` endpoint and `/sz-ask` command)
 
 ## Setup
 
@@ -91,7 +77,7 @@ Optional AI settings belong in `bot/.env`:
 
 ```text
 AI_API_KEY=...
-AI_MODEL=openai/gpt-oss-20b:free
+AI_MODEL=openrouter/free
 AI_URL=https://ai.hackclub.com/proxy/v1/chat/completions
 ```
 
@@ -107,8 +93,6 @@ ADMIN_PASSWORD_HASH=pbkdf2$sha512$600000$salt$derived-key
 ADMIN_SESSION_SECRET=...
 COOKIE_SECURE=false
 ```
-
-Set `SLACK_BOT_TOKEN` in `server/.env` as well when dashboard feedback replies need to send Slack DMs. The dashboard can fall back to `bot/.env` during local development.
 
 Generate an admin password hash with the bot command:
 
@@ -126,11 +110,7 @@ Run the complete local runtime:
 npm start
 ```
 
-This builds and lints the React client, then starts the bot and dashboard server. Open:
-
-```text
-http://localhost:9000
-```
+This builds and lints the React client, then starts the bot and dashboard server. Open: `http://localhost:9000`
 
 For dashboard-only development:
 
@@ -172,6 +152,8 @@ Public endpoints:
 ```text
 GET  /api/status
 GET  /api/status/stream
+GET  /api/telemetry
+GET  /api/telemetry/stream
 GET  /api/metrics
 GET  /api/logs
 GET  /api/logs/stream
@@ -179,6 +161,8 @@ GET  /api/logs/download
 GET  /api/commands
 GET  /api/commands/:id
 POST /api/commands/:id
+GET  /api/routes
+GET  /api/release?version=<optional-version>
 GET  /api/ask
 POST /api/ask
 ```

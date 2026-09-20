@@ -1,13 +1,15 @@
 import StatusPanel from "../components/status/StatusPanel"
 import TelemetryChart from "../components/status/TelemetryChart"
 import PageShell from "../components/PageShell"
-import { formatBytes, formatRate, useStatusStream } from "../components/utils/api"
+import { formatBytes, formatRate, useStatusStream, useTelemetryStream } from "../components/utils/api"
 import { metric } from "../components/status/metrics"
 import "../css/status.css"
 
 function Status() {
     const state = window.__SLACKZILLA__ || {}
     const { status, connected } = useStatusStream(state)
+    const { telemetry, connected: telemetryConnected } = useTelemetryStream()
+    const samples = telemetry.telemetryHistory || []
 
     const internalLinks = [
         { id: "overview", label: "Overview" },
@@ -23,7 +25,7 @@ function Status() {
                         <h1>Runtime Telemetry</h1>
                         <span className={`panel-subtitle connection-status ${connected ? "is-live" : "is-reconnecting"}`}>
                             <span className="connection-dot" />
-                            {connected ? "LIVE" : "RECONNECTING"}
+                            {connected && telemetryConnected ? "LIVE" : "RECONNECTING"}
                         </span>
                     </div>
 
@@ -45,7 +47,7 @@ function Status() {
                     <div className="telemetry-history">
                         <div className="history-label">LAST 120 SAMPLES</div>
 
-                        <TelemetryChart title="CPU and memory usage" samples={status.telemetryHistory || []} series={[
+                        <TelemetryChart title="CPU and memory usage" samples={samples} series={[
                                 { key: "cpuPercent", label: "CPU", colour: "#00ff78"},
                                 { key: "memoryUsedPercent", label: "MEMORY", colour: "#58d8ff" },
                             ]}
@@ -77,7 +79,7 @@ function Status() {
                     <div className="telemetry-history">
                         <div className="history-label">LAST 120 SAMPLES</div>
 
-                        <TelemetryChart title="Network throughput" samples={status.telemetryHistory || []} series={[
+                        <TelemetryChart title="Network throughput" samples={samples} series={[
                                 { key: "networkRxRate", label: "INBOUND", colour: "#58d8ff" },
                                 { key: "networkTxRate", label: "OUTBOUND", colour: "#ffba5c" },
                             ]}

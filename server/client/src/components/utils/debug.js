@@ -1,3 +1,3 @@
-let isDebugMode = true // change to false to disable debug mode
+const isDebugMode = false
 
 export default isDebugMode

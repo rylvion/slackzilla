@@ -29,6 +29,7 @@ class ErrorBoundary extends React.Component {
                 <ErrorPanel
                     code="REACT_RENDER_ERROR"
                     error={this.state.error}
+                    actionLabel="reload page"
                     showDetails={true}
                 />
             )

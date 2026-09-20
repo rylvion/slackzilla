@@ -4,8 +4,15 @@ function StatusPanel({ status: suppliedStatus } = {}) {
     const state = suppliedStatus || window.__SLACKZILLA__ || {}
     const online = state.botOnline ?? state.summary?.botOnline ?? false
     const uptime = state.uptimeText ?? state.uptime ?? state.summary?.uptime ?? "Unknown"
-    const deployment = state.deploymentStatus ?? state.deployment ?? state.summary?.deployment ?? "Unknown"
+    const deployment = state.deploymentStatus ?? state.deployment ?? state.summary?.deployment ?? null
     const lastDeployedAt = state.lastDeploymentText ?? state.lastDeployedAt ?? state.summary?.lastDeployedAt ?? "Unknown"
+
+    const deploymentStatus =
+        deployment === "failed"
+            ? ["FAILED", "status-offline"]
+            : !deployment
+                ? ["UNKNOWN", "status-offline"]
+                : ["SUCCESS", "status-online"]
 
     return (
         <section id="status" className="panel">
@@ -15,11 +22,11 @@ function StatusPanel({ status: suppliedStatus } = {}) {
             <div className="stats">
                 {stat("BOT STATUS", online ? "ONLINE" : "OFFLINE", online ? "status-online" : "status-offline")}
                 {stat("UPTIME", uptime)}
-                {stat("DEPLOYMENT", deployment)}
-                {stat("LAST DEPLOYED AT ", lastDeployedAt)}
+                {stat("DEPLOYMENT", deploymentStatus[0], deploymentStatus[1])}
+                {stat("LAST DEPLOYED AT", lastDeployedAt)}
             </div>
         </section>
-    ) 
+    )
 }
 
 export default StatusPanel

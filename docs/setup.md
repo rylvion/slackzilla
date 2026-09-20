@@ -30,7 +30,7 @@ SLACK_BOT_TOKEN=xoxb-...
 SLACK_APP_TOKEN=xapp-...
 SLACK_SIGNING_SECRET=...
 AI_API_KEY=...                 # optional
-AI_MODEL=openai/gpt-oss-20b:free
+AI_MODEL=openrouter/free
 AI_URL=https://ai.hackclub.com/proxy/v1/chat/completions
 ```
 
@@ -82,14 +82,7 @@ For the complete local runtime:
 npm start
 ```
 
-This builds and lints the client, then starts the bot and dashboard server. The dashboard is available at `http://localhost:9000`. On Windows, Linux-only actions such as `systemctl` and Bash deployment are expected not to work.
-
-For a dashboard-only iteration:
-
-```bash
-npm run build
-npm run server
-```
+This builds and lints the client, then starts the bot, the api, the RAG and dashboard server. The dashboard is available at `http://localhost:9000`. On Windows, Linux-only actions such as `systemctl` and Bash deployment are expected not to work.
 
 ## Dashboard Features
 
@@ -116,6 +109,42 @@ The public API accepts:
 ```
 
 Command execution is explicit and should be treated as trusted functionality because commands may generate secrets, call external services, or mutate data.
+
+### Calling RAG Tools Locally
+
+The AI endpoint exposes a controlled tool set to the model. The model may request these tools while processing `POST /api/ask`:
+
+```text
+getStatus          current status without telemetryHistory
+getCommands        available command metadata
+getReleaseInfo     current version and release-history changes
+runCommand         allowlisted read-only utility command output
+getLogs            bounded recent logs
+getMetrics         current runtime metrics
+getRoutes          routes discovered by the RAG index
+```
+
+Start the dashboard server first, then send a normal AI request. The response is SSE, so use an SSE-capable client or `curl`:
+
+For release questions, `getReleaseInfo` reads `package.json`, `release-history.json`, and the `/sz-release` implementation at `bot/cmds/release.js`. It is also available directly as `GET /api/release`, with an optional `?version=v0.9.5-beta` query parameter.
+
+To test the repository pipeline without contacting an AI provider:
+
+```bash
+npm run rag -- --ai "How does the /api/ask request flow work?" # remove --ai if you want to see some of the context without ai
+```
+
+To call tools directly, use `npm run rag:use-tool` with the tool name: e.g.
+```bash
+npm run rag:use-tool -- --getStatus
+npm run rag:use-tool -- --getCommands
+npm run rag:use-tool -- --getReleaseInfo
+npm run rag:use-tool -- --getLogs
+npm run rag:use-tool -- --getMetrics
+npm run rag:use-tool -- --getRoutes
+```
+
+This direct adapter call still enforces the read-only allowlist, timeout, output-size limit, sanitisation, and activity events. See [RAG.md](RAG.md) for the complete data flow and security boundaries.
 
 ## Production Services
 

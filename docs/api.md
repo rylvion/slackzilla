@@ -29,8 +29,10 @@ Use `context.sendOk()` and `context.sendError()` in new handlers. Use `context.p
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/status` | Current bot, host, deployment, memory, disk, CPU, and network telemetry. |
-| `GET` | `/api/status/stream` | SSE status updates. |
+| `GET` | `/api/status` | Current bot, host, deployment, and runtime summary without telemetry history. |
+| `GET` | `/api/status/stream` | SSE status updates without telemetry history. |
+| `GET` | `/api/telemetry` | Current runtime telemetry and the last 120 samples. |
+| `GET` | `/api/telemetry/stream` | SSE telemetry snapshots, including the last 120 samples. |
 | `GET` | `/api/metrics` | Command totals, unique users/channels, and recent command activity. |
 | `GET` | `/api/logs` | Bounded log snapshot as JSON. |
 | `GET` | `/api/logs/stream` | SSE log snapshot and new log lines. |
@@ -39,7 +41,10 @@ Use `context.sendOk()` and `context.sendError()` in new handlers. Use `context.p
 | `GET` | `/api/commands/:id` | Help and usage metadata for one command. |
 | `POST` | `/api/commands/:id` | Execute an existing command and capture its response. |
 | `GET` | `/api/ask` | Describes the assistant request format. |
-| `POST` | `/api/ask` | Retrieves repository context and asks the configured model a question. |
+| `POST` | `/api/ask` | Retrieves repository context and streams activity, optional tool calls, answer tokens, and completion data. |
+| `GET` | `/api/routes` | Returns indexed repository HTTP routes. |
+| `GET` | `/api/release` | Returns the current or requested release version, changes, and source file references. |
+| `GET` | `/api/admin/server-events` | Authenticated full server event history; supports `limit` up to 1000. |
 
 ## Command Execution
 
