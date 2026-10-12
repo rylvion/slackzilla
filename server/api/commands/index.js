@@ -19,7 +19,7 @@ function handleCommandsApi({ req, res, url, context }) {
     const id = decodeURIComponent(url.pathname.slice("/api/commands/".length))
     const command = getCommand(id)
     if (!command) {
-        context.sendError(res, 404, "COMMAND_NOT_FOUND", "command not found")
+        context.sendError(res, 404, "COMMAND_NOT_FOUND", `No command was found matching '${id}'. Check \`/api/commands\` to ensure it exists in the available commands.`)
         return true
     }
 
@@ -36,7 +36,7 @@ function handleCommandsApi({ req, res, url, context }) {
     }
 
     if (req.method !== "POST") {
-        context.sendError(res, 405, "METHOD_NOT_ALLOWED", "method not allowed")
+        context.sendError(res, 405, "METHOD_NOT_ALLOWED", `Method '${req.method}' is not supported for this endpoint. Use POST to execute the command.`)
         return true
     }
 
@@ -50,7 +50,7 @@ function handleCommandsApi({ req, res, url, context }) {
         context.sendOk(res, result)
         return true
     }).catch(error => {
-        context.sendError(res, 500, "COMMAND_FAILED", error.message)
+        context.sendError(res, 500, "COMMAND_FAILED", `Failed to execute command '${id}': ${error.message}`)
         return true
     })
 }

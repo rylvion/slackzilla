@@ -4,10 +4,12 @@ const path = require("path")
 const dataDir = __dirname
 const logDir = path.join(__dirname, "..", "logs")
 const logFile = path.join(logDir, "slackzilla.log")
+const logArchiveDir = path.join(logDir, "archive")
 const feedbackFile = path.join(dataDir, "feedback.json")
 const metricsFile = path.join(dataDir, "metrics.json")
 const deploymentFile = path.join(dataDir, "deployment.json")
 const botStateFile = path.join(dataDir, "bot-state.json")
+const serverErrorsFile = path.join(dataDir, "server-errors.json")
 
 const defaultMetrics = {
     commands: {},
@@ -87,6 +89,166 @@ function getLogSnapshot(maxBytes = 256 * 1024) {
         content: buffer.toString("utf8"),
         size: stat.size
     }
+}
+
+function readLogLines() {
+    return String(getLogSnapshot().content || "").split(/\r?\n/).filter(Boolean)
+}
+
+function writeLogLines(lines) {
+    ensureDir(logFile)
+    fs.writeFileSync(logFile, lines.length ? `${lines.join("\n")}\n` : "")
+    return getLogSnapshot()
+}
+
+function deleteLogLines(start, end) {
+    const lines = readLogLines()
+    const first = Math.max(1, Number(start) || 1)
+    const last = Math.min(lines.length, Number(end) || first)
+    return writeLogLines(lines.filter((_, index) => index + 1 < first || index + 1 > last))
+}
+
+function deleteLastLogLines(count) {
+    const lines = readLogLines()
+    return writeLogLines(lines.slice(0, Math.max(0, lines.length - Math.max(1, Number(count) || 1))))
+}
+
+function clearLog() {
+    return writeLogLines([])
+}
+
+function deleteLogFile() {
+    ensureDir(logFile)
+    fs.writeFileSync(logFile, "")
+    return {size: 0, content: "" }
+}
+
+function listLogArchives() {
+    if (!fs.existsSync(logArchiveDir)) return []
+    try {
+        return fs.readdirSync(logArchiveDir)
+            .filter(name => name.endsWith(".log"))
+            .map(name => {
+                try {
+                    return getArchiveMetadata(name)
+                } catch (error) {
+                    if (error.code === "ENOENT") return null
+                    throw error
+                }
+            })
+            .filter(Boolean)
+            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    } catch (error) {
+        if (error.code === "ENOENT") return []
+        throw error
+    }
+}
+
+function rotateLog() {
+    ensureDir(logFile)
+
+    const archive = path.join(logArchiveDir, `slackzilla-${new Date().toISOString().replace(/[:.]/g, "-")}.log` )
+
+    ensureDir(archive)
+
+    if (fs.existsSync(logFile)) {
+        fs.copyFileSync(logFile, archive)
+    } else {
+        fs.writeFileSync(archive, "")
+    }
+
+    clearLog()
+
+    return path.basename(archive)
+}
+
+function restoreLogArchive(name, saveCurrent = false) {
+    const DEBUG = true
+    const safeName = path.basename(String(name || ""))
+
+    if (!safeName || safeName !== name || !safeName.endsWith(".log")) {
+        throw new Error("invalid log archive")
+    }
+
+    const archive = path.join(logArchiveDir, safeName)
+
+    if (!fs.existsSync(archive)) {
+        throw new Error("log archive not found")
+    }
+
+    ensureDir(logFile)
+
+    if (saveCurrent && fs.existsSync(logFile)) {
+        const currentStat = fs.statSync(logFile)
+
+        if (currentStat.size > 0) {
+            const currentBackup = path.join(logArchiveDir, `slackzilla-before-restore-${new Date().toISOString().replace(/[:.]/g, "-")}.log`)
+
+            ensureDir(currentBackup)
+            fs.copyFileSync(logFile, currentBackup)
+
+            DEBUG && console.log("[STORE] current log backed up:", currentBackup)
+        }
+    }
+
+    const temporary = `${logFile}.restore-${process.pid}-${Date.now()}.tmp`
+
+    try {
+        fs.copyFileSync(archive, temporary)
+        fs.renameSync(temporary, logFile)
+
+        DEBUG && console.log("[STORE] archive restored to:", logFile)
+    } finally {
+        if (fs.existsSync(temporary)) fs.unlinkSync(temporary)
+    }
+
+    return getLogSnapshot()
+}
+
+function deleteLogArchive(name) {
+    const safeName = path.basename(String(name || ""))
+
+    if (!safeName || safeName !== name || !safeName.endsWith(".log")) {
+        throw new Error("invalid log archive")
+    }
+
+    const archive = path.join(logArchiveDir, safeName)
+
+    if (!fs.existsSync(archive)) {
+        throw new Error("log archive not found")
+    }
+
+    fs.unlinkSync(archive)
+
+    return {
+        name: safeName,
+        deleted: true
+    }
+}
+
+function getArchiveMetadata(name) {
+    const filePath = path.join(logArchiveDir, name)
+    const stat = fs.statSync(filePath)
+    const content = fs.readFileSync(filePath, "utf8")
+    return {
+        name,
+        createdAt: stat.birthtime.toISOString(),
+        updatedAt: stat.mtime.toISOString(),
+        bytes: stat.size,
+        lines: content.split(/\r?\n/).filter(Boolean).length
+    }
+}
+
+function getServerErrors() {
+    const errors = readJson(serverErrorsFile, [])
+    return Array.isArray(errors) ? errors : []
+}
+
+function recordServerError(error) {
+    const errors = getServerErrors()
+    errors.unshift(error)
+    writeJson(serverErrorsFile, errors.slice(0, 200))
+    return error
 }
 
 function readJsonArray(filePath) {
@@ -337,6 +499,17 @@ module.exports = {
     appendLogLine,
     appendLogChunk,
     getLogSnapshot,
+    readLogLines,
+    deleteLogLines,
+    deleteLastLogLines,
+    clearLog,
+    deleteLogFile,
+    deleteLogArchive,
+    listLogArchives,
+    rotateLog,
+    restoreLogArchive,
+    getServerErrors,
+    recordServerError,
     addFeedback,
     updateFeedback,
     deleteFeedback,

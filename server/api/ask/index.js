@@ -58,9 +58,9 @@ function handleAskApi({ req, res, url, context }) {
         return true
     }).catch(error => {
         if (!res.headersSent) {
-            context.sendError(res, 500, "ASK_FAILED", error.message)
+            context.sendError(res, 500, "ASK_FAILED", `Failed to process the RAG/LLM request: ${error.message}`)
         } else if (!res.writableEnded && !res.destroyed) {
-            context.sendSse(res, "error", { error: error.message })
+            context.sendSse(res, "error", { error: `Failed to process the RAG request: ${error.message}` })
             res.end()
         }
         return true

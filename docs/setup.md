@@ -17,7 +17,7 @@ This guide covers local development and production. Slackzilla contains a Slack 
 3. Copy the Bot User OAuth Token (`xoxb-...`) as `SLACK_BOT_TOKEN`.
 4. Create an app-level token with `connections:write` and set it as `SLACK_APP_TOKEN`.
 5. Copy the app Signing Secret as `SLACK_SIGNING_SECRET`.
-6. Add the scopes and slash commands required by `manifest.json`.
+6. Add the scopes and slash commands required by `manifest.json` (or just copy whatever is in `manifest.json` into App Manifest > replace all existing content with it > Save Changes > Install App).
 
 The bot uses Socket Mode, so it does not require a public inbound Slack HTTP endpoint.
 
@@ -25,18 +25,18 @@ The bot uses Socket Mode, so it does not require a public inbound Slack HTTP end
 
 Copy `bot/.env.example` to `bot/.env` and set:
 
-```text
+```bash
 SLACK_BOT_TOKEN=xoxb-...
 SLACK_APP_TOKEN=xapp-...
 SLACK_SIGNING_SECRET=...
 AI_API_KEY=...                 # optional
-AI_MODEL=openrouter/free
+AI_MODEL=openai/gpt-6-luna
 AI_URL=https://ai.hackclub.com/proxy/v1/chat/completions
 ```
 
 Copy `server/.env.example` to `server/.env` and set:
 
-```text
+```bash
 WEBHOOK_SECRET=...
 PORT=9000
 PROJECT_DIR=/absolute/path/to/slackzilla
@@ -45,16 +45,15 @@ REPO_URL=https://github.com/your-user/slackzilla.git
 ADMIN_PASSWORD_HASH=pbkdf2$sha512$600000$salt$derived-key
 ADMIN_SESSION_SECRET=...
 COOKIE_SECURE=false
-SLACK_BOT_TOKEN=xoxb-...       # needed for dashboard feedback replies
 ```
 
-The dashboard loads `server/.env` first and can fall back to `bot/.env` for the bot token during local development. Keep secrets out of version control. `PROJECT_DIR` must exist; it is used for Git and disk telemetry and deployment scripts.
+The dashboard reads `bot/.env` for the bot token during local development. Keep secrets out of version control. `PROJECT_DIR` must exist; it is used for the webhook (CI/CD deployment)
 
 ## Generate an Admin Hash
 
-Use the bot command after the bot is running:
+Use the bot command, ask the ai assistant or use the dashboard to generate a hash for you:
 
-```text
+```bash
 /sz-hash pbkdf2 sha512 600000 your-password
 ```
 
@@ -104,7 +103,7 @@ The public API accepts:
 
 ```json
 {
-  "question": "How does the feedback API work?"
+    "question": "How does the feedback API work?"
 }
 ```
 
@@ -114,12 +113,13 @@ Command execution is explicit and should be treated as trusted functionality bec
 
 The AI endpoint exposes a controlled tool set to the model. The model may request these tools while processing `POST /api/ask`:
 
-```text
+```bashs
 getStatus          current status without telemetryHistory
-getCommands        available command metadata
+getCommands        available command metadata (with filters)
 getReleaseInfo     current version and release-history changes
 runCommand         allowlisted read-only utility command output
-getLogs            bounded recent logs
+getLogs            latest 10 log entries
+getErrors          latest 10 structured errors (stacks opt-in)
 getMetrics         current runtime metrics
 getRoutes          routes discovered by the RAG index
 ```
@@ -131,15 +131,18 @@ For release questions, `getReleaseInfo` reads `package.json`, `release-history.j
 To test the repository pipeline without contacting an AI provider:
 
 ```bash
-npm run rag -- --ai "How does the /api/ask request flow work?" # remove --ai if you want to see some of the context without ai
+npm run rag -- "How does the /api/ask request flow work?" # this returns what the ai recieves
 ```
+add `--ai` to see the AI's response.
 
 To call tools directly, use `npm run rag:use-tool` with the tool name: e.g.
+
 ```bash
 npm run rag:use-tool -- --getStatus
 npm run rag:use-tool -- --getCommands
 npm run rag:use-tool -- --getReleaseInfo
 npm run rag:use-tool -- --getLogs
+npm run rag:use-tool -- --getErrors
 npm run rag:use-tool -- --getMetrics
 npm run rag:use-tool -- --getRoutes
 ```
@@ -150,13 +153,24 @@ This direct adapter call still enforces the read-only allowlist, timeout, output
 
 On Linux:
 
-1. Run `npm ci` and configure both environment files.
+```bash
+cp bot/.env.example bot/.env
+cp server/.env.example server/.env
+```
+
+1. Run `npm ci` and configure both `.env` files.
 2. Build with `npm run build`.
 3. Copy `server/slackzilla.service` and `server/slackzilla-webhook.service` to `/etc/systemd/system/`.
+
+```
+cp server/slackzilla.service /etc/systemd/system/
+cp server/slackzilla-webhook.service /etc/systemd/system/
+```
+
 4. Ensure service users, working directories, paths, and environment loading match the host.
-5. Run:
 
 ```bash
+sudo apt update
 sudo systemctl daemon-reload
 sudo systemctl enable --now slackzilla.service slackzilla-webhook.service
 ```
@@ -164,8 +178,8 @@ sudo systemctl enable --now slackzilla.service slackzilla-webhook.service
 Restart after code or environment changes:
 
 ```bash
-sudo systemctl restart slackzilla.service
-sudo systemctl restart slackzilla-webhook.service
+sudo systemctl restart slackzilla
+sudo systemctl restart slackzilla-webhook
 ```
 
 Use a reverse proxy for HTTPS and set `COOKIE_SECURE=true` when HTTPS is active.
@@ -177,6 +191,7 @@ npm run build
 npm run lint
 npm run validate-manifest
 npm run validate-commands
+
 ```
 
 Then test:
@@ -191,15 +206,15 @@ Use an API client for JSON POST requests, authenticated APIs, CSRF headers, and 
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| Bot will not connect | Slack tokens, signing secret, app scopes, and Socket Mode. |
-| AI returns configuration text | `AI_API_KEY`, `AI_URL`, and `AI_MODEL`; restart after changes. |
-| Admin login loops | Password hash, session secret, cookie settings, and HTTPS/`COOKIE_SECURE`. |
-| Feedback reply fails | Bot token must be available to the dashboard process and the user ID must be valid. |
-| Disk is unavailable | Confirm `PROJECT_DIR` exists and is readable. |
-| Webhook returns 401 | Compare `WEBHOOK_SECRET` and raw-body signature; see [webhook.md](webhook.md). |
-| Service action fails locally | Control actions target Linux systemd hosts. |
-| Dashboard changes are missing | Rebuild and restart the dashboard service. |
+| Symptom                       | Check                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| Bot will not connect          | Slack tokens, signing secret, app scopes, and Socket Mode.                          |
+| AI returns configuration text | `AI_API_KEY`, `AI_URL`, and `AI_MODEL`; restart after changes.                      |
+| Admin login loops             | Password hash, session secret, cookie settings, and HTTPS/`COOKIE_SECURE`.          |
+| Feedback reply fails          | Bot token must be available to the dashboard process and the user ID must be valid. |
+| Disk is unavailable           | Confirm `PROJECT_DIR` exists and is readable.                                       |
+| Webhook returns 401           | Compare `WEBHOOK_SECRET` and raw-body signature; see [webhook.md](webhook.md).      |
+| Service action fails locally  | Control actions target Linux systemd hosts.                                         |
+| Dashboard changes are missing | Rebuild and restart the dashboard service.                                          |
 
 For implementation details read [api.md](api.md), [architecture.md](architecture.md), and [security.md](security.md).

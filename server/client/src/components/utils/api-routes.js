@@ -194,6 +194,20 @@ const API_ROUTES = [
                 responses: { "200": { description: "Bot metrics", schema: "/server/api/metrics/metrics.schema.json" } }
             },
             {
+                id: "api-session",
+                operationId: "getSession",
+                uuid: "a2b3c4d5-e6f7-4890-ab12-cd34ef567890",
+                tags: ["authentication"],
+                method: "GET",
+                path: "/api/session",
+                description: "Return the current authentication state and safe session metadata.",
+                categories: ["public", "authentication"],
+                livesAt: "/server/api/session/index.js",
+                schema: null,
+                parameters: [],
+                responses: { "200": { description: "Session state", schema: null } }
+            },
+            {
                 id: "api-admin-summary",
                 operationId: "getAdminSummary",
                 uuid: "0e5b17e4-f6b9-4a4b-a8b6-9f10e246d09c",

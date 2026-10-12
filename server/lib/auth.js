@@ -88,16 +88,19 @@ function createAuth(options) {
         return crypto.createHmac("sha256", sessionSecret).update(sessionId).digest("hex")
     }
 
-    function createSession(ip) {
+    function createSession(ip, userAgent) {
         const sessionId = crypto.randomUUID()
         const csrfToken = crypto.randomBytes(32).toString("hex")
-        const expiresAt = Date.now() + sessionTtlMs
+        const now = Date.now()
+        const expiresAt = now + sessionTtlMs
 
         sessions.set(sessionId, {
             sessionId,
             csrfToken,
             ip,
-            createdAt: new Date().toISOString(),
+            userAgent,
+            createdAt: new Date(now).toISOString(),
+            lastActivityAt: new Date(now).toISOString(),
             expiresAt
         })
 
@@ -136,6 +139,8 @@ function createAuth(options) {
             sessions.delete(sessionId)
             return null
         }
+
+        session.lastActivityAt = new Date().toISOString()
 
         return session
     }
@@ -289,7 +294,7 @@ function createAuth(options) {
 
         clearLoginAttempts(req)
 
-        const session = createSession(getRequestIp(req))
+        const session = createSession(getRequestIp(req), String(req.headers["user-agent"] || "unknown"))
         setCookie(res, "slackzilla_admin_session", createSessionCookie(session.sessionId), {
             httpOnly: true,
             sameSite: "Strict",

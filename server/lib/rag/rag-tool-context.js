@@ -26,7 +26,6 @@ function createRagToolContext(context) {
             const hasFilter = id || command || description || category || usageHint || fuzzy
 
             if (!hasFilter) { return mappedCommands.map(command => command.id) }
-
             if (id) { return mappedCommands.find(command => command.id === id) || null }
 
             return mappedCommands.filter(command => {
@@ -63,7 +62,13 @@ function createRagToolContext(context) {
         getLogs: (limit = 20) =>
             context.splitLogLines(
                 context.store.getLogSnapshot().content
-            ).slice(-limit),
+            ).slice(-Math.min(10, limit)),
+
+        getErrors: (includeStack = false) =>
+            context.getServerErrors().slice(0, 10).map(error => {
+                const { stack, ...safeError } = error
+                return includeStack ? error : safeError
+            }),
 
         getMetrics: context.getBotMetrics,
 

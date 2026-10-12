@@ -48,7 +48,7 @@ Summary: Added a manifest generator that auto generates the slack manifest from 
   <img src="../attachments/d5/manifest-workflow-flowchart.png" alt="manifest workflow flowchart" width="400">
 </div>
 
-## [Devlog 6: Command Updates](./devlog6.md)
+# [Devlog 6: Command Updates](./devlog6.md)
 
 Summary: Added 11 new commands (10 utility + 1 entertainment), doubling the total number of commands from 11 to 22. Also added two new `package.json` scripts: one for validating commands.json and one for generating command statistics.
 
@@ -70,7 +70,7 @@ Summary: Added a server hosted dashboard for slackzilla, it is hosted on the sam
 <div style="display: flex; align-items: center;">
   <img src="../attachments/d8/dashboard.png" alt="dashboard" width="400">
 </div>
-
+#
 ## [Devlog 9: React Dashboard](./devlog9.md)
 Summary: Migrated from the old EJS dashboard to a new React-based dashboard, added RAG modal for repository-aware AI assistance, implemented command execution API, and introduced telemetry with responsive graphs.
 
@@ -79,6 +79,12 @@ Summary: Migrated from the old EJS dashboard to a new React-based dashboard, add
 </div>
 
 ## [Devlog 10: RAG Enhancements](./devlog10.md)
+Summary: Major RAG and dashboard improvements, including AST-powered repository indexing, persistent indexing, symbol and dependency analysis, 7 RAG tools, SSE streaming for AI activity and telemetry, live AI activity tracing, token/context/tool usage visibility, admin server events, telemetry separation, release history tracking, new CLI tools, and various dashboard QOL and bug fixes.
+
+<div style="display: flex; align-items: center;"> <img src="../attachments/d10/ai-chat-activity.png" alt="AI Chat Activity" width="400"> </div>
+
+
+
 
 ---
 
@@ -91,6 +97,7 @@ Summary: Migrated from the old EJS dashboard to a new React-based dashboard, add
 - [Devlog 7: Github Pages Prototype](./devlog7.md)
 - [Devlog 8: Server Hosted Dashboard](./devlog8.md)
 - [Devlog 9: React Dashboard](./devlog9.md)
+- [Devlog 10: RAG Enhancements](./devlog10.md)
 
 ---
 
@@ -109,3 +116,10 @@ Summary: Migrated from the old EJS dashboard to a new React-based dashboard, add
     </a>
   </b></em>
 </p>
+
+<p align="center">
+  <em><b>
+    <a href="https://rylvion.hackclub.app/" target="_blank">
+      Visit hosted dashboard
+    </a>
+  </b></em>

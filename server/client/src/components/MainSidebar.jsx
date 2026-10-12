@@ -6,14 +6,12 @@ function RouteLinks({ active, pathname }) {
     return routes.map(route => (
         <Fragment key={route.id}>
             {!route.api && !route.hidden && (
-                <Link
-                    className={
-                        active
-                            ? active === route.id ? "active" : ""
-                            : (
-                                pathname === route.to ||
-                                (route.to !== "/" && pathname.startsWith(`${route.to}/`))
-                            ) ? "active" : ""
+                <Link className={active
+                        ? active === route.id 
+                            ? "active" : ""
+                            : (pathname === route.to ||(route.to !== "/" && pathname.startsWith(`${route.to}/`)))
+                            ? "active" 
+                        : ""
                     }
                     to={route.to}
                 >
@@ -21,13 +19,6 @@ function RouteLinks({ active, pathname }) {
                 </Link>
             )}
 
-            {route.children?.length > 0 && (
-                <RouteLinks
-                    routes={route.children}
-                    active={active}
-                    pathname={pathname}
-                />
-            )}
         </Fragment>
     ))
 }
@@ -36,25 +27,15 @@ function MainSidebar({ active, state }) {
     const location = useLocation()
     const pathname = location.pathname
 
-    const sidebarStatus =
-        state?.botOnline ||
-        state?.summary?.botOnline ||
-        "offline"
-
-    const isOnline = ["active", "online"].includes(
-        String(sidebarStatus).toLowerCase()
-    )
+    const sidebarStatus = state?.botOnline || state?.summary?.botOnline || "offline"
+    const isOnline = ["active", "online"].includes(String(sidebarStatus).toLowerCase())
 
     return (
         <aside className="sidebar">
             <div className="sidebar-title">NAVIGATION</div>
 
             <nav>
-                <RouteLinks
-                    routes={routes}
-                    active={active}
-                    pathname={pathname}
-                />
+                <RouteLinks routes={routes} active={active} pathname={pathname} />
             </nav>
 
             <div className="sidebar-footer">

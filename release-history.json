@@ -95,5 +95,37 @@
             "added authenticated /api/admin/server-events with a seperate server events page and critical-event prioritisation",
             "added server event search and status filtering, timestamps, improved admin event styling, and fixed blank 404 rendering"
         ]
+    },
+    "v0.9.6-beta": {
+        "summary": "v0.9.6-beta - ADMIN EHANCEMENTS: errors views, log archiving & restoration, logs deletion controls, RAG IMPROVEMENTS AND MORE...",
+        "changes": [
+            "added 3 new admin endpoints, `/errors`, `/errors/stream`, and `/log-archives`",
+            "added 1 new public endpoint `/api/session` for retrieving the current session information",
+            "added 7 new controls for admin including: `delete-logs`, `delete-lines`, `delete-last`, `delete-line`, `rotate-logs`, `restore-log` and `reset-telemetry`",
+            "added 3 new admin pages for viewing server events, errors, and logs, and split `admin.css` into seperate files for each page",
+            "added 2 new dependencies `marked` and `dompurify` for rendering markdown in the admin pages",
+            "added 3 new tools: `test`, `update`, `all`.",
+            "added new error view that allows to see all errors, their stack, timestamp, and file of origin",
+            "added new log archive view that allows to see all backups, their timestamps, lines, bytes, and able to restore/switch between backups",
+            "added new logs controls that allows to delete logs from X to X, delete last X lines, delete a specific line",
+            "added a reset telemetry control that allows to reset the telemetry data",
+            "added descriptive friendly error messages for all errors",
+            "replaced custom markdown parser with `marked` and `dompurify` for better security and performance",
+            "removed children=[] from routes.js and any dependencies on it",
+            "updated docs with up to date information",
+            "improved RAG route extraction to detect routes defined through conditional path checks, including exact matches, prefixes, and array-based path matching",
+            "RAG: improved HTTP method inference for conditionally handled routes, including GET and POST methods",
+            "RAG: fixed duplicate route entries in the route parser by merging matching routes and their inferred methods",
+            "fixed `/api/routes` to return accurate route information, including supported HTTP methods, match types, source files, and line numbers",
+            "RAG: expanded route discovery to include endpoints defined outside `server/api/`, such as `/webhook` and `/admin/login`",
+            "added automated tests for `code-parser.js` to verify route extraction, HTTP method inference, and route deduplication",
+            "added thinking (which shows the summary of tools used, tool responses and reasoning) and time elapsed to the AI activity view",
+            "switched model from openrouter/free to openai/gpt-6-luna for better performance and reliability",
+            "moved `csrfToken` from `/api/admin/summary` too `/api/session` for better security and tells information about the current client authorisation",
+            "fixed head not showing csrftoken in the meta tag",
+            "deduplicated the `getReleaseInfo` function to avoid redundant version info",
+            "added/revised all docs to reflect the latest changes, including new endpoints, admin controls, and RAG improvements",
+            "updated README.md with new features, endpoints, and admin controls"
+        ]
     }
 }

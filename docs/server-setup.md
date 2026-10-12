@@ -1,111 +1,338 @@
-# Slackzilla server setup
+# Slackzilla Server Setup
 
-this is the current checklist for getting the bot, webhook, and hosted dashboard running on one server.
+**Last updated:** _09/10/2026_
 
-## what runs where
+## TOC
 
-1. `bot/bot.js` runs the Slack bot over Socket Mode.
-2. `server/server.js` serves the dashboard, admin pages, api routes, and webhook handler.
-3. `server/deploy.sh` is called when a signed push webhook lands on the server. (pulls latest changes)
-4. `server/slackzilla.service` runs the bot process. 
-5. `server/slackzilla-webhook.service` runs the dashboard and webhook server.
+| Section                                                                                | Description                                           |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| [Overview](#overview)                                                                  | Overview of the server setup process.                 |
+| [1. Architecture](#1-architecture)                                                     | The architecture of the Slackzilla server.            |
+| [2. Requirements](#2-requirements)                                                     | The requirements for setting up the server.           |
+| [3. Install system packages and Node.js](#3-install-system-packages-and-nodejs)        | Installing the necessary system packages and Node.js. |
+| [4. Clone the repository](#4-clone-the-repository)                                     | Cloning the Slackzilla repository.                    |
+| [5. Configure environment files](#5-configure-environment-files)                       | Configuring the environment files for the server.     |
+| [6. Configure Nginx (if required)](#6-configure-nginx-if-required)                     | Configuring Nginx for the server.                     |
+| [7. Install and start the systemd services](#7-install-and-start-the-systemd-services) | Installing and starting the systemd services.         |
+| [8. Configure GitHub Actions secrets](#8-configure-github-actions-secrets)             | Configuring GitHub Actions secrets for deployment.    |
+| [9. Verify the installation](#9-verify-the-installation)                               | Verifying the server installation.                    |
+| [10. Normal deployment workflow](#10-normal-deployment-workflow)                       | The normal workflow for deploying changes.            |
+| [11. Troubleshooting](#11-troubleshooting)                                             | Troubleshooting common issues.                        |
+| [Related documentation](#related-documentation)                                        | Links to related documentation.                       |
 
-## what you need first
+## Overview
 
-1. a linux server with `sudo` access.
-2. a github repo that can run actions.
-3. your slack app credentials.
-4. a public url or reverse proxy for port `9000`, because the same server now serves the webhook and dashboard.
+This guide covers the one-time setup of a Slackzilla server. After setup, normal code changes should be committed and pushed to GitHub. The GitHub Actions workflow handles deployment; do not edit the production checkout directly.
 
-## install checklist
+## 1. Architecture
 
-1. clone the repo on the server. (`git clone https://github.com/rylvion/slackzilla.git`)
-2. install `git`, `curl`, `ca-certificates`, `nano`, `openssl`, and `nodejs`.
-3. run `npm ci` in the repo root.
-4. create `bot/.env` from `bot/.env.example` and fill in `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, and `SLACK_SIGNING_SECRET`.
-5. create `server/.env` from `server/.env.example`.
-6. set `WEBHOOK_SECRET` to the same value you will use in github secrets.
-7. set `PROJECT_DIR` to the full repo path on the server.
-8. set `REPO_URL` to the git remote you want deployed.
-9. keep `BRANCH=main` unless you want the deploy flow to get weird.
-10. generate `ADMIN_PASSWORD_HASH` as a pbkdf2 hash.
-11. set `ADMIN_SESSION_SECRET` to a random secret.
-12. set `COOKIE_SECURE=true` if the dashboard sits behind https.
+Slackzilla runs as two systemd services:
 
-or you can skip all this and run `./server/setup.sh` to do it for you, but you will still need to fill in the slack credentials and secrets.
+| Service                      | Entry point        | Purpose                                                       |
+| ---------------------------- | ------------------ | ------------------------------------------------------------- |
+| `slackzilla.service`         | `bot/bot.js`       | Connects to Slack and runs the bot                            |
+| `slackzilla-webhook.service` | `server/server.js` | Serves the dashboard and API, and accepts deployment webhooks |
 
-## API and dashboard configuration
+The Node server listens on port `9000` by default. The supplied Nginx configuration listens on port `80` and proxies requests to `http://localhost:9000`.
 
-1. `PORT=9000` is the default dashboard and webhook port.
-2. the public server should expose `/`, `/status`, `/logs`, `/admin`, `/api/*`, and `/webhook` through the same port or reverse proxy. (and `/api/admin/*` is authenticated with the admin password)
-3. set `WEBHOOK_SECRET` in `server/.env` and use the same value in the github action secret named `WEBHOOK_SECRET`.
-4. set `WEBHOOK_URL` in github actions to something like `http://your-server:9000/webhook`.
-5. set `COOKIE_SECURE=true` when the dashboard is behind https, otherwise leave it on `false` for plain http testing.
-6. if you want the dashboard to manage a differently named systemd service, set `SERVICE_NAME` to that service name.
-7. if your webhook service has a different unit name, set `WEBHOOK_SERVICE_NAME` so deploy restarts target the right process.
-8. `PROJECT_DIR` should point at the absolute repo path on the server so the dashboard can read git metadata.
-9. `REPO_URL` should match the remote that the deploy script should use.
-10. set `SLACK_BOT_TOKEN` in `server/.env` if you want feedback responses sent directly from the dashboard. The server also falls back to `bot/.env` for local development, but the server environment is preferred.
+<div align="center">
+    <img src="../assets/attachments/d3/g-act-arch.png" alt="GitHub Actions Deployment Architecture" width="600">
+</div>
 
-## systemd setup
+A successful webhook response (`202 Accepted`) means the deployment was accepted, not that the deployment has finished successfully. Check the admin dashboard or service logs for the final result.
 
-1. copy `server/slackzilla.service` to `/etc/systemd/system/slackzilla.service`.
-2. copy `server/slackzilla-webhook.service` to `/etc/systemd/system/slackzilla-webhook.service`.
-3. run `sudo systemctl daemon-reload`.
-4. run `sudo systemctl enable --now slackzilla.service slackzilla-webhook.service`.
+## 2. Requirements
 
-## github actions setup
+Use a Debian/Ubuntu Linux server with:
 
-1. add a repo secret called `WEBHOOK_URL` that points at the webhook endpoint, usually something like `http://your-server:9000/webhook`.
-2. add a repo secret called `WEBHOOK_SECRET` and make it exactly match `server/.env`.
-3. push to `main` and the workflow should send a signed webhook to the server.
+- `git`, `curl`, `ca-certificates`, `openssl` and `nginx` if Nginx is part of the server's routing setup
+- Node.js 22, matching the version used by the GitHub Actions workflow
+- npm (bundled with Node.js)
+- `systemd`
+- A Git checkout of this repository
+- A Slack app with its bot token, app-level token and signing secret
+- Access to configure GitHub repository Actions secrets
+- A public URL that can reach the server's webhook endpoint
 
-## API routes and registration
+The systemd unit files currently run as `root` and use `/root/projs/slackzilla` as their working directory. The steps below use that path to match the supplied unit files. If you choose another location or user, update both unit files and the deployment configuration consistently.
 
-The backend uses Node's built-in `http` module, not Express. An API implementation is a handler in `server/api/<name>/index.js` that receives `{ req, res, url, context }`. It checks the path and method, sends a response, and returns `true` when it handled the request. Return `false` for requests owned by another handler.
+## 3. Install system packages and Node.js
 
-Every handler must be registered in two places:
+Install the system packages:
 
-1. Import it near the other API imports in `server/server.js`.
-2. Call it from `handleApi` in `server/server.js`.
+```bash
+sudo apt update
+sudo apt install -y git curl ca-certificates nano openssl nginx
+```
 
-Use `context.sendOk(res, data)` for successful JSON responses and `context.sendError(res, status, code, message)` for errors. Use `context.parseBody(req)` for request bodies. Private admin handlers must require a session, and state-changing handlers must verify the session CSRF token.
+Install Node.js 22 using your preferred trusted Node.js installation method. Confirm the versions:
 
-The frontend registry at `server/client/src/components/utils/api-routes.js` is documentation metadata only. It does not mount routes. Keep its `livesAt` and `schema` paths aligned with the implementation and schema files. JSON schemas currently describe the contract but are not automatically validated at runtime.
+```bash
+node --version
+npm --version
+```
 
-Current API handlers are in `server/api/status/`, `server/api/logs/`, `server/api/metrics/`, `server/api/admin/`, `server/api/feedback/`, and `server/api/control/`.
+The Node.js version should be compatible with the project's dependencies and should match the major version used by CI (22).
 
-### Command and codebase assistant APIs
+## 4. Clone the repository
 
-`GET /api/commands` lists every command with its stable metadata ID. `GET /api/commands/<id>` returns command help and usage metadata. `POST /api/commands/<id>` accepts a JSON body such as `{ "text": "2 + 3" }` and returns the responses produced by the existing Slack command handler.
+The supplied systemd files expect the project at `/root/projs/slackzilla`. Create the checkout at that location, or change the service files and `PROJECT_DIR` if you use a different path.
 
-`POST /api/ask` accepts `{ "question": "How does feedback work?" }`. It searches relevant repository files and uses `AI_API_KEY` with `AI_MODEL` when configured to answer from that context. To explicitly run a command and include its result, send `{ "question": "Run the calculator", "commandId": "calculator", "commandText": "2 + 3" }`. Command execution is explicit; a normal question does not execute a command.
+For the supplied path:
 
-The API adapter invokes the same command modules used by Slack, so a command only needs to be added to `bot/data/commands.json` and implemented in `bot/cmds/` to become discoverable. The adapter captures text and Slack block responses as JSON; external effects performed by a command still occur, so expose these endpoints only to trusted clients in production.
+```bash
+sudo mkdir -p /root/projs
+sudo git clone https://github.com/rylvion/slackzilla.git /root/projs/slackzilla
+cd /root/projs/slackzilla
+sudo npm ci
+```
 
-## dashboard routes
+If you are running these commands as a non-root user, ensure the checkout is readable and writable by the account that runs the deployment script. The current systemd units use `User=root`.
 
-1. `/` shows the landing page.
-2. `/status` shows uptime and runtime metrics.
-3. `/logs` shows the log viewer.
-4. `/admin` opens the authenticated control panel.
-5. `/api/status`, `/api/logs`, `/api/metrics`, and `/api/admin/*` back the dashboard data.
+## 5. Configure environment files
 
-## sanity checks
+Create the environment files from the examples:
 
-1. `systemctl status slackzilla.service`
-2. `systemctl status slackzilla-webhook.service`
-3. `journalctl -u slackzilla -f output=cat`
-4. `journalctl -u slackzilla-webhook.service -f`
-5. open `http://your-server:9000/`, `http://your-server:9000/status`, and `http://your-server:9000/logs` in a browser.
-6. test a public API with `curl http://localhost:9000/api/status`; use an API client for authenticated or state-changing requests.
+```bash
+cd /root/projs/slackzilla
+cp bot/.env.example bot/.env
+cp server/.env.example server/.env
+```
 
-## when it breaks
+Edit both files. Do not commit either `.env` file or put real credentials in documentation.
 
-1. if the bot does not start, check `bot/.env` first.
-2. if deploys fail, compare `WEBHOOK_SECRET` in github secrets with `server/.env`.
-3. if `/admin` refuses to open, double check `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`, and `COOKIE_SECURE`.
-4. if the webhook endpoint is unreachable, check your reverse proxy or firewall rules.
-5. if you change `server/server.js`, restart `slackzilla-webhook.service` so the new dashboard code is picked up.
+### `bot/.env`
 
-If you need more help, join [#slackzilla-troubleshooting](https://app.slack.com/client/E09V59WQY1E/C0B8NGLD7K2) or dm me at `@rylvion` on slack or `@rylvion2` on discord.
+Set the Slack app credentials:
+
+```bash
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_APP_TOKEN=xapp-your-app-level-token
+SLACK_SIGNING_SECRET=your-signing-secret
+```
+
+The optional AI settings shown in `bot/.env.example` are:
+
+```bash
+AI_API_KEY=
+AI_MODEL=openai/gpt-6-luna
+AI_URL=https://ai.hackclub.com/proxy/v1/chat/completions
+```
+
+Only configure the AI values if the AI feature is intended to be used and the configured provider supports the selected model. Do not assume the example model is available simply because it appears in the example file.
+
+### `server/.env`
+
+Set the server and deployment values:
+
+```bash
+WEBHOOK_SECRET=replace-with-a-random-secret
+PORT=9000
+PROJECT_DIR=/root/projs/slackzilla
+SERVICE_NAME=slackzilla
+WEBHOOK_SERVICE_NAME=slackzilla-webhook
+BRANCH=main
+REPO_URL=https://github.com/rylvion/slackzilla.git
+ADMIN_PASSWORD_HASH=replace-with-a-valid-password-hash
+ADMIN_SESSION_SECRET=replace-with-a-random-secret
+COOKIE_SECURE=false
+```
+
+Notes:
+
+- Generate long random secrets, for example with `openssl rand -hex 32`.
+- `WEBHOOK_SECRET` must be identical in `server/.env` and the GitHub Actions repository secret of the same name.
+- `ADMIN_PASSWORD_HASH` must be a password hash in the format expected by Slackzilla: `pbkdf2$algorithm$iterations$salt$hash`. The bot provides the `/sz-hash` command for generating hashes. Set the generated hash here, not the plain-text password.
+- `ADMIN_SESSION_SECRET` is used to sign admin sessions and must be a strong random secret.
+- Set `COOKIE_SECURE=true` when the dashboard is served over HTTPS. Use `false` only when the browser connection is genuinely HTTP, such as local testing. If HTTPS terminates at an external proxy, configure this according to the public-facing connection.
+- Keep `PORT=9000` when using the supplied Nginx configuration, because it proxies to `localhost:9000`.
+- `PROJECT_DIR`, `SERVICE_NAME`, `WEBHOOK_SERVICE_NAME`, `BRANCH` and `REPO_URL` must match the checkout and systemd service names.
+
+## 6. Configure Nginx (if required)
+
+The supplied `server/slackzilla.conf` contains:
+
+```nginx
+server {
+    listen 80;
+    server_name rylvion.hackclub.app;
+
+    location / {
+        proxy_pass http://localhost:9000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+Copy and enable the configuration:
+
+```bash
+sudo cp /root/projs/slackzilla/server/slackzilla.conf /etc/nginx/sites-available/slackzilla.conf
+sudo ln -s /etc/nginx/sites-available/slackzilla.conf /etc/nginx/sites-enabled/slackzilla.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+If the symlink already exists, do not create a duplicate. If the default Nginx site conflicts with this virtual host, disable it only after confirming it is not needed.
+
+**Important:** use Nginx only if requests are meant to pass through this server's Nginx instance. Some hosting platforms route the public hostname directly to a configured port. In that arrangement, configure the platform to reach port `9000` and do not assume that editing the local Nginx configuration changes the public route. The public URL must reach the Node server, and the proxy must preserve the webhook request body and `X-Hub-Signature-256` header unchanged.
+
+## 7. Install and start the systemd services
+
+The supplied unit files are:
+
+- `server/slackzilla.service`, which runs `/usr/bin/node bot/bot.js`
+- `server/slackzilla-webhook.service`, which runs `/usr/bin/node server/server.js`
+
+Both currently use:
+
+```ini
+User=root
+WorkingDirectory=/root/projs/slackzilla
+Restart=always
+RestartSec=5
+```
+
+Install and enable them:
+
+```bash
+cd /root/projs/slackzilla
+sudo cp server/slackzilla.service /etc/systemd/system/slackzilla.service
+sudo cp server/slackzilla-webhook.service /etc/systemd/system/slackzilla-webhook.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now slackzilla.service slackzilla-webhook.service
+```
+
+Check that both services started:
+
+```bash
+sudo systemctl status slackzilla.service
+sudo systemctl status slackzilla-webhook.service
+```
+
+If you change either unit file later, copy the updated file into `/etc/systemd/system/`, then run `sudo systemctl daemon-reload` and restart the affected service.
+
+## 8. Configure GitHub Actions secrets
+
+The deployment workflow runs on pushes to `main` and can also be started manually with `workflow_dispatch`. It generates and validates the Slack manifest, rotates the manifest token, syncs the manifest to Slack, and sends a signed deployment request.
+
+Configure the following repository secrets in GitHub Actions:
+
+| Secret                | Purpose                                                         |
+| --------------------- | --------------------------------------------------------------- |
+| `SLACK_REFRESH_TOKEN` | Used by the manifest-token rotation step                        |
+| `GH_SECRET_PAT`       | Used by the token-rotation script to update a repository secret |
+| `SLACK_APP_ID`        | Identifies the Slack app whose manifest is updated              |
+| `WEBHOOK_URL`         | Public URL for the server's `/webhook` endpoint                 |
+| `WEBHOOK_SECRET`      | Must match `WEBHOOK_SECRET` in `server/.env`                    |
+
+The workflow also expects the rotated `SLACK_MANIFEST_TOKEN` as an output from the rotation step. It is not a manually configured repository secret in the supplied workflow.
+
+For example, if the public site is `https://example.com`, the webhook URL would normally be `https://example.com/webhook`. Use the actual public URL configured for this server.
+
+The workflow signs the exact request body with HMAC-SHA256. Do not transform or re-serialise the body in a reverse proxy, because doing so can cause signature verification to fail.
+
+## 9. Verify the installation
+
+Check both services:
+
+```bash
+sudo systemctl is-active slackzilla.service
+sudo systemctl is-active slackzilla-webhook.service
+```
+
+Check recent logs:
+
+```bash
+sudo journalctl -u slackzilla.service -n 100 --no-pager
+sudo journalctl -u slackzilla-webhook.service -n 100 --no-pager
+```
+
+Check that the local HTTP server responds:
+
+```bash
+curl -i http://localhost:9000/
+```
+
+An unsigned webhook request should be rejected:
+
+```bash
+curl -i -X POST http://localhost:9000/webhook \
+  -H "X-GitHub-Event: push" \
+  -H "Content-Type: application/json" \
+  -d '{"ref":"refs/heads/main"}'
+```
+
+Expected response:
+
+```text
+401 Invalid signature
+```
+
+This confirms that the webhook endpoint is reachable and rejects an unauthenticated request. It does not test a complete deployment.
+
+## 10. Normal deployment workflow
+
+Once initial setup is complete:
+
+1. Make changes in your local development checkout.
+2. Test the changes and commit them.
+3. Push the commit to GitHub's `main` branch.
+4. GitHub Actions validates and syncs the Slack manifest, then sends the signed deployment webhook.
+5. Slackzilla verifies the signature and branch, then queues the deployment.
+6. `server/deploy.sh` fetches the configured branch and compares it with the local `HEAD`.
+7. If the commit differs, the script resets the checkout to `origin/main`, runs `npm ci`, builds the dashboard and restarts services.
+
+The deployment script uses `git reset --hard`. Treat the server checkout as deployment-managed: do not make code changes there, because local uncommitted changes can be discarded. Push intended changes through GitHub instead.
+
+A webhook response of `202` is only an acknowledgement that the request was accepted. Confirm the final deployment state in the admin dashboard or logs.
+
+## 11. Troubleshooting
+
+### A service will not start
+
+```bash
+sudo systemctl status slackzilla.service
+sudo systemctl status slackzilla-webhook.service
+sudo journalctl -u slackzilla.service -n 100 --no-pager
+sudo journalctl -u slackzilla-webhook.service -n 100 --no-pager
+```
+
+Check that the working directory exists, Node.js is installed at `/usr/bin/node`, dependencies have been installed, and the relevant `.env` file exists and contains the required values.
+
+### The webhook returns `401 Invalid signature`
+
+Check that `WEBHOOK_SECRET` in `server/.env` exactly matches the GitHub Actions repository secret. Also check that any reverse proxy preserves the original request body and `X-Hub-Signature-256` header.
+
+### The webhook returns `202`, but deployment fails
+
+This is possible because the webhook responds before the deployment script finishes. Inspect the admin deployment status and logs, then check:
+
+```bash
+sudo journalctl -u slackzilla-webhook.service -n 200 --no-pager
+sudo journalctl -u slackzilla.service -n 200 --no-pager
+```
+
+Confirm that the service user can access the checkout and run the required commands. The supplied units run as `root`.
+
+### The dashboard cannot be reached
+
+Confirm that `server/.env` uses `PORT=9000`, that `slackzilla-webhook.service` is active, and that the public URL routes to the correct port. If using Nginx, run:
+
+```bash
+sudo nginx -t
+sudo systemctl status nginx
+sudo journalctl -u nginx -n 100 --no-pager
+```
+
+The local Nginx configuration and a hosting provider's public routing are separate layers. Verify both when diagnosing a connection issue.
+
+## Related documentation
+
+- [`webhook.md`](webhook.md): webhook authentication, payload validation, deployment behaviour and response codes.
+- [`server/deploy.sh`](../server/deploy.sh): deployment implementation.
+- [`server/slackzilla.service`](../server/slackzilla.service): bot service unit.
+- [`server/slackzilla-webhook.service`](../server/slackzilla-webhook.service): dashboard/API and webhook service unit.
+- [`server/.env.example`](../server/.env.example): server environment variable template.
+- [`bot/.env.example`](../bot/.env.example): bot environment variable template.

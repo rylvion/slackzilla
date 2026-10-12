@@ -20,27 +20,25 @@ function findVersion(requestedVersion) {
 }
 
 function getReleaseInfo(requestedVersion) {
+    const currentVersion = packageJson.version
     const version = findVersion(requestedVersion)
+
+    if (version === currentVersion) {
+        return {
+            currentVersion,
+            version,
+            summary: packageJson.releaseNotes?.summary || null,
+            changes: packageJson.releaseNotes?.changes || []
+        }
+    }
+
     const release = version ? releaseHistory[version] : null
-    const releaseCommandPath = "bot/cmds/release.js"
 
     return {
-        currentVersion: packageJson.version,
-        packageReleaseNotes: packageJson.releaseNotes || null,
-        requestedVersion: requestedVersion || null,
+        currentVersion,
         version,
-        release,
-        availableVersions: Object.keys(releaseHistory),
-        sources: [
-            { path: "package.json", purpose: "current version and package release notes" },
-            { path: "release-history.json", purpose: "versioned release summaries and changes" },
-            { path: releaseCommandPath, purpose: "Slack release command lookup and formatting" }
-        ],
-        releaseCommand: {
-            command: "/sz-release",
-            implementation: releaseCommandPath,
-            supports: ["current release", "exact version lookup", "fuzzy version suggestions"]
-        }
+        summary: release?.summary || null,
+        changes: release?.changes || []
     }
 }
 

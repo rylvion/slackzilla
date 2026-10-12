@@ -64,7 +64,8 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "runCommand",
-            description: "Run a registered Slackzilla command and return its output. All registered commands are available by default except commands explicitly blocked from AI tool execution. The /sz-ask command is blocked because it would recursively invoke the AI assistant. When the user asks to run or execute a command, call this tool instead of getCommands or inferring the output. Use commandId for the command to run and text only for the content that should be passed to that command. Do not include surrounding instructions about using the command unless the user explicitly asks for them to be included. If the user asks you to format, rewrite, summarise, or otherwise transform content before passing it to the command, apply that transformation first. Keep command arguments focused on the requested action and content, then use the command's output as evidence when generating the final answer. For example, 'run the info command' uses commandId 'info'. Do not attempt to run a blocked command.",            parameters: {
+            description: "Run a registered Slackzilla command and return its output. All registered commands are available by default except commands explicitly blocked from AI tool execution. The /sz-ask command is blocked because it would recursively invoke the AI assistant. When the user asks to run or execute a command, call this tool instead of getCommands or inferring the output. Use commandId for the command to run and text only for the content that should be passed to that command. Do not include surrounding instructions about using the command unless the user explicitly asks for them to be included. If the user asks you to format, rewrite, summarise, or otherwise transform content before passing it to the command, apply that transformation first. Keep command arguments focused on the requested action and content, then use the command's output as evidence when generating the final answer. For example, 'run the info command' uses commandId 'info'. Do not attempt to run a blocked command.",
+            parameters: {
                 type: "object",
                 properties: {
                     commandId: { type: "string" },
@@ -83,10 +84,24 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getLogs",
-            description: "Read a small recent tail of the Slackzilla log for diagnosing current failures.",
+            description: "Read up to the latest 10 entries from the Slackzilla log for diagnosing current failures.",
             parameters: {
                 type: "object",
-                properties: { limit: { type: "integer", minimum: 1, default: 20, maximum: 100 } },
+                properties: { limit: { type: "integer", minimum: 1, default: 10, maximum: 10 } },
+                additionalProperties: false
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "getErrors",
+            description: "Read the latest 10 structured server errors from /api/admin/errors. Timestamps, source, name and message are included by default; request stack traces only when explicitly needed.",
+            parameters: {
+                type: "object",
+                properties: {
+                    includeStack: { type: "boolean", description: "Include stack traces in the response." }
+                },
                 additionalProperties: false
             }
         }
@@ -108,8 +123,67 @@ const toolDefinitions = [
         }
     }
 ]
-
 const blockedKey = /(authorization|cookie|password|secret|token|api.?key|private.?key|environment|env)/i
+
+function getToolHelp(toolName) {
+    const definition = toolDefinitions.find(
+        tool => tool.function.name === toolName
+    )
+
+    if (!definition) return null
+
+    const { name, description, parameters } = definition.function
+    const properties = parameters.properties || {}
+    const required = parameters.required || []
+
+    const lines = [
+        `Tool: ${name}`,
+        "",
+        "Description:",
+        description,
+        "",
+        "Parameters:"
+    ]
+
+    if (Object.keys(properties).length === 0) {
+        lines.push("  None")
+    } else {
+        for (const [key, property] of Object.entries(properties)) {
+            const isRequired = required.includes(key)
+            const type = property.type || "any"
+
+            lines.push("")
+            lines.push(`  --${key}${isRequired ? " (required)" : ""}`)
+            lines.push(`    Type: ${type}`)
+
+            if (property.description) {
+                lines.push(`    ${property.description}`)
+            }
+
+            if (property.minimum !== undefined) {
+                lines.push(`    Minimum: ${property.minimum}`)
+            }
+
+            if (property.maximum !== undefined) {
+                lines.push(`    Maximum: ${property.maximum}`)
+            }
+
+            if (property.default !== undefined) {
+                lines.push(`    Default: ${property.default}`)
+            }
+        }
+    }
+
+    lines.push("")
+    lines.push("Usage:")
+    lines.push(`  npm run rag:use-tool -- --${name}`)
+
+    if (Object.keys(properties).length > 0) {
+        lines.push(`  npm run rag:use-tool -- --${name} --help`)
+    }
+
+    return lines.join("\n")
+}
 
 function sanitise(value, key = "", depth = 0) {
     if (blockedKey.test(key)) return "[redacted]"
@@ -158,7 +232,7 @@ function withTimeout(task) {
     })
 }
 
-function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, getLogs, getMetrics, getRoutes } = {}) {
+function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, getLogs, getErrors, getMetrics, getRoutes } = {}) {
     const handlers = {
         getStatus,
         getCommands,
@@ -182,9 +256,13 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
             }
         },
         getLogs: async args => {
-            const limit = Math.min(100, Math.max(1, Number(args?.limit) || 50))
+            const limit = Math.min(10, Math.max(1, Number(args?.limit) || 10))
             const result = await getLogs?.(limit)
             return Array.isArray(result) ? result.slice(-limit) : result
+        },
+        getErrors: async args => {
+            const result = await getErrors?.(Boolean(args?.includeStack))
+            return Array.isArray(result) ? result.slice(0, 10) : result
         },
         getMetrics,
         getRoutes
@@ -195,6 +273,7 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
         getReleaseInfo: "/api/release",
         runCommand: "/api/commands/:id",
         getLogs: "/api/logs",
+        getErrors: "/api/admin/errors",
         getMetrics: "/api/metrics",
         getRoutes: "/api/routes"
     }
@@ -229,7 +308,14 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
                     ? `COMMAND ${args?.commandId || "unknown"} ${failed ? "rejected" : "completed"} (${durationMs}ms)`
                     : `GET ${endpoint} ${responseStatus} (${durationMs}ms)`, { status: responseStatus, durationMs })
                 if (isCommandTool) {
-                    return { ...data, endpoint, status: responseStatus, data: limitOutput(data.output ?? data.data ?? data) }
+                    const { output, ...rest } = data
+
+                    return {
+                        ...rest,
+                        endpoint,
+                        status: responseStatus,
+                        data: limitOutput(output ?? data.data ?? data)
+                    }
                 }
 
                 return { success: !failed, endpoint, status: responseStatus, data: limitOutput(data) }
@@ -245,5 +331,6 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
 }
 
 module.exports = {
-    createRagTools
+    createRagTools,
+    getToolHelp
 }

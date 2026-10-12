@@ -1,0 +1,100 @@
+.admin-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    max-width: 420px;
+}
+
+.admin-login-form label {
+    color: #648073;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-login-form label::before {
+    content: "$ ";
+    color: #315342;
+}
+
+.admin-login-form input {
+    width: 100%;
+    min-height: 38px;
+    box-sizing: border-box;
+    padding: 0 12px;
+
+    border: 1px solid rgba(0, 255, 120, 0.2);
+    outline: none;
+
+    background: rgba(2, 9, 6, 0.96);
+    color: #caffdf;
+
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+
+    transition:
+        border-color 120ms ease,
+        background 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.admin-login-form input::placeholder {
+    color: #315342;
+}
+
+.admin-login-form input:hover {
+    border-color: rgba(0, 255, 120, 0.35);
+}
+
+.admin-login-form input:focus {
+    border-color: rgba(0, 255, 120, 0.6);
+    background: rgba(0, 255, 120, 0.025);
+    box-shadow: 0 0 12px rgba(0, 255, 120, 0.06);
+}
+
+.admin-login-form button {
+    align-self: flex-start;
+    min-height: 36px;
+    margin-top: 5px;
+    padding: 0 16px;
+
+    border: 1px solid rgba(0, 255, 120, 0.25);
+    background: rgba(0, 255, 120, 0.045);
+    color: #00ff78;
+
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+
+    cursor: pointer;
+
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        box-shadow 120ms ease,
+        color 120ms ease;
+}
+
+.admin-login-form button::before {
+    content: "> ";
+    color: rgba(0, 255, 120, 0.4);
+}
+
+.admin-login-form button:hover:not(:disabled) {
+    border-color: rgba(0, 255, 120, 0.55);
+    background: rgba(0, 255, 120, 0.08);
+    color: #caffdf;
+    box-shadow: 0 0 12px rgba(0, 255, 120, 0.08);
+}
+
+.admin-login-form button:active:not(:disabled) {
+    background: rgba(0, 255, 120, 0.12);
+}
+
+.admin-login-form button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}

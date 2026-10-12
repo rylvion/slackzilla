@@ -1,26 +1,35 @@
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;")
-}
+import DOMPurify from "dompurify"
+import { marked } from "marked"
+
+marked.setOptions({
+    gfm: true,
+    breaks: true
+})
 
 export function activityToMarkdown(activity) {
-    const date = new Date(activity.timestamp || Date.now())
+    const source = activity && typeof activity === "object" ? activity : {}
+    const dateValue = new Date(source.timestamp || Date.now())
+    const date = Number.isNaN(dateValue.getTime()) ? new Date() : dateValue
     const pad = (value, length = 2) => String(value).padStart(length, "0")
     const timestamp = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
-    const type = String(activity.type || "activity").toUpperCase()
-    const status = activity.status ? ` **${activity.status}**` : ""
-    const metadata = activity.metadata
-        ? `\n\nMetadata:\n${Object.entries(activity.metadata)
+    const type = String(source.type || "activity").toUpperCase()
+    const status = source.status ? ` **${source.status}**` : ""
+    const metadata = source.metadata
+        ? `\n\n${Object.entries(source.metadata)
             .map(([key, value]) => {
+                if (value === null || value === undefined) {
+                    return `- ${key}=null`
+                }
+
+                if (typeof value === "object" && !Array.isArray(value)) {
+                    return `### ${key}\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``
+                }
+
                 if (!Array.isArray(value)) return `- ${key}=${value}`
 
                 if (!value.length) return `### ${key}\n- none`
 
-                if (typeof value[0] === "object") {
+                if (typeof value[0] === "object" && value[0] !== null) {
                     const columns = [...new Set(value.flatMap(item => Object.keys(item)))]
                     const header = `| ${columns.join(" | ")} |`
                     const separator = `| ${columns.map(() => "---").join(" | ")} |`
@@ -35,37 +44,22 @@ export function activityToMarkdown(activity) {
             .join("\n")}`
         : ""
 
-    return `**${timestamp}** \`${type}\`${status} - ${activity.message || "RAG activity updated"}${metadata}`
+    return `**${timestamp}** \`${type}\`${status} - ${source.message || "RAG activity updated"}${metadata}`
 }
 
 export function markdownToHtml(markdown) {
-    const codeBlocks = []
-    const inlineCode = []
-    const withCodePlaceholders = escapeHtml(markdown).replace(/```[^\n]*\n([\s\S]*?)```/g, (_, code) => {
-        const placeholder = `MARKDOWNCODE${codeBlocks.length}TOKEN`
-        codeBlocks.push(`<pre><code>${code}</code></pre>`)
-        return placeholder
-    })
+    if (markdown === null || markdown === undefined) return ""
 
-    const protectedMarkdown = withCodePlaceholders.replace(/`([^`]+)`/g, (_, code) => {
-        const placeholder = `MARKDOWNINLINE${inlineCode.length}TOKEN`
-        inlineCode.push(`<code>${code}</code>`)
-        return placeholder
-    })
+    const source = String(markdown)
+    if (!source.trim()) return ""
 
-    return protectedMarkdown
-        .replace(/((?:^\|[^\n]+\|\n?)+)/gm, block => {
-            const rows = block.trim().split("\n").map(row => row.split("|").slice(1, -1).map(cell => cell.trim()))
-            const headings = rows[0] || []
-            const body = rows.slice(2)
+    try {
+        const html = marked.parse(source)
 
-            return `<table><thead><tr>${headings.map(cell => `<th>${cell}</th>`).join("")}</tr></thead><tbody>${body.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+        return DOMPurify.sanitize(html, {
+            ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^:]*$)/i
         })
-        .replace(/^### (.+)$/gm, "<h4>$1</h4>")
-        .replace(/((?:^- .+$\n?)+)/gm, block => block.trim().split("\n").map(item => `<div class="markdown-list-item">${item.slice(2)}</div>`).join(""))
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/_(.+?)_/g, "<em>$1</em>")
-        .replace(/\n/g, "<br />")
-        .replace(/MARKDOWNINLINE(\d+)TOKEN/g, (_, index) => inlineCode[Number(index)] || "")
-        .replace(/MARKDOWNCODE(\d+)TOKEN/g, (_, index) => codeBlocks[Number(index)] || "")
+    } catch {
+        return DOMPurify.sanitize(source)
+    }
 }

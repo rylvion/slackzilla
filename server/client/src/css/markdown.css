@@ -1,0 +1,111 @@
+.markdown-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.65;
+}
+
+.markdown-content > :first-child { margin-top: 0; }
+.markdown-content > :last-child { margin-bottom: 0; }
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+    color: var(--green);
+    line-height: 1.3;
+}
+
+.markdown-content h1 { margin: 1.1em 0 0.5em; font-size: 1.45em; }
+.markdown-content h2 { margin: 1em 0 0.45em; font-size: 1.25em; }
+.markdown-content h3 { margin: 0.85em 0 0.35em; font-size: 1.1em; }
+.markdown-content h4 { margin: 0.7em 0 0.3em; font-size: 1em; }
+
+.markdown-content p { margin: 0 0 0.75em; color: var(--text); }
+
+.markdown-content ul,
+.markdown-content ol {
+    margin: 0.3em 0 0.6em;
+    padding-left: 1.6em;
+    line-height: 1.3;
+}
+
+.markdown-content li { margin: 0; }
+.markdown-content li > p { margin: 0; }
+.markdown-content li > ul,
+.markdown-content li > ol { margin-top: 0.1em; margin-bottom: 0.1em; }
+
+.markdown-content blockquote {
+    margin: 0.8em 0;
+    padding: 0.2em 0.9em;
+    border-left: 3px solid var(--green-dark);
+    color: var(--text-dim);
+}
+
+.markdown-content blockquote > :last-child { margin-bottom: 0; }
+
+.markdown-content hr {
+    margin: 1em 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+}
+
+.markdown-content table {
+    width: 100%;
+    margin: 0.8em 0;
+    border-collapse: collapse;
+    font-size: 0.95em;
+}
+
+.markdown-content th,
+.markdown-content td {
+    padding: 0.45em 0.6em;
+    border: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+
+.markdown-content th {
+    color: var(--green);
+    background: var(--green-faint);
+    font-weight: 600;
+}
+
+.markdown-content code {
+    padding: 0.1em 0.35em;
+    border: 1px solid var(--border);
+    background: var(--green-faint);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 0.9em;
+}
+
+.markdown-content pre {
+    max-width: 100%;
+    margin: 0.8em 0;
+    padding: 0.8em;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.markdown-content pre::-webkit-scrollbar {
+    height: 6px;
+}
+.markdown-content pre code {
+    display: block;
+    padding: 0;
+    overflow-wrap: normal;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: inherit;
+    white-space: pre;
+}
+
+.markdown-content a {
+    color: var(--green);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.markdown-content a:hover { color: var(--text); }

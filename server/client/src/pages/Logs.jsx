@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import PageShell from "../components/PageShell"
 import { useLogStream } from "../components/utils/api"
 import "../css/logs.css"
+import "../css/shared/logs/log-terminal.css"
 import ansiLine from "../components/logs/ansi-handler"
 import {isAtBottom, scrollToBottom, jumpToLine, jumpBy} from "../components/logs/logs-utils"
 
@@ -21,19 +22,14 @@ function Logs() {
         const params = new URLSearchParams(window.location.search)
 
         const q = params.get("q")
-        if (q) {
-            queueMicrotask(() => setQuery(q))
-        }
+        if (q) queueMicrotask(() => setQuery(q))
     }, [])
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
 
-        if (!query) {
-            params.delete("q")
-        } else {
-            params.set("q", query)
-        }
+        if (!query) params.delete("q")
+        else params.set("q", query)
 
         const newUrl = `${window.location.pathname}?${params.toString()}`
         window.history.replaceState({}, "", newUrl)
@@ -62,33 +58,21 @@ function Logs() {
             return
         }
 
-        const previousNumbers = new Set(
-            previousLinesRef.current.map((line) => line.number),
-        )
+        const previousNumbers = new Set(previousLinesRef.current.map((line) => line.number))
 
-        const addedLines = lines
-            .filter((line) => !previousNumbers.has(line.number))
-            .map((line) => line.number)
+        const addedLines = lines.filter((line) => !previousNumbers.has(line.number)).map((line) => line.number)
 
         if (addedLines.length) {
             setNewLines((current) => {
                 const next = new Set(current)
-
-                for (const number of addedLines) {
-                    next.add(number)
-                }
-
+                for (const number of addedLines) next.add(number)
                 return next
             })
 
             setTimeout(() => {
                 setNewLines((current) => {
                     const next = new Set(current)
-
-                    for (const number of addedLines) {
-                        next.delete(number)
-                    }
-
+                    for (const number of addedLines) next.delete(number)
                     return next
                 })
             }, 3000)
@@ -97,9 +81,7 @@ function Logs() {
         previousLinesRef.current = lines
 
         if (wasAtBottomRef.current) {
-            requestAnimationFrame(() => {
-                scrollToBottom(containerRef.current, false)
-            })
+            requestAnimationFrame(() => { scrollToBottom(containerRef.current, false)})
         }
     }, [lines])
 
@@ -118,21 +100,16 @@ function Logs() {
             const start = Number(rangeMatch[1])
             const end = Number(rangeMatch[2])
 
-            return lines.filter(
-                (line) => line.number >= start && line.number <= end,
-            )
+            return lines.filter((line) => line.number >= start && line.number <= end)
         }
 
         if (/^\d+$/.test(q)) {
             const num = Number(q)
-
             return lines.filter((line) => line.number === num)
         }
 
         return lines.filter(
-            (line) =>
-                String(line.number).includes(q) ||
-                line.text.toLowerCase().includes(q),
+            (line) => String(line.number).includes(q) || line.text.toLowerCase().includes(q),
         )
     }, [lines, query])
 
@@ -142,11 +119,7 @@ function Logs() {
                 <div className="panel-header">
                     <h1>Live Logs</h1>
 
-                    <span className="panel-subtitle">
-                        {connected
-                            ? "stream connected / 1s"
-                            : "stream reconnecting"}
-                    </span>
+                    <span className="panel-subtitle">{connected? "stream connected / 1s" : "stream reconnecting"}</span>
                 </div>
 
                 <div className="log-toolbar">
@@ -157,47 +130,24 @@ function Logs() {
                         aria-label="Filter logs"
                         onKeyDown={(event) => {
                             if (event.key !== "Enter") return
-
                             const q = query.trim()
 
                             if (/^\d+$/.test(q)) {
                                 const num = Number(q)
-
                                 setQuery("")
-
                                 setTimeout(() => {jumpToLine(containerRef.current, lines, num, setHighlightLine)}, 10)
                             }
                         }}
                     />
 
-                    <a className="button" href="/api/logs/download">
-                        download snapshot
-                    </a>
+                    <a className="button" href="/api/logs/download">download snapshot</a>
                 </div>
 
-                <div
-                    className="terminal"
-                    aria-live="polite"
-                    ref={containerRef}
-                    onScroll={handleScroll}
-                >
+                <div className="terminal" aria-live="polite" ref={containerRef} onScroll={handleScroll} >
                     <div className="log-lines">
-                        {filteredLines.length ? (
-                            filteredLines.map((line, i) =>
-                                ansiLine(
-                                    {
-                                        ...line,
-                                        highlightLine,
-                                        highlighted: newLines.has(line.number),
-                                    },
-                                    i,
-                                ),
-                            )
-                        ) : (
-                            <div className="muted">
-                                $ waiting for log output...
-                            </div>
-                        )}
+                        {filteredLines.length
+                        ? (filteredLines.map((line, i) => ansiLine({...line, highlightLine, highlighted: newLines.has(line.number)}, i)))
+                        : (<div className="muted"> $ waiting for log output...</div>)}
                     </div>
                 </div>
 

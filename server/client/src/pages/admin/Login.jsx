@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import PageShell from "../../components/PageShell"
-import "../../css/admin.css"
+import { refreshSession } from "../../components/utils/api"
+import "../../css/admin/base.css"
+import "../../css/admin/login.css"
 
 function AdminLogin() {
     const navigate = useNavigate()
@@ -11,9 +13,10 @@ function AdminLogin() {
 
     useEffect(() => {
         fetch("/admin/login", { headers: { Accept: "text/html" } }).then(response => {
-            if (response.redirected && new URL(response.url).pathname === "/admin") {
-                navigate("/admin", { replace: true })
-            }
+            if (!response.redirected || new URL(response.url).pathname !== "/admin") return null
+            return refreshSession()
+        }).then(session => {
+            if (session?.authenticated) navigate("/admin", { replace: true })
         }).catch(() => {})
     }, [navigate])
 
@@ -34,6 +37,7 @@ function AdminLogin() {
                 throw new Error(result.error || `Login failed with ${response.status}`)
             }
 
+            await refreshSession()
             navigate(result.data?.redirect || "/admin")
         } catch (requestError) {
             setError(requestError.message)

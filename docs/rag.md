@@ -1,216 +1,416 @@
 # Slackzilla RAG Assistant
 
-Slackzilla's RAG assistant answers questions about the repository by retrieving relevant project context before asking an AI model to produce an answer. RAG means Retrieval-Augmented Generation:
+**Last updated:** _09/10/2026_
 
-The implementation is in `server/lib/rag/rag.js`. The HTTP endpoint is `POST /api/ask`; the Slack interface is `/sz-ask`; and the public dashboard client is the `/ai` page.
+This document describes Slackzilla's Retrieval-Augmented Generation (RAG) implementation, based on the supplied `server/lib/rag/rag.js`, RAG tool adapter, and `server/lib/code-parser.js` source. It covers repository indexing and retrieval, structural code analysis, context selection, model requests, live tools, streaming response parsing, diagnostics, and the relevant npm scripts.
 
-The dashboard request is streamed. `server/client/src/pages/Ai.jsx` submits the question with `streamJson()` from `server/client/src/components/utils/api.js`. `server/api/ask/index.js` opens an SSE response and forwards `activity`, `token`, `complete`, and `error` events. The RAG service emits activity events while it retrieves sources, finds images, builds code context, and calls the model. The client appends activity events immediately and appends AI tokens as they arrive.
+The main implementation is `server/lib/rag/rag.js`. Its public exports include `answerQuestion()`, `retrieve()`, `retrieveImages()`, `buildIndex()`, `loadIndex()`, `findSymbols()`, `findRoutes()`, `getDependencies()`, `getDependants()`, `findEnvironmentVariable()`, `getCodeContext()`, and `calculateScore()`. The JavaScript parser is implemented in `server/lib/code-parser.js`; live model tools are defined and executed by the RAG tool module imported by the service.
 
-When the dashboard request has live-tool access, the model can choose from a fixed set of Slackzilla tools: `getStatus`, `getCommands`, `getReleaseInfo`, `runCommand`, `getLogs`, `getMetrics`, and `getRoutes`. `getCommands` provides command discovery and metadata, supporting exact and field-based filtering as well as fuzzy search, while an unfiltered request returns a compact list of command IDs. `runCommand` executes a registered Slackzilla command using its command ID and optional input, with commands explicitly blocked from AI execution excluded from tool use. These tools are internal adapters over Slackzilla's existing status, release, command, log, metrics, and repository-index data. There is no generic URL tool. Tool execution is bounded by a timeout and response-size limit, sanitised before reaching the model, and recorded as activity events. API-backed tools are recorded as `api_request` events, while `runCommand` is recorded separately as a `command_tool` event. Status evidence omits the high-volume `telemetryHistory` series. A failed tool returns structured failure data so repository-based answering can continue.
 
-## What RAG Does Here
+## Architecture
 
-The assistant is repository-aware rather than a general chatbot. It searches the checked-out Slackzilla source tree and gives the model matching code or documentation snippets. This helps answers stay grounded in the actual implementation instead of relying only on model memory.
+Slackzilla's RAG service combines lexical retrieval over repository text, filename-based image discovery, AST-derived code metadata, bounded repository-context packing, and optional OpenAI-compatible model generation. It can also receive a live-tools adapter so the model can query current runtime data or run a registered Slackzilla command. These are separate evidence paths: repository sources describe the checked-out code, whereas live tools query data exposed by the running application.
 
-The assistant returns:
+`answerQuestion()` coordinates the request. It validates that the question is non-empty, creates activity records, optionally runs a command, retrieves text and images, builds codebase context, and then either returns local retrieval results or calls the configured AI endpoint. When an activity callback is supplied, activity events are forwarded as they are created. When an `onToken` callback is supplied, the final accumulated answer is passed to it after model processing.
 
-- `answer`: the model answer or a local fallback message.
-- `sources`: matching text-file paths, starting lines, and lexical scores.
-- `images`: matching visual assets with public URLs.
-- `command`: the captured result when a command was explicitly executed.
+## Repository file collection
 
-## Retrieval Pipeline
+The text index is built from the repository root derived from `server/lib/rag/rag.js`. `collectFiles()` recursively walks directories and includes files with the following extensions:
 
-### 1. File collection
-
-`collectFiles()` recursively walks the repository root. Text retrieval currently permits these extensions:
-
-```text
-.js .jsx .mjs .json .md .css .html .yml .service .conf .example
+```js
+const allowedExtensions = new Set([
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".json",
+    ".md",
+    ".css",
+    ".html",
+    ".yml",
+    ".service",
+    ".conf",
+    ".example",
+]);
 ```
 
-The collector excludes `.git`, `node_modules`, build output, logs, `.vscode`, and `priv`. Files ending in `.env` are also excluded even if their extension would otherwise match. This prevents private prompts, secrets, generated dependencies, and noisy runtime logs from entering model context.
+It excludes these directories and files:
 
-Images are collected separately by `collectImages()`. The supported image extensions are `.png`, `.jpg`, `.jpeg`, `.gif`, and `.webp`. Image files are not opened as text and are not sent to the model as binary data.
+```js
+const ignoredDirectories = new Set([
+    ".git",
+    ".rag",
+    "node_modules",
+    "dist",
+    "logs",
+    "archive",
+    ".vscode",
+    "priv",
+    "prompts",
+]);
 
-### 2. Tokenisation
-
-The current retriever is lexical and deterministic. It lowercases input, replaces path separators, underscores, and hyphens with spaces, and extracts alphanumeric tokens of at least two characters.
-
-For each text file, the content is divided into overlapping-style windows of up to 60 lines, starting every 40 lines. A document window receives one point for each unique question token also found in its path or text. Results are sorted by descending score and limited to eight windows. Each returned text snippet is capped at 3,500 characters.
-
-This is not an embedding or vector-database retriever yet. It does not calculate semantic similarity, generate vectors, or use a hosted search index. Exact terminology in the question generally produces the strongest results.
-
-### 3. Image discovery
-
-Image retrieval uses path tokens rather than image understanding. For example, a question containing `calculator` can match a path containing `calc` through an alias rule. A calculator question can therefore return:
-
-```text
-assets/attachments/d4/calc-behind-the-scenes.png
+const ignoredFiles = new Set([
+    "package-lock.json",
+    "feedback.json",
+    "metrics.json",
+]);
 ```
 
-The response contains a browser URL such as:
+Files ending in `.env` are also excluded. The `priv/` and `prompts/` directories are excluded from repository indexing, in addition to `.rag/`, which contains the generated index itself. The exclusion is based on directory and filename rules; it should not be treated as a complete content-based secret scanner.
 
-```text
-/assets/attachments/d4/calc-behind-the-scenes.png
+Images are collected separately by `collectImages()`. The image extensions are `.png`, `.jpg`, `.jpeg`, `.gif`, and `.webp`. Image files are not parsed as text, OCR-processed, embedded, or sent to the model as binary data. The model receives metadata describing matching image paths and public-relative URLs.
+
+## Text indexing and chunk creation
+
+The persistent index is stored at `.rag/index.json`. `buildIndex()` creates the `.rag` directory if required, reads each permitted text file as UTF-8, creates chunks, records metadata and token sets, and parses JavaScript files for structural information. A file that fails during indexing is skipped rather than stopping the entire build.
+
+Each index has a version number and generation timestamp. The current version in the supplied implementation is `5`.
+
+```js
+const index = {
+    version: 5,
+    generatedAt: new Date().toISOString(),
+    files: [],
+};
 ```
 
-The React AI page renders returned image assets as related visual references. The model receives the image path and URL as metadata, but the current server does not perform OCR, computer-vision analysis, or image embeddings.
+Each indexed file stores its relative path, byte size, modification timestamp, detected type, unique tokens from its path and content, chunks, and optional parsed JavaScript metadata. Chunks are generated by `createChunks(content, filePath)` with a default size of 60 lines and a step of 40 lines. This creates overlapping windows, helping source lines near a chunk boundary appear in more than one chunk. Each chunk records its one-based start and end line, file type, text, and, for Markdown, the nearest preceding Markdown heading.
 
-### 4. Codebase context
+```js
+function createChunks(content, filePath, chunkSize = 60, chunkStep = 40) {
+    const lines = content.split(/\r?\n/);
+    const type = getFileType(filePath);
+    const chunks = [];
 
-After retrieval, `buildCodebaseContext()` seeds its working set from retrieved paths and expands it with the highest-scoring JavaScript files for the question. It then analyses matching symbols and routes, resolves imports and path-based dependencies, finds dependant files, detects environment variables, and creates structural code contexts. The `context` activity completion event reports these values in its metadata: `symbols`, `routes`, `files`, `dependencies`, `dependants`, `environmentVariables`, and `codeContexts`.
+    for (let start = 0; start < lines.length; start += chunkStep) {
+        const chunkLines = lines.slice(start, start + chunkSize);
+        if (!chunkLines.length) continue;
 
-The persistent `.rag/index.json` is rebuilt when repository files change or when its index version changes. `server/lib/code-parser.js` parses both CommonJS scripts and ES modules, detects `process.env.NAME` access, and recognises both `app.get(...)` routes and API handlers guarded by `url.pathname`.
+        chunks.push({
+            start: start + 1,
+            end: Math.min(start + chunkSize, lines.length),
+            type,
+            heading: type === "markdown" ? getHeading(lines, start) : null,
+            text: chunkLines.join("\n"),
+        });
+    }
 
-## Model Generation
-
-If `AI_API_KEY` is absent, the service does not call an external provider. It returns a local response explaining that the key is not configured, together with retrieved source metadata. An explicitly executed command can still return its local result without an AI key.
-
-When configured, the service sends a streaming OpenAI-compatible request to `AI_URL`:
-
-```text
-POST <AI_URL>/chat/completions
-    Authorization: Bearer <AI_API_KEY>
-    Content-Type: application/json
-    Body: { "stream": true, "stream_options": { "include_usage": true }, ... }
-```
-
-`AI_URL` may be either a provider base URL, such as:
-
-```text
-https://ai.hackclub.com/proxy/v1
-```
-
-or a complete endpoint:
-
-```text
-https://ai.hackclub.com/proxy/v1/chat/completions
-```
-
-The service normalises both forms and avoids appending `/chat/completions` twice. `AI_MODEL` selects the model, defaulting to `openrouter/free`.
-
-The model receives a system instruction that requires it to answer from supplied repository context, acknowledge insufficient context, include relevant paths, and avoid claiming command execution unless a command result is present. Provider usage is accumulated across tool and answer requests and reported as input, output, and total token metadata on the completed AI activity.
-
-## HTTP API
-
-### Basic question
-
-```bash
-curl -X POST http://localhost:9000/api/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question":"How does admin authentication work?"}'
-```
-
-A successful request returns `Content-Type: text/event-stream`. Events use the standard SSE format:
-
-```text
-event: activity
-data: {"type":"retrieval","status":"started","message":"Searching repository..."}
-
-event: token
-data: {"token":"The request starts in ..."}
-
-event: complete
-data: {"answer":"...","sources":[],"images":[],"command":null,"activities":[]}
-```
-
-The `activity` event metadata includes the individual retrieved sources or images. The `complete` event contains the final answer and result collections. If parsing or upstream generation fails after the SSE response starts, the server emits an `error` event. `GET /api/ask` still returns a small description of the POST request format, and other methods receive `405 METHOD_NOT_ALLOWED`.
-
-For local diagnostics, run `npm run rag:debug -- --no-ai "How does /api/ask work?"`. Omit `--no-ai` to test provider streaming and token accounting directly.
-
-`GET /api/ask` returns a small description of the POST request format. Other methods receive `405 METHOD_NOT_ALLOWED`.
-
-### Explicit command execution
-
-Command execution is opt-in. A request can identify a stable command metadata ID:
-
-```json
-{
-  "question": "Generate an administrator-compatible password hash",
-  "commandId": "hash",
-  "commandText": "pbkdf2 sha512 600000 helloWorld"
+    return chunks;
 }
 ```
 
-The server loads the existing command module, supplies a synthetic command object, captures calls to `respond()`, waits for asynchronous responses, and includes the captured result in `data.command`.
+The tokeniser inserts spaces at lower-to-upper camel-case boundaries, lowercases the value, converts path separators and punctuation such as `/`, `\`, `.`, `_`, and `-` into spaces, then extracts unique alphanumeric tokens of at least two characters. This is lexical matching, not semantic search: the implementation does not generate embeddings or query a vector database.
 
-## Natural-Language Command Requests
+## Index freshness and persistence
 
-The assistant can infer an explicit command when the question contains a recognised `/sz-*` command. For example:
+`loadIndex()` reads `.rag/index.json` when it exists. `isIndexCurrent()` rejects an index if its file list is invalid, its version is not `5`, the number of collected files differs, an expected file is missing, or a file's size or modification timestamp differs from its indexed metadata. If the index is absent, invalid, stale, or cannot be read or parsed, `loadIndex()` rebuilds it.
 
-```text
-generate a pbkdf2 hash string with the password helloWorld,
-600000 iterations using the /sz-hash command
+```js
+function loadIndex() {
+    try {
+        if (!fs.existsSync(indexPath)) return buildIndex();
+
+        const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+        if (!isIndexCurrent(index)) return buildIndex();
+
+        return index;
+    } catch {
+        return buildIndex();
+    }
+}
 ```
 
-The RAG service translates this into the command input:
+Freshness checks use file count, relative paths, size, modification time, and index version. They do not hash file contents. A content change that preserves both size and modification timestamp could therefore evade the current freshness check. Rebuilding is synchronous and writes the index as formatted JSON.
 
-```text
-pbkdf2 sha512 600000 helloWorld
+## Weighted lexical retrieval
+
+`retrieve(question, limit = 8)` cleans the question, tokenises it, extracts explicit file references, loads the current index, and scores every indexed chunk. Chunks with a score of zero are discarded. Results are sorted by descending score, with relative path as a deterministic tie-breaker.
+
+The scoring function in `calculateScore()` uses several independent signals:
+
+| Signal                                                                                            | Score adjustment |
+| ------------------------------------------------------------------------------------------------- | ---------------: |
+| Exact requested file path match                                                                   |            +1000 |
+| File path begins with `docs/`                                                                     |              +25 |
+| Each question token found in the file path                                                        |              +20 |
+| Each question token found in the Markdown heading                                                 |              +15 |
+| Each question token occurring in the chunk text                                                   |               +5 |
+| Question contains `how does`, `how do`, or `how is`, and file type is Markdown                    |               +8 |
+| Question contains `where`, `which file`, or `implemented`, and file type is JavaScript or JSON    |               +8 |
+| Question concerns architecture/design/flow and path contains `architecture`, `arch`, or `diagram` |              +30 |
+| Question concerns security/CSRF/authentication and path contains `security` or `auth`             |              +30 |
+| Question concerns webhook/GitHub/deployment and path contains `webhook` or `deploy`               |              +30 |
+
+The per-token path, heading and chunk checks are independent, so a token can contribute to more than one signal for the same chunk. The query tokens are unique because `tokens()` returns a `Set`. Exact file references are normalised by trimming surrounding punctuation, replacing Windows path separators, removing a leading `./`, and lowercasing the path before comparison.
+
+After sorting, retrieval calculates a minimum score equal to 85% of the highest-ranked score, rounded up and never below one. It then keeps at most one chunk per file path and returns up to the requested limit. The default is eight source chunks. Each returned snippet is capped at 3,500 characters. The returned records contain `relativePath`, `start`, `end`, `type`, `heading`, `text`, and `score`; the public answer shape maps `relativePath` to `path`.
+
+```js
+const minimumScore = rankedDocuments.length
+    ? Math.max(1, Math.ceil(rankedDocuments[0].score * 0.85))
+    : 0;
 ```
 
-The existing `/sz-hash` handler then generates the result. This inference currently contains special handling for PBKDF2 requests and generic handling for other recognised slash commands. If a question mentions a command only as documentation, do not assume it will execute unless the request is clearly an execution request or includes `commandId` through the HTTP API.
+This high-level score threshold favours chunks close to the strongest match rather than filling the result list with weak matches. It can also return fewer than eight sources when the remaining scores fall below the threshold or the remaining results come from files already selected.
 
-## Slack Integration
+## Image discovery
 
-The `/sz-ask` handler in `bot/cmds/ask.js` uses the same `answerQuestion()` function as the dashboard API. It acknowledges the Slack command, sends a thinking response, asks the RAG service, and responds with the answer. When a command is explicitly requested in the Slack question, the command result is supplied to the model and returned to the user.
+`retrieveImages(question, limit = 6)` tokenises the question and compares those tokens with tokens in each image's repository-relative path. A direct token match adds 10 points. A matching alias adds 6 points. The current aliases include:
 
-This shared service keeps Slack and HTTP behaviour aligned. Changes to retrieval, provider handling, or command inference affect both interfaces.
+```js
+[
+    ["calculator", "calc"],
+    ["calculation", "calc"],
+    ["architecture", "arch"],
+    ["diagram", "arch"],
+    ["webhook", "hook"],
+    ["dashboard", "dash"],
+    ["github", "git"],
+    ["workflows", "workflow"],
+    ["workflow", "workflow"],
+    ["github", "g"],
+    ["actions", "act"],
+];
+```
 
-## Security and Privacy Boundaries
+Images with a score above zero are sorted by descending score, limited to six by default, and returned as `{ path, url, score }`. The URL is formed as `/${relativePath}`. This is filename/path discovery, not visual understanding. No image contents are examined to decide whether an image depicts the subject in the question.
 
-The retriever excludes `priv/` and `.env` files by design. Do not weaken those exclusions to make a question easier to answer. If a safe public document is needed by the assistant, place it under an appropriate non-private documentation path.
+## JavaScript parsing and structural indexing
 
-The assistant can still expose information from files that are allowed into retrieval. Review public source files, API responses, and model prompts before deploying the endpoint to an untrusted network. Never include API keys, passwords, session cookies, or private user data in the question text.
+`server/lib/code-parser.js` uses Acorn and `acorn-walk` to parse JavaScript. It first attempts module parsing and falls back to script parsing if module parsing fails. For each successfully parsed file it records imports, exports, functions/classes, call expressions, environment-variable references and detected routes. Parsing failures are caught by the index builder, leaving that file's `code` metadata as `null` while allowing the rest of the repository to be indexed.
 
-Command execution is a separate risk from retrieval. A read-only question should not execute a command. Clients that expose command selection should clearly separate question answering from command execution and should add authentication or authorisation before production exposure.
+The parser recognises ES module imports and static CommonJS `require()` calls assigned in variable declarations. It records function declarations and class declarations with line ranges. Export detection covers common `module.exports` and `exports` assignment forms. Call expressions are recorded with a call name, line and enclosing function name when available.
 
-The upstream AI provider may apply its own safety filters. Responses such as safety classifications are provider output and should not be bypassed by disabling safeguards.
+Environment-variable detection recognises AST member-expression patterns corresponding to `process.env.NAME`. It records the variable name and line, not the variable's runtime value. `extractEnvironmentVariables(question)` separately identifies uppercase names matching `[A-Z][A-Z0-9_]{2,}` in the question, which are then looked up against indexed references.
 
-## Failure Modes
+Route detection covers `app.get()`, `app.post()`, `app.put()`, `app.patch()`, `app.delete()`, and `app.use()` calls with literal string paths. It also analyses certain `url.pathname` checks, including exact comparisons, prefix checks using `startsWith()`, and arrays checked with `includes()`. Route-method inference inspects nearby conditions in supported function structures. This is static pattern recognition rather than execution of the server, so dynamically assembled paths or unsupported coding patterns may not be discovered.
 
-| Symptom | Likely cause |
-| --- | --- |
-| `AI_API_KEY is not configured` | No key is available to the dashboard process. |
-| `AI request failed with ...` | Provider URL, model, key, quota, or upstream service problem. |
-| `Not found` from the provider | `AI_URL` is invalid or contains an incorrect path. The service accepts base and complete endpoint forms. |
-| Empty answer | Provider returned no usable `choices[0].message.content`. |
-| No sources | Question terms did not match allowed paths or text windows. |
-| No image result | The image filename/path did not contain tokens matching the question or an alias. |
-| Empty command response | The command failed, timed out, or did not call `respond()`. |
-| Command side effect occurred | Command modules are reused directly and are not sandboxed. |
+The parser also extracts literal path references from certain `path.join()` and `path.resolve()` calls. Import resolution for relative dependencies checks the original path, `.js`, `.jsx`, `.mjs`, and `index.js` candidates. Non-relative imports are not resolved to repository files by this resolver.
 
-## Extending the Retriever
+## Codebase context construction
 
-To add a safe text format, update `allowedExtensions` and ensure the file can be read as UTF-8 text. To add an image format, update `imageExtensions` and the static server content-type map in `server/server.js`.
+`buildCodebaseContext(question, index, retrievedSources)` combines retrieved source files with structural matches. Retrieved files are added as direct context roots with a high score. It also scores JavaScript files by query-token matches: tokens in the file path contribute 30 points, tokens in the indexed file token list contribute 2 points, and an explicit question mention of the path adds 150 points. The top 12 positive-scoring JavaScript candidates are added to the direct set.
 
-For better semantic retrieval, the lexical `score` function can later be replaced with an embedding provider and vector index. Keep the returned shape compatible with `{ path, start, score }` so the React page and API consumers do not need to change.
+`findSymbols()` searches parsed function and class names. A symbol gets 100 points when the lowercased question contains its full name, plus 20 points for each query token also found in the symbol name. `findRoutes()` applies a similar approach to the route method/path tokens, awarding 100 points for an exact route-path substring in the question and 20 points for each matching query token. Both lists are sorted by descending score.
 
-For image understanding, add a separate vision-capable provider path. Do not pass every repository image automatically: retrieve images by relevance, enforce the same private-directory exclusions, and keep image URLs restricted to files intentionally served by the static handler.
+The highest-scoring eight direct files become relationship roots. For each root, the service adds resolved imports and detected path references as dependencies, and adds files that import the root as dependants. Dependency context scores are based on the root score minus 120 with a minimum of 100; dependant context scores use the root score minus 150 with a minimum of 90. The service also finds environment-variable references explicitly named in the question and adds variables detected in all selected files.
 
-For command safety, introduce an allowlist of read-only commands, authentication, rate limiting, audit events, and a sandbox before exposing execution to untrusted users.
+For each selected file, the service creates a structural context containing imports, function/class names and line ranges, and route method/path/line information. If matching symbols exist in that file, it also includes the chunks overlapping each symbol's source line range. Code entries are sorted by score and limited to 20. These are structural summaries and selected source chunks, not a complete copy of every selected source file.
 
-## Validation
+The resulting context metadata tracks symbols, routes, files, dependencies, dependants, environment variables, code entries, direct/related file groups and per-file scores. The activity event emitted by `answerQuestion()` reports summary counts and the selected files and code contexts.
 
-Run the normal project checks:
+## Repository context packing and token budget
+
+The model context is not simply the concatenation of every retrieved file. `packRepositoryContext()` converts the retrieved source snippets, structural summaries and code entries into ranked chunks. Retrieved source chunks receive a base score of `1000 + source.score`; the structural summary has score `180`; code entries use their calculated context score.
+
+`getChunkPriority()` adds a kind bonus and subtracts a size penalty:
+
+```js
+function getChunkPriority(chunk) {
+    const kindBonus = {
+        code: 250,
+        structure: 100,
+        source: 0,
+    };
+
+    const tokens = estimateTokenCount(chunk.text);
+    const sizePenalty = Math.min(tokens / 20, 100);
+
+    return chunk.score + (kindBonus[chunk.kind] || 0) - sizePenalty;
+}
+```
+
+Chunks are sorted by this priority, duplicate chunk keys are skipped, and a chunk is included only if its estimated token count fits within the remaining budget. The default repository-context budget is 4,000 estimated tokens. `estimateTokenCount()` is a rough character-based estimate of one token per four characters, not a tokenizer supplied by the provider. As a result, the budget is an approximation and does not guarantee the final request stays below the model's total context window.
+
+```js
+const MAX_CONTEXT_TOKENS = 4000;
+const MAX_CODE_CONTEXTS = 20;
+const MAX_RELATIONSHIP_ROOTS = 8;
+```
+
+The packer returns the combined context text, estimated tokens used, budget, selected file paths and number of selected code contexts. Chunks that do not fit are skipped rather than truncated to force them into the remaining budget. The 3,500-character source cap is applied earlier during retrieval.
+
+## Command inference and explicit command execution
+
+Before retrieval, `answerQuestion()` checks whether the caller supplied a `commandId`. If not, `inferCommandInvocation()` looks for a recognised `/sz-*` command in the question and matches it against registered command metadata. It contains specialised parsing for hash commands that mention a password/passphrase and an iteration count. That path constructs input in the form `algorithm digest iterations password`; the implementation defaults the algorithm to `pbkdf2` when the question mentions PBKDF2 and otherwise uses `sha256`, while the digest defaults to `sha512` unless a supported digest is found in the question. Other recognised commands receive the text following the slash-command name as their input, after an optional leading word `command` is removed.
+
+When a command ID is set, the service verifies that it exists through `getCommand()`, emits a command activity, and calls the shared `runCommand()` adapter with the provided identity. The result is formatted into the model's user message as a command result. If the question appears to be asking to run, execute, use, call or invoke a command, codebase context expansion is skipped to avoid adding unrelated code context to a command-oriented request.
+
+Command inference is separate from live tool calling. A command can be executed before the model request, while the model's `runCommand` tool is a tool call that occurs during generation. Command modules are reused through the existing command runner and are not sandboxed by the RAG service itself. A command's side effects therefore remain possible.
+
+## Live model tools
+
+When a tool adapter is supplied to `answerQuestion()`, the first AI request includes the tool definitions and uses `tool_choice: "auto"`. The tool definitions are declared in the RAG tools module and expose the following functions:
+
+| Tool             | Purpose                                                                                 |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| `getStatus`      | Read current status/deployment data, omitting `telemetryHistory` in the context adapter |
+| `getCommands`    | List command IDs or filter command metadata                                             |
+| `getReleaseInfo` | Read version/release information, optionally for a version                              |
+| `runCommand`     | Execute a registered command using `commandId` and optional `text`                      |
+| `getLogs`        | Read up to the latest 10 log entries                                                    |
+| `getErrors`      | Read up to 10 structured errors, with stack traces optional                             |
+| `getMetrics`     | Read current bot metrics                                                                |
+| `getRoutes`      | List detected routes from the current repository index                                  |
+
+The tool schemas reject undeclared argument fields using `additionalProperties: false`. `getCommands` supports exact ID lookup and filtering by command name, description, category, usage hint or fuzzy text. The filters are combined. Without filters it returns only command IDs. Despite the label `fuzzy`, the implementation uses a case-insensitive substring match across the metadata fields, not edit-distance or semantic fuzzy matching.
+
+`runCommand` accepts a command ID and text up to 500 characters. The tool layer explicitly blocks the command ID `ask` to prevent recursive use of `/sz-ask`. Other registered commands are available unless separately blocked by the command runner. The tool schema instructs the model to call `runCommand` when execution is requested and to use command output as evidence for the final answer.
+
+### Tool execution limits and sanitisation
+
+Each tool execution is wrapped in a five-second timeout. Tool output is sanitised and limited to 32 KiB after JSON serialisation. Sanitisation redacts values whose object keys match patterns such as authorization, cookie, password, secret, token, API key, private key, environment or env. It also redacts bearer credentials and simple inline key/secret/password assignments in strings, omits `telemetryHistory`, and limits recursive object traversal depth.
+
+```js
+const TOOL_TIMEOUT_MS = 5000;
+const MAX_OUTPUT_BYTES = 32 * 1024;
+const BLOCKED_TOOL_COMMANDS = new Set(["ask"]);
+```
+
+If the serialised safe result exceeds the byte limit, the adapter returns a truncation object with a message and preview. Tool calls are recorded as activity events: API-backed tools use `api_request`, while `runCommand` uses `command_tool`. Events include the endpoint label, status and duration. Tool exceptions are returned as structured failures rather than thrown through the model loop. Unknown tool names are rejected by the adapter.
+
+The tool adapter associates the functions with internal endpoint labels such as `/api/status`, `/api/commands`, `/api/release`, `/api/logs`, `/api/admin/errors`, `/api/metrics`, and `/api/routes`. These labels describe the data source recorded by the adapter; the supplied implementation calls its injected handlers directly rather than making an HTTP request itself.
+
+## AI provider configuration and request construction
+
+The current model default in `rag.js` is:
+
+```js
+const model = process.env.AI_MODEL || "openai/gpt-6-luna";
+```
+
+The endpoint is based on `AI_URL`, defaulting to `https://ai.hackclub.com/proxy/v1`. A trailing slash is removed, and `/chat/completions` is appended unless the configured URL already ends with that path. The request is sent using `fetch()` with a bearer `AI_API_KEY`, JSON content type, streaming enabled, and usage reporting requested.
+
+```js
+const configuredUrl = (
+    process.env.AI_URL || "https://ai.hackclub.com/proxy/v1"
+).replace(/\/$/, "");
+
+const endpoint = configuredUrl.endsWith("/chat/completions")
+    ? configuredUrl
+    : `${configuredUrl}/chat/completions`;
+```
+
+If `AI_API_KEY` is missing and AI generation is enabled, the service emits a failed AI activity and returns retrieved source and image metadata with a local explanation. If a command was executed, its captured response can still be returned. When `withAi` is false, the service returns the retrieval results and packed repository context without calling the provider.
+
+The model messages consist of the system prompt loaded from `server/lib/rag/prompts/SYSTEM_PROMPT.md` and a user message containing the question, packed repository knowledge, image asset metadata, and any captured command result. The prompt text itself is external to `rag.js` and must be read from the prompt file to document its exact rules.
+
+## Streaming response parsing and tool loop
+
+The provider request asks for streaming output and usage metadata. `readAiResponse()` handles both server-sent event responses and ordinary JSON responses. For streaming responses, it reads the response body, separates SSE events on blank lines, extracts `data:` lines, parses JSON payloads, appends streamed text tokens, accumulates fragmented tool-call IDs/names/arguments, and updates usage values when present. It also recognises a textual `<tool_call>name</tool_call>` marker and converts it into a zero-argument tool call if that tool name was not already represented by a structured tool call.
+
+The AI interaction can execute up to three tool rounds:
+
+```js
+const MAX_TOOL_ROUNDS = 3;
+```
+
+For each round, the assistant's intermediate content and tool calls are appended to the message history. Tool arguments are parsed from JSON, each requested tool is executed in sequence, and a tool result message is appended with the label `LIVE API DATA (current runtime evidence)`. The service then calls the model again with the updated conversation. This is sequential tool execution, not parallel execution.
+
+If the model still requests tools after the round limit, the service appends the prompt from `TOOL-CALL-LIMIT_PROMPT.md` as a system message and makes one more request with tools disabled. This final request is intended to produce an answer without further tool calls. If the model produces no final answer, `buildAiFallback()` returns a local message and may include intermediate text and captured tool results.
+
+Usage values are accumulated across model rounds. The parser accepts common prompt/input and completion/output token field names. If the provider supplies no usable usage totals, the service estimates counts from the request messages and answer text using the same one-token-per-four-characters approximation.
+
+## Returned answer structure
+
+A successful AI-enabled result includes the final `answer`, `responseRounds`, `sources`, `images`, `command`, `activities`, `trace`, and `usage`. Source records include the repository path, line range, file type, Markdown heading where available, and retrieval score. Image records include the relative path, URL and score. `activities` contains the generated event records, while `trace` is a shallow copy of those records. `usage` reports input, output and total token counts.
+
+The no-AI path returns a local explanatory answer, sources, images, command result, activities and the packed `context`. The missing-key path returns sources, images, command result and activities, but does not return the same `context` field as the explicit `withAi = false` path.
+
+## Activity events
+
+Activity records created by `answerQuestion()` receive a UUID and millisecond timestamp. Events are grouped by stages such as `retrieval`, `context`, `command`, `ai`, `reasoning`, and `tool`. They carry a status, human-readable message, optional activity identifier and optional metadata. Callers can forward these records to a streaming client or retain them in the returned activity trace.
+
+The retrieval activity metadata contains matched source paths, line ranges, types and scores. Image activity metadata contains image paths and scores. Context activity metadata includes structural counts, estimated context token use, budget, selected files and selected code-context count. Tool activities include the tool name, arguments, result and timing metadata in the implementation shown. Treat activity metadata as diagnostic output: sanitisation is performed for tool results, but that does not automatically prove that every other activity field is safe to expose publicly.
+
+## HTTP and Slack integration
+
+The service function `answerQuestion()` is shared by its callers. The HTTP endpoint and Slack `/sz-ask` handler are responsible for adapting the shared result to their respective interfaces. The previous documentation describes `POST /api/ask` as an SSE endpoint and `/sz-ask` as the Slack interface, but the complete endpoint and handler source was not included in the files supplied for this revision. Consult those files before relying on precise HTTP status, SSE event names, authentication behaviour or Slack response formatting.
+
+## Diagnostics and npm scripts
+
+Add or retain the following npm scripts in `package.json`:
+
+```json
+{
+    "rag": "node scripts/debug-rag.js",
+    "rag:use-tool": "node scripts/rag-use-tool.js"
+}
+```
+
+`npm run rag` invokes `scripts/debug-rag.js`. `npm run rag:use-tool` invokes `scripts/rag-use-tool.js`. The RAG tool module's help output shows the latter command with a tool name, for example:
 
 ```bash
-npm run build
-npm run lint
-node --check server/lib/rag/rag.js
-node --check server/lib/command-runner.js
-node --check server/api/ask/index.js
+npm run rag:use-tool -- --getStatus
+npm run rag:use-tool -- --getCommands --help
 ```
 
-Test retrieval without calling the model:
+The precise CLI flags and output formats are implemented in `scripts/rag-use-tool.js`, which was not included in the supplied source files. The script name alone does not establish its full behaviour.
+
+For a full project validation run:
 
 ```bash
-node -e "const {retrieve,retrieveImages}=require('./server/lib/rag'); console.log(retrieve('feedback API')); console.log(retrieveImages('calculator flowchart'))"
+npm run test:all
 ```
 
-Test a deterministic command through the shared adapter:
+The exact checks performed by `test:all` depend on the current `package.json` and test scripts. This document does not assume a specific test count.
+
+## Security boundaries and operational considerations
+
+The RAG service reads files permitted by its collector and sends selected source snippets to the configured AI provider. Excluding `priv/`, `.rag/`, `prompts/`, `.env` files and selected data files reduces accidental exposure, but does not replace a review of every file that is permitted into retrieval. Public source files can still contain sensitive material, and the system prompt and tool outputs must be considered when exposing the endpoint to untrusted users.
+
+The tool adapter redacts common sensitive field names and patterns, but sanitisation is heuristic. It cannot guarantee removal of every secret embedded in arbitrary strings or fields with unexpected names. The output-size preview is a string slice of serialised JSON and may not itself be valid JSON when truncated. The five-second timeout rejects the wrapper promise but does not necessarily cancel an underlying operation that has already started.
+
+Command execution has a separate risk profile from retrieval. Both inferred command execution and the `runCommand` live tool use the registered command runner. The adapter blocks `ask`, but other commands may have side effects. Do not expose command execution to untrusted callers without appropriate authentication, authorisation, an explicit command allowlist, rate limiting, auditing and isolation suitable for the commands being run.
+
+Repository context is evidence supplied to the model, not a security boundary. The model may misunderstand incomplete static analysis, miss files that score poorly, or produce an answer unsupported by the selected context. The retrieval layer is lexical and deterministic, so queries using exact identifiers and file paths are more likely to retrieve the intended source than vague conceptual wording.
+
+## Known limitations
+
+- Retrieval uses weighted lexical matching, not embeddings or semantic vector search.
+- Image discovery scores file paths and aliases; it does not inspect image pixels.
+- Index freshness is based on file list, index version, file size and modification time rather than content hashes.
+- The JavaScript parser recognises supported syntax patterns and does not execute code to discover routes or dependencies.
+- Import resolution covers relative paths and a limited set of file candidates.
+- Context token counts are approximate character-based estimates, not provider tokenizer counts.
+- The 4,000-token repository budget does not account for all system prompts, message framing, tool schemas, or the provider's full context-window rules.
+- Tool calls are executed sequentially and are bounded to three rounds, followed by a tool-disabled final request when necessary.
+- The tool output limit is 32 KiB after sanitisation and JSON serialisation.
+- The tool adapter blocks the `ask` command ID explicitly; this alone does not prove all other commands are safe for AI execution.
+- The exact contents of the system prompt, tool-limit prompt and diagnostic scripts must be inspected separately to document their full behaviour.
+
+## Extending the implementation
+
+To support another text format, update `allowedExtensions`, ensure the parser/indexing path treats the file as UTF-8 text, and add appropriate file-type handling if required. To support another image format, update `imageExtensions` and verify that the static file server serves it with the correct content type.
+
+To improve retrieval, keep the returned source shape compatible with the current consumers or update those consumers together. Changes to score weights should be tested against exact-path queries, identifier queries, broad conceptual questions, documentation-focused questions, and queries with no matching sources. Changes to the context packer should test priority ordering, duplicate suppression, budget boundaries and large chunks.
+
+Changes to tool definitions must keep the schema, injected handlers, endpoint labels, output sanitisation and CLI diagnostics aligned. Any change to command execution should be tested for unknown command IDs, blocked commands, missing handlers, timeouts, oversized output, malformed arguments and commands that produce no response.
+
+## Validation examples
+
+Inspect text and image retrieval directly:
 
 ```bash
-node -e "require('./server/lib/command-runner').runCommand('calculator','2 + 3').then(console.log)"
+node -e "const {retrieve,retrieveImages}=require('./server/lib/rag/rag'); console.log(retrieve('feedback API')); console.log(retrieveImages('calculator flowchart'))"
 ```
+
+Inspect the current index:
+
+```bash
+node -e "const {loadIndex}=require('./server/lib/rag/rag'); const i=loadIndex(); console.log({version:i.version, generatedAt:i.generatedAt, files:i.files.length})"
+```
+
+Run the RAG diagnostic scripts:
+
+```bash
+npm run rag
+npm run rag:use-tool -- --getStatus
+```
+
+Run the project test suite:
+
+```bash
+npm run test:all
+```
+
+Use the results from the actual scripts and current test configuration when updating this document. Do not retain hard-coded test counts or claims about provider behaviour unless they match the current implementation.

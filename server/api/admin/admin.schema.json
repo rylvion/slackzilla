@@ -8,7 +8,6 @@
     "feedback": { "type": "array" },
     "commandStats": { "type": "array" },
     "logs": { "type": "array" },
-    "runtimeConfig": { "type": "object" },
-    "csrfToken": { "type": "string" }
+    "runtimeConfig": { "type": "object" }
   }
 }

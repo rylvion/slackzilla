@@ -18,7 +18,7 @@ function InternalSidebar({ links }) {
                 ))}
             </nav>
         </aside>
-    );
+    )
 }
 
 export default InternalSidebar;

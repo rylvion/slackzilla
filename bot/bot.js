@@ -95,7 +95,7 @@ app.event("app_mention", async ({ event, say }) => {
 
     log.start()
     log.info("All systems initialised")
-    log.info('Ready for launch in T minus 3... 2... 1...')
+    log.info('Ready for launch in T minus 3, 2, 1... ▂▃▅▇█▓▒░')
 
     log.success("BOOM! Slackzilla is now online and ready to serve your commands")
 })()

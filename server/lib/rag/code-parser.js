@@ -139,9 +139,7 @@ function parseJavaScript(content, options = {}) {
         },
 
         IfStatement(node) {
-            const route = getPathRoute(node.test)
-
-            if (route) result.routes.push(route)
+            result.routes.push(...getPathRoutes(node.test, node.consequent))
         }
     })
 
@@ -152,7 +150,8 @@ function parseJavaScript(content, options = {}) {
             options.projectRoot
         )
     }
-
+    
+    inferRouteMethods(ast, result)
     return deduplicate(result)
 }
 
@@ -266,43 +265,346 @@ function deduplicate(result) {
     for (const key of Object.keys(result)) {
         const values = result[key]
 
-        result[key] = values.filter(
-            (value, index, array) => index === array.findIndex( other => JSON.stringify(other) === JSON.stringify(value) )
-        )
+        if (key !== "routes") {
+            result[key] = values.filter((value, index, array) => index === array.findIndex(other => JSON.stringify(other) === JSON.stringify(value)) )
+            continue
+        }
+
+        const routes = new Map()
+
+        for (const route of values) {
+            const key = `${route.path}:${route.matchType}`
+            const existing = routes.get(key)
+
+            if (!existing) {
+                routes.set(key, {
+                    ...route,
+                    methods: [...new Set(route.methods || [])]
+                })
+
+                continue
+            }
+
+            existing.methods = [
+                ...new Set([
+                    ...existing.methods,
+                    ...(route.methods || [])
+                ])
+            ]
+
+            existing.line = Math.min(existing.line, route.line)
+        }
+
+        result.routes = [...routes.values()]
     }
 
     return result
 }
 
-function getPathRoute(test) {
-    if (
-        !test ||
-        test.type !== "BinaryExpression" ||
-        !["===", "!==", "==", "!=", "<", ">"].includes(test.operator)
-    ) {
-        return null
+function inferRouteMethods(ast, result) {
+    function getStatements(node) {
+        if (node?.type === "BlockStatement") return node.body
+        if (node) return [node]
+        return []
     }
 
-    const pathname = test.left
-    const path = test.right
+    function getAcceptedMethods(node) {
+        const methods = []
 
-    if (
-        pathname?.type !== "MemberExpression" ||
-        pathname.object?.name !== "url" ||
-        pathname.property?.name !== "pathname" ||
-        path?.type !== "Literal" ||
-        typeof path.value !== "string" ||
-        !path.value.startsWith("/")
-    ) {
-        return null
+        function visit(statement) {
+            if (!statement) return
+
+            if (statement.type === "IfStatement") {
+                const test = statement.test
+
+                if (
+                    test.type === "BinaryExpression" &&
+                    ["===", "==", "!==", "!="].includes(test.operator) &&
+                    test.left.type === "MemberExpression" &&
+                    test.left.property?.name === "method" &&
+                    test.right.type === "Literal" &&
+                    typeof test.right.value === "string"
+                ) {
+                    const method = test.right.value.toUpperCase()
+                    const statements = getStatements(statement.consequent)
+
+                    const returnsTrue = statements.some(item =>
+                        item.type === "ReturnStatement" &&
+                        item.argument?.type === "Literal" &&
+                        item.argument.value === true
+                    )
+
+                    if (
+                        ["===", "=="].includes(test.operator)
+                    ) {
+                        methods.push(method)
+                    } else if (returnsTrue) {
+                        methods.push(method)
+                    }
+                }
+
+                visit(statement.consequent)
+                visit(statement.alternate)
+                return
+            }
+
+            if (statement.type === "BlockStatement") {
+                statement.body.forEach(visit)
+                return
+            }
+
+            if (statement.type === "SwitchStatement") {
+                statement.cases.forEach(item =>
+                    item.consequent.forEach(visit)
+                )
+            }
+        }
+
+        visit(node)
+
+        return [...new Set(methods)]
     }
 
-    return {
-        method: "HTTP",
-        path: path.value,
-        line: test.loc.start.line
+    function analyseFunction(node) {
+        if (node.body?.type !== "BlockStatement") return
+
+        const statements = node.body.body
+
+        for (let i = 0; i < statements.length; i++) {
+            const statement = statements[i]
+
+            if (statement.type !== "IfStatement") continue
+
+            const routes = getPathRoutes(
+                statement.test,
+                statement.consequent
+            )
+
+            if (!routes.length) continue
+
+            const methods = new Set(
+                routes.flatMap(route => route.methods || [])
+            )
+
+            for (let j = i + 1; j < statements.length; j++) {
+                const nextStatement = statements[j]
+
+                if (
+                    nextStatement.type === "IfStatement" &&
+                    getPathRoutes(
+                        nextStatement.test,
+                        nextStatement.consequent
+                    ).length
+                ) {
+                    break
+                }
+
+                for (const method of getAcceptedMethods(nextStatement)) {
+                    methods.add(method)
+                }
+            }
+
+            if (!methods.size) continue
+
+            for (const route of routes) {
+                const existing = result.routes.find(item =>
+                    item.path === route.path &&
+                    item.matchType === route.matchType &&
+                    item.line === route.line
+                )
+
+                if (existing) {
+                    existing.methods = [
+                        ...new Set([
+                            ...(existing.methods || []),
+                            ...methods
+                        ])
+                    ]
+                }
+            }
+        }
     }
+
+    walk.simple(ast, {
+        FunctionDeclaration: analyseFunction,
+        FunctionExpression: analyseFunction,
+        ArrowFunctionExpression: analyseFunction
+    })
 }
+
+function getPathMethods(test) {
+    const methods = []
+
+    function visit(node) {
+        if (!node) return
+
+        if (node.type === "LogicalExpression") {
+            visit(node.left)
+            visit(node.right)
+            return
+        }
+
+        if (node.type !== "BinaryExpression") return
+
+        const left = node.left
+        const right = node.right
+
+        const isMethodReference =
+            left.type === "MemberExpression" &&
+            left.property.type === "Identifier" &&
+            left.property.name === "method"
+
+        const isMethodLiteral =
+            right.type === "Literal" &&
+            typeof right.value === "string"
+
+        if (!isMethodReference || !isMethodLiteral) return
+
+        if (node.operator === "===" || node.operator === "==") {
+            methods.push(right.value.toUpperCase())
+        }
+    }
+
+    visit(test)
+
+    return [...new Set(methods)]
+}
+
+
+function getPathRoutes(test, consequent = null) {
+    if (!test) return []
+    if (
+        test.type === "UnaryExpression" &&
+        test.operator === "!"
+    ) {
+        const statements = consequent?.type === "BlockStatement"
+            ? consequent.body
+            : consequent
+                ? [consequent]
+                : []
+
+        const returnsFalse = statements.some(statement =>
+            statement.type === "ReturnStatement" &&
+            statement.argument?.type === "Literal" &&
+            statement.argument.value === false
+        )
+
+        if (returnsFalse) {
+            return getPathRoutes(test.argument)
+        }
+    }
+
+    if (test.type === "LogicalExpression" && test.operator === "&&") {
+        const routes = [
+            ...getPathRoutes(test.left),
+            ...getPathRoutes(test.right)
+        ]
+
+        const methods = [...new Set(getPathMethods(test))]
+
+        return routes.map(route => ({
+            ...route,
+            methods
+        }))
+    }
+
+    if (
+        test.type === "BinaryExpression" &&
+        ["===", "==", "!==", "!="].includes(test.operator)
+    ) {
+        const pathname = test.left
+        const path = test.right
+
+        const isPathComparison =
+            pathname?.type === "MemberExpression" &&
+            pathname.object?.name === "url" &&
+            pathname.property?.name === "pathname" &&
+            path?.type === "Literal" &&
+            typeof path.value === "string" &&
+            path.value.startsWith("/")
+
+        if (!isPathComparison) return []
+
+        const isNegative = ["!==", "!="].includes(test.operator)
+
+        if (isNegative) {
+            const statements = consequent?.type === "BlockStatement"
+                ? consequent.body
+                : consequent
+                    ? [consequent]
+                    : []
+
+            const returnsFalse = statements.some(statement =>
+                statement.type === "ReturnStatement" &&
+                statement.argument?.type === "Literal" &&
+                statement.argument.value === false
+            )
+
+            if (!returnsFalse) return []
+        }
+
+        return [{
+            method: "HTTP",
+            path: path.value,
+            matchType: "exact",
+            line: test.loc.start.line
+        }]
+    }
+
+    if (test.type === "CallExpression") {
+        const callee = test.callee
+        const method = callee?.property?.name
+
+        if (method === "startsWith") {
+            const pathname = callee.object
+            const path = test.arguments[0]
+
+            if (
+                pathname?.type === "MemberExpression" &&
+                pathname.object?.name === "url" &&
+                pathname.property?.name === "pathname" &&
+                path?.type === "Literal" &&
+                typeof path.value === "string" &&
+                path.value.startsWith("/")
+            ) {
+                return [{
+                    method: "HTTP",
+                    path: path.value,
+                    matchType: "prefix",
+                    line: test.loc.start.line
+                }]
+            }
+        }
+
+        if (method === "includes") {
+            const paths = callee.object
+            const pathname = test.arguments[0]
+
+            if (
+                paths?.type === "ArrayExpression" &&
+                pathname?.type === "MemberExpression" &&
+                pathname.object?.name === "url" &&
+                pathname.property?.name === "pathname"
+            ) {
+                return paths.elements
+                    .filter(element =>
+                        element?.type === "Literal" &&
+                        typeof element.value === "string" &&
+                        element.value.startsWith("/")
+                    )
+                    .map(element => ({
+                        method: "HTTP",
+                        path: element.value,
+                        matchType: "exact",
+                        line: test.loc.start.line
+                    }))
+            }
+        }
+    }
+
+    return []
+}
+
 
 function resolveFileReference(projectRoot, fromFile, reference, baseName = "") {
     if (!reference) return null

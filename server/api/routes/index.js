@@ -11,7 +11,7 @@ function handleRoutesApi({ req, res, url, context }) {
     if (url.pathname !== "/api/routes") return false
 
     if (req.method !== "GET") {
-        context.sendError(res, 405, "METHOD_NOT_ALLOWED", "method not allowed")
+        context.sendError(res, 405, "METHOD_NOT_ALLOWED", `Method '${req.method}' is not supported for this endpoint. Use GET to retrieve the indexed API routes.`)
         return true
     }
 

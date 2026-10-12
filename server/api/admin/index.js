@@ -3,7 +3,22 @@ function handleAdminApi({ req, res, url, context }) {
         const session = context.auth.requireSession(req, res)
         if (!session) return true
 
-        context.sendOk(res, context.buildAdminSummary(session.csrfToken))
+        context.sendOk(res, context.buildAdminSummary())
+        return true
+    }
+
+    if (url.pathname === "/api/admin/errors" && req.method === "GET") {
+        const session = context.auth.requireSession(req, res)
+        if (!session) return true
+        context.sendOk(res, { errors: context.getServerErrors() })
+        return true
+    }
+
+    if (url.pathname === "/api/admin/errors/stream" && req.method === "GET") {
+        const session = context.auth.requireSession(req, res)
+        if (!session) return true
+        context.registerStreamClient(context.serverErrorClients, req, res)
+        context.sendSse(res, "snapshot", { errors: context.getServerErrors() })
         return true
     }
 
@@ -18,12 +33,19 @@ function handleAdminApi({ req, res, url, context }) {
         return true
     }
 
+    if (url.pathname === "/api/admin/log-archives" && req.method === "GET") {
+        const session = context.auth.requireSession(req, res)
+        if (!session) return true
+        context.sendOk(res, { archives: context.store.listLogArchives() })
+        return true
+    }
+
     if (url.pathname === "/api/admin/events" && req.method === "GET") {
         const session = context.auth.requireSession(req, res)
         if (!session) return true
 
         context.registerStreamClient(context.adminClients, req, res)
-        context.sendSse(res, "summary", context.buildAdminSummary(session.csrfToken))
+        context.sendSse(res, "summary", context.buildAdminSummary())
         return true
     }
 

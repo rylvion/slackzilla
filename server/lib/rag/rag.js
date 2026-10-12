@@ -1,31 +1,34 @@
 const fs = require("fs")
 const path = require("path")
 const crypto = require("crypto")
-const {
-    parseJavaScript,
-    createChunks,
-    getFileType
-} = require("./code-parser")
+const {parseJavaScript, createChunks, getFileType} = require("./code-parser")
 const { listCommands, getCommand, runCommand } = require("../command-runner")
 
 const projectRoot = path.join(__dirname, "..", "..")
 const ragDirectory = path.join(projectRoot, ".rag")
 const indexPath = path.join(ragDirectory, "index.json")
 
-const ignoredDirectories = new Set([".git", ".rag", "node_modules", "dist", "logs", ".vscode", "priv"])
-const ignoredFiles = new Set(["package-lock.json", "feedback.json"])
+const ignoredDirectories = new Set([".git", ".rag", "node_modules", "dist", "logs", "archive", ".vscode", "priv", "prompts"])
+const ignoredFiles = new Set(["package-lock.json", "feedback.json", "metrics.json"])
 const allowedExtensions = new Set([".js", ".jsx", ".mjs", ".json", ".md", ".css", ".html", ".yml", ".service", ".conf", ".example" ])
 
 const imageExtensions = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp" ])
 
-const model = process.env.AI_MODEL || "openrouter/free"
+const model = process.env.AI_MODEL || "openai/gpt-6-luna"
 
 const MAX_SOURCE_LENGTH = 3500
 const MAX_CONTEXT_TOKENS = 4000
 const MAX_CODE_CONTEXTS = 20
 const MAX_RELATIONSHIP_ROOTS = 8
+const DOCS_PATH_SCORE_BOOST = 25
 
-const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, "SYSTEM_PROMPT.txt"), "utf8")
+const MAX_TOOL_ROUNDS = 3
+
+const PROMPTS_DIR = path.join(__dirname, "prompts")
+
+const SYSTEM_PROMPT = fs.readFileSync(path.join(PROMPTS_DIR, "SYSTEM_PROMPT.md"), "utf8")
+const TOOL_CALL_LIMIT = fs.readFileSync(path.join(PROMPTS_DIR, "TOOL-CALL-LIMIT_PROMPT.md"), "utf8")
+
 SYSTEM_PROMPT.trim()
 
 function emitActivity(onActivity, event) {
@@ -419,6 +422,10 @@ function calculateScore({
         score += 1000
     }
 
+    if (filePath.startsWith("docs/")) {
+        score += DOCS_PATH_SCORE_BOOST
+    }
+
     for (const token of queryTokens) {
         if (fileTokens.has(token)) {
             score += 20
@@ -572,7 +579,11 @@ function retrieveImages(question, limit = 6) {
                 ["diagram", "arch"],
                 ["webhook", "hook"],
                 ["dashboard", "dash"],
-                ["github", "git"]
+                ["github", "git"],
+                ["workflows", "workflow"],
+                ["workflow", "workflow"],
+                ["github", "g"],
+                ["actions", "act"]
             ]
 
             const score = [...queryTokens].reduce((total, token) => {
@@ -931,35 +942,17 @@ function packRepositoryContext(sources, context, budget = MAX_CONTEXT_TOKENS) {
     }
 }
 
-async function answerQuestion({
-    question,
-    commandId,
-    commandText,
-    identity,
-    tools,
-    onActivity,
-    onToken
-} = {}, withAi = true) {
+async function answerQuestion({ question, commandId, commandText, identity, tools, onActivity, onToken} = {}, withAi = true) {
     const cleanQuestion = String(question || "").trim()
 
-    if (!cleanQuestion) {
-        throw new Error("question is required")
-    }
+    if (!cleanQuestion) throw new Error("question is required")
 
     const activities = []
 
     const emit = (event) => {
-        const activity = {
-            id: crypto.randomUUID(),
-            timestamp: Date.now(),
-            ...event
-        }
-
+        const activity = { id: crypto.randomUUID(), timestamp: Date.now(), ...event }
         activities.push(activity)
-
-        if (typeof onActivity === "function") {
-            onActivity(activity)
-        }
+        if (typeof onActivity === "function") onActivity(activity)
     }
 
     const inferredCommand = !commandId ? inferCommandInvocation(cleanQuestion) : null
@@ -977,7 +970,6 @@ async function answerQuestion({
     ///////////////////////////////////////////////////////////////////////////////////////
 
     emit({ type: "retrieval", activityId: "sources", status: "started", message: "Searching repository..." })
-
     const sources = retrieve(cleanQuestion)
 
     emit({
@@ -1066,6 +1058,8 @@ async function answerQuestion({
         }
     })
 
+    ////////////////////////////////////////////////////////////////////////////////////////
+
     const imageText = images.map(image => `IMAGE ASSET: ${image.path} (available at ${image.url})`).join("\n")
     const commandTextResult = commandResult ? `\nCOMMAND RESULT (${commandResult.command}):\n${formatResponses(commandResult.responses)}` : ""
 
@@ -1077,10 +1071,7 @@ async function answerQuestion({
             answer: commandResult
                 ? formatResponses(commandResult.responses)
                 : "AI_API_KEY is not configured. Retrieved relevant code sources are available for inspection.",
-            sources: sources.map(
-                ({ relativePath, start, end, type, heading, score }) =>
-                    ({ path: relativePath, start, end, type, heading, score })
-            ),
+            sources: sources.map(({ relativePath, start, end, type, heading, score }) => ({ path: relativePath, start, end, type, heading, score })),
             images,
             command: commandResult,
             activities
@@ -1088,7 +1079,6 @@ async function answerQuestion({
     }
 
     const configuredUrl = (process.env.AI_URL ||"https://ai.hackclub.com/proxy/v1").replace(/\/$/, "")
-
     const endpoint = configuredUrl.endsWith("/chat/completions")? configuredUrl : `${configuredUrl}/chat/completions`
 
     if (!withAi) {
@@ -1098,10 +1088,7 @@ async function answerQuestion({
             question: cleanQuestion,
             answer: "AI response is disabled. Retrieved relevant code sources are available for inspection.",
             activities,
-            sources: sources.map(
-                ({ relativePath, start, end, type, heading, score }) =>
-                    ({ path: relativePath, start, end, type, heading, score })
-            ),
+            sources: sources.map(({ relativePath, start, end, type, heading, score }) => ({ path: relativePath, start, end, type, heading, score })),
             images,
             command: commandResult,
             context: contextPack.text || "No matching repository context."
@@ -1161,19 +1148,31 @@ async function answerQuestion({
     }
 
     const tokenUsage = { input: 0, output: 0, total: 0 }
+    const responseState = { rounds: [], accumulatedText: "" }
+    const toolResults = []
     const addUsage = usage => {
         tokenUsage.input += Number(usage?.input || 0)
         tokenUsage.output += Number(usage?.output || 0)
         tokenUsage.total += Number(usage?.total || 0)
     }
 
-    let result = await readAiResponse(response, onToken)
+    let result = await readAiResponse(response, responseState)
+
     addUsage(result.usage)
 
     let toolRound = 0
 
-    while (result.toolCalls.length && tools?.execute && toolRound < 1) {
+    while (result.toolCalls.length && tools?.execute && toolRound < MAX_TOOL_ROUNDS) {
         toolRound += 1
+        if (result.answer) {
+            emit({
+                type: "reasoning",
+                activityId: `response-round-${toolRound}`,
+                status: "completed",
+                message: result.answer,
+                metadata: { round: toolRound, kind: "intermediate-reasoning" }
+            })
+        }
         messages.push({
             role: "assistant",
             content: result.answer || null,
@@ -1186,7 +1185,32 @@ async function answerQuestion({
             try { args = JSON.parse(toolCall.function?.arguments || "{}") }
             catch { args = {} }
 
+            const toolStartedAt = process.hrtime.bigint()
             const toolResult = await tools.execute(toolCall.function?.name, args, emit)
+            const toolDurationMs = Number(process.hrtime.bigint() - toolStartedAt) / 1e6
+            const responseCapturedAt = process.hrtime.bigint()
+            toolResults.push({
+                toolName: toolCall.function?.name,
+                arguments: args,
+                result: toolResult,
+                durationMs: toolDurationMs,
+                responseDurationMs: Number(process.hrtime.bigint() - responseCapturedAt) / 1e6
+            })
+
+            emit({
+                type: "tool",
+                activityId: `tool-${toolCall.id}`,
+                status: "completed",
+                message: `Executed tool ${toolCall.function?.name}`,
+                metadata: {
+                    toolName: toolCall.function?.name,
+                    arguments: args,
+                    result: toolResult,
+                    durationMs: toolDurationMs,
+                    responseDurationMs: Number(process.hrtime.bigint() - responseCapturedAt) / 1e6
+                }
+            })
+
             messages.push({
                 role: "tool",
                 tool_call_id: toolCall.id,
@@ -1195,22 +1219,32 @@ async function answerQuestion({
             })
         }
 
-        emit({ type: "ai", activityId: "request", status: "started", message: "Generating answer from repository and live API evidence" })
+        emit({type: "ai", activityId: "request", status: "started", message: "Analysing tool results and generating answer"})
 
         response = await requestAi(true)
 
         if (!response.ok) { throw new Error(`AI request failed with ${response.status}`) }
 
-        result = await readAiResponse(response, onToken)
+        result = await readAiResponse(response, responseState)
         addUsage(result.usage)
     }
 
-    const answer = result.answer
+    if (result.toolCalls.length) {
+        emit({type: "ai", activityId: "request", status: "started", message: "Tool limit reached, generating final answer" })
 
-    if (!answer) {
-        emit({ type: "ai", activityId: "request", status: "failed", message: "AI returned an empty response" })
-        throw new Error("AI returned an empty response")
+        messages.push({ role: "system", content: TOOL_CALL_LIMIT })
+
+        response = await requestAi(false)
+
+        if (!response.ok) { throw new Error(`AI final response failed with ${response.status}`) }
+
+        result = await readAiResponse(response, responseState)
+        addUsage(result.usage)
     }
+
+    const answer = String(result.answer || "").trim() || buildAiFallback(responseState, toolResults)
+
+    if (typeof onToken === "function") onToken(answer)
 
     if (!tokenUsage.input) tokenUsage.input = estimateTokenCount(JSON.stringify(messages))
     if (!tokenUsage.output) tokenUsage.output = estimateTokenCount(answer)
@@ -1230,18 +1264,44 @@ async function answerQuestion({
 
     return {
         answer,
-        sources: sources.map(
-            ({ relativePath, start, end, type, heading, score }) =>
-                ({ path: relativePath, start, end, type, heading, score })
-        ),
+        responseRounds: responseState.rounds.map(round => ({
+            text: round.text,
+            toolCalls: round.toolCalls.map(toolCall => ({
+                id: toolCall.id,
+                type: toolCall.type,
+                function: { ...toolCall.function }
+            }))
+        })),
+        sources: sources.map(({ relativePath, start, end, type, heading, score }) => ({ path: relativePath, start, end, type, heading, score })),
         images,
         command: commandResult,
         activities,
+        trace: activities.map(activity => ({ ...activity })),
         usage: tokenUsage
     }
 }
 
-async function readAiResponse(response, onToken) {
+function buildAiFallback(responseState = {}, toolResults = []) {
+    const reasoning = (responseState.rounds || [])
+        .map(round => String(round.text || "").trim())
+        .filter(Boolean)
+
+    const resultText = toolResults.map(item =>
+        `### ${item.toolName}\nArguments:\n\`\`\`json\n${JSON.stringify(item.arguments || {}, null, 2)}\n\`\`\`\nResponse:\n\`\`\`json\n${JSON.stringify(item.result, null, 2)}\n\`\`\``
+    )
+
+    if (!reasoning.length && !resultText.length) {
+        return "The AI did not return a final response."
+    }
+
+    return [
+        "The AI did not return a final response, but the available execution results are:",
+        reasoning.length ? `\n${reasoning.join("\n\n")}` : "",
+        resultText.length ? `\n${resultText.join("\n\n")}` : ""
+    ].join("").trim()
+}
+
+async function readAiResponse(response, responseState = { rounds: [], accumulatedText: "" }) {
     let answer = ""
     const toolCalls = {}
     let usage = { input: 0, output: 0, total: 0 }
@@ -1276,7 +1336,6 @@ async function readAiResponse(response, onToken) {
 
             if (token) {
                 answer += token
-                if (typeof onToken === "function") onToken(token)
             }
 
             for (const toolCall of choice?.delta?.tool_calls || []) {
@@ -1315,7 +1374,6 @@ async function readAiResponse(response, onToken) {
             toolCalls[toolCall.id] = toolCall
         }
 
-        if (answer && typeof onToken === "function") onToken(answer)
     }
 
     const markupToolCalls = [...answer.matchAll(/<tool_call>\s*([A-Za-z][A-Za-z0-9_]*)\s*<\/tool_call>/gi)]
@@ -1334,6 +1392,12 @@ async function readAiResponse(response, onToken) {
     }
 
     answer = answer.replace(/<tool_call>\s*[A-Za-z][A-Za-z0-9_]*\s*<\/tool_call>/gi, "").trim()
+
+    responseState.accumulatedText += answer
+    responseState.rounds.push({
+        text: answer,
+        toolCalls: Object.values(toolCalls)
+    })
 
     return {
         answer,
@@ -1364,6 +1428,8 @@ function estimateTokenCount(value) {
 module.exports = {
     emitActivity,
     answerQuestion,
+    buildAiFallback,
+    readAiResponse,
     retrieve,
     retrieveImages,
     listCommands,
@@ -1374,5 +1440,6 @@ module.exports = {
     getDependants,
     findEnvironmentVariable,
     findRoutes,
-    getCodeContext
+    getCodeContext,
+    calculateScore
 }

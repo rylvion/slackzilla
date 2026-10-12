@@ -1,6 +1,7 @@
-const { createRagTools } = require("../server/lib/rag/rag-tools")
+const { createRagTools, getToolHelp } = require("../server/lib/rag/rag-tools")
 const { createRagToolContext } = require("../server/lib/rag/rag-tool-context")
 
+const util = require("util")
 const context = require("../server/server")
 
 function parseOptions(args) {
@@ -31,22 +32,33 @@ function printUsage() {
     console.error("")
     console.error("  npm run rag:use-tool -- --getStatus")
     console.error("  npm run rag:use-tool -- --getCommands")
-    console.error("  npm run rag:use-tool -- --getCommands --id calculator")
-    console.error("  npm run rag:use-tool -- --getCommands --command /sz-calc")
-    console.error("  npm run rag:use-tool -- --getCommands --category utility")
-    console.error("  npm run rag:use-tool -- --getCommands --fuzzy calculator")
     console.error("  npm run rag:use-tool -- --getReleaseInfo")
-    console.error("  npm run rag:use-tool -- --runCommand --commandId calculator --text \"2 + 2\"")
-    console.error("  npm run rag:use-tool -- --getLogs --limit 20")
+    console.error("  npm run rag:use-tool -- --runCommand")
+    console.error("  npm run rag:use-tool -- --getLogs")
+    console.error("  npm run rag:use-tool -- --getErrors")
     console.error("  npm run rag:use-tool -- --getMetrics")
     console.error("  npm run rag:use-tool -- --getRoutes")
+    console.error()
+    console.error("Use --help or -h after the tool name to see tool-specific options.")
 }
 
 async function main() {
     const args = process.argv.slice(2)
     const toolName = args.find(arg => arg.startsWith("--"))?.slice(2)
 
-    if (!toolName || args.includes("--help") || args.includes("-h")) {
+    if (!toolName) {
+        printUsage()
+        process.exit(1)
+    }
+
+    if (args.includes("--help") || args.includes("-h")) {
+        const help = getToolHelp(toolName)
+
+        if (help) {
+            console.log(help)
+            process.exit(0)
+        }
+
         printUsage()
         process.exit(1)
     }
@@ -68,14 +80,7 @@ async function main() {
     const toolArgs = {}
 
     if (toolName === "getCommands") {
-        for (const key of [
-            "id",
-            "command",
-            "description",
-            "category",
-            "usageHint",
-            "fuzzy"
-        ]) {
+        for (const key of ["id", "command", "description", "category", "usageHint", "fuzzy"]) {
             if (options[key]) {
                 toolArgs[key] = options[key]
             }
@@ -99,6 +104,9 @@ async function main() {
     if (toolName === "getLogs" && options.limit) {
         toolArgs.limit = Number(options.limit)
     }
+    if (toolName === "getErrors" && options.includeStack) {
+        toolArgs.includeStack = options.includeStack === true || options.includeStack === "true"
+    }
 
     console.log(`RAG Tool: ${toolName}`)
     console.log(`Arguments: ${JSON.stringify(toolArgs)}`)
@@ -107,16 +115,16 @@ async function main() {
     const result = await tools.execute(
         toolName,
         toolArgs,
-        activity => {
-            console.log(
-                `[${activity.type}] ${activity.status} - ${activity.message}`
-            )
-        }
+        activity => { console.log(`[${activity.type}] ${activity.status} - ${activity.message}`) }
     )
 
     console.log("")
     console.log("Result:")
-    console.log(JSON.stringify(result, null, 2))
+    console.log(util.inspect(result, {
+        depth: null,
+        colors: true,
+        compact: false
+    }))
 }
 
 main().catch(error => {

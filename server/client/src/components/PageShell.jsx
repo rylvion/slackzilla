@@ -5,7 +5,7 @@ import InternalSidebar from "./InternalSidebar"
 
 import { useEffect, useState } from "react"
 
-function PageShell({ title, description, csrfToken='', links = [], active='', children }) {
+function PageShell({ title, description, links = [], active='', children }) {
     const [state, setState] = useState({})
 
     useEffect(() => {
@@ -34,7 +34,7 @@ function PageShell({ title, description, csrfToken='', links = [], active='', ch
     
     return (
         <>
-            <Head title={title} description={description} state={state} csrfToken={csrfToken} />
+            <Head title={title} description={description} state={state} />
             <Header />
             <MainSidebar active={active} state={state} />
             <main className="main-content">

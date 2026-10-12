@@ -1,5 +1,5 @@
 // DO NOT touch this file unless you know what your doing, this loads and renders the ENTIRE React app, WITHOUT THIS nothing will work 
-// to run this run `npm run dev` and open 'http://localhost:5173' (unless your in the server read documentation for more details)
+// to run this run `npm start` in the server folder, then go to http://localhost:9000 to your browser
 
 import { StrictMode } from "react"
 import { HelmetProvider } from "react-helmet-async"

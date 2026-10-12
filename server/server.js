@@ -6,7 +6,6 @@ const { URL } = require("url")
 
 require("dotenv").config({ path: path.join(__dirname, ".env") })
 require("dotenv").config({ path: path.join(__dirname, "..", "bot", ".env") })
-require("dotenv").config({ path: path.join(__dirname, "..", "src", ".env") })
 
 const store = require("./database/store")
 const { createAuth } = require("./lib/auth")
@@ -17,6 +16,7 @@ const {
     getRuntimeSnapshot,
     saveDeploymentState
 } = require("./lib/system")
+const { listCommands } = require("./lib/command-runner")
 
 const { handleStatusApi } = require("./api/status")
 const { handleTelemetryApi } = require("./api/telemetry")
@@ -29,6 +29,7 @@ const { handleCommandsApi } = require("./api/commands")
 const { handleRoutesApi } = require("./api/routes")
 const { handleReleaseApi } = require("./api/release")
 const { handleAskApi } = require("./api/ask")
+const { handleSessionApi } = require("./api/session")
 
 const port = Number(process.env.PORT || 9000)
 const projectDir = process.env.PROJECT_DIR || process.cwd()
@@ -138,6 +139,7 @@ function normaliseStatus(snapshot) {
         networkTxBytes: snapshot.network.txBytes,
         networkRxRate: snapshot.network.rxRate,
         networkTxRate: snapshot.network.txRate,
+        totalCommands: listCommands().length,
         commandsExecuted: botMetrics.commandsExecuted,
         uniqueUsers: botMetrics.uniqueUsers,
         uniqueChannels: botMetrics.uniqueChannels,
@@ -176,12 +178,35 @@ function sendSse(res, event, data) {
 const createStreamSet = () => new Set()
 
 const logClients = createStreamSet()
+const serverErrorClients = createStreamSet()
 const statusClients = createStreamSet()
 const telemetryClients = createStreamSet()
 const metricsClients = createStreamSet()
 const adminClients = createStreamSet()
 const telemetryHistory = []
+const serverErrors = store.getServerErrors()
 let latestStatusPayload = null
+
+function recordServerError(error, source = "server") {
+    const entry = {
+        id: crypto.randomUUID(),
+        time: new Date().toISOString(),
+        source,
+        name: error?.name || "Error",
+        message: error?.message || String(error),
+        stack: error?.stack || String(error)
+    }
+    serverErrors.unshift(entry)
+    serverErrors.splice(200)
+    store.recordServerError(entry)
+    broadcast(serverErrorClients, "server_error", entry)
+    return entry
+}
+
+function resetTelemetry() {
+    telemetryHistory.length = 0
+    return true
+}
 
 function broadcast(clients, event, data) {
     for (const client of clients) {
@@ -236,16 +261,44 @@ function renderTelemetryPayload() {
     return { telemetryHistory: status.telemetryHistory || [] }
 }
 
-function buildAdminSummary(csrfToken = "") {
+
+function buildCriticalEventGroups(events) {
+    const groups = new Map()
+
+    for (const event of events) {
+        if (event.statusCode < 400) continue
+
+        const key = `${event.statusCode}:${event.path}`
+
+        if (!groups.has(key)) {
+            groups.set(key, { statusCode: event.statusCode, path: event.path, count: 0, times: [], methods: [] })
+        }
+
+        const group = groups.get(key)
+
+        group.count += 1
+        group.times.push(event.time)
+
+        if (event.method && !group.methods.includes(event.method)) {
+            group.methods.push(event.method)
+        }
+    }
+
+    return [...groups.values()]
+}
+
+
+function buildAdminSummary() {
     const { telemetryHistory, ...status } = latestStatusPayload || renderStatusPayload()
+    const criticalEvents = buildCriticalEventGroups(store.getServerEvents(1000)).slice(0, 20)
 
     return {
         status,
         feedback: store.listFeedback({ status: "all" }).slice(0, 5),
-        commandStats: store.getBotMetrics().commandStats.slice(0, 8),
+        commandStats: store.getBotMetrics().commandStats.slice(0, 10),
+        criticalEvents,
         logs: splitLogLines(store.getLogSnapshot().content).slice(-20),
         runtimeConfig,
-        csrfToken
     }
 }
 
@@ -295,10 +348,10 @@ function watchLogs() {
         const content = buffer.toString("utf8")
         for (const line of splitLogLines(content)) {
             broadcast(logClients, "log", { line })
-            broadcast(adminClients, "log", { line })
         }
     })
 }
+
 
 function verifyWebhookSignature(signature, body) {
     if (!signature || typeof signature !== "string") return false
@@ -477,6 +530,10 @@ const context = {
     telemetryClients,
     metricsClients,
     logClients,
+    serverErrorClients,
+    getServerErrors: () => serverErrors.slice(),
+    recordServerError,
+    resetTelemetry,
     adminClients,
     splitLogLines,
     getBotMetrics: () => store.getBotMetrics(),
@@ -493,6 +550,7 @@ const context = {
 }
 
 async function handleApi(req, res, url) {
+    if (url.pathname === "/api/session" && handleSessionApi({ req, res, context })) return true
     if (await handleCommandsApi({ req, res, url, context })) return true
     if (await handleRoutesApi({ req, res, url, context })) return true
     if (await handleReleaseApi({ req, res, url, context })) return true
@@ -519,7 +577,7 @@ function handleReactApp(req, res, pathname) {
         return false
     }
 
-    if (pathname === "/admin" || pathname === "/admin/events" || pathname === "/admin/feedback") {
+    if (pathname === "/admin" || pathname === "/admin/events" || pathname === "/admin/errors" || pathname === "/admin/logs" || pathname === "/admin/feedback") {
         const session = auth.requireSession(req, res)
         if (!session) return true
     }
@@ -535,6 +593,8 @@ function handleReactApp(req, res, pathname) {
         "/sitemap",
         "/admin",
         "/admin/events",
+        "/admin/errors",
+        "/admin/logs",
         "/admin/login"
     ])
     const statusCode = browserRoutes.has(pathname) ? 200 : 404
@@ -579,12 +639,22 @@ async function handleAdminLogin(req, res, url) {
     return true
 }
 
+function classifyServerRequest(pathname) {
+    if (pathname === "/webhook") return "webhook"
+    if (pathname.startsWith("/api/admin/")) return "admin-api"
+    if (pathname.startsWith("/api/")) return "api"
+    if (pathname.startsWith("/admin")) return "admin-page"
+    if (pathname.startsWith("/public/") || pathname.startsWith("/assets/") || pathname === "/favicon.svg") return "static"
+
+    return "page"
+}
+
 async function handleRequest(req, res) {
     const url = new URL(req.url, "http://localhost")
 
     res.once("finish", () => {
         try {
-            store.recordServerEvent({ method: req.method, path: url.pathname, statusCode: res.statusCode })
+            store.recordServerEvent({ method: req.method, path: url.pathname, type: classifyServerRequest(url.pathname), statusCode: res.statusCode })
         } catch {
             // telemetry must not prevent the request from being served.
         }
@@ -603,6 +673,17 @@ async function handleRequest(req, res) {
 }
 
 function startBackgroundTasks() {
+    process.on("uncaughtException", error => {
+        recordServerError(error, "uncaughtException")
+        console.error("UNCAUGHT SERVER ERROR:", error)
+        store.appendLogChunk(`uncaught server error: ${error?.message || error}\n`)
+    })
+    process.on("unhandledRejection", reason => {
+        const error = reason instanceof Error ? reason : new Error(String(reason))
+        recordServerError(error, "unhandledRejection")
+        console.error("UNHANDLED SERVER REJECTION:", error)
+        store.appendLogChunk(`unhandled server rejection: ${error.message}\n`)
+    })
     watchLogs()
     refreshAndBroadcastStatus()
     refreshAndBroadcastLogs()
@@ -617,8 +698,9 @@ function startBackgroundTasks() {
 function startServer() {
     http.createServer((req, res) => {
         Promise.resolve(handleRequest(req, res)).catch(error => {
+            recordServerError(error, "request")
             console.error("DASHBOARD REQUEST FAILED:", error)
-            store.appendLogChunk(`dashboard server request failed: ${error.message}\n`)
+            store.appendLogChunk(`dashboard request error: ${error.message || error}\n`)
             sendText(res, 500, "Internal server error\n")
         })
     }).listen(port, () => {

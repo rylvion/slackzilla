@@ -1,3 +1,5 @@
+@import "./markdown.css";
+
 :root {
     --bg: #050805;
     --bg-secondary: #080d08;
@@ -175,8 +177,6 @@ body::after {
     text-shadow: 0 0 8px rgba(0, 255, 102, 0.35);
 }
 
-
-
 .sidebar-footer {
     position: absolute;
     left: 14px;
@@ -318,7 +318,7 @@ body::after {
     padding: 20px;
 }
 
-.panel-body p {
+.panel-body > p {
     margin: 0;
 
     color: var(--text-dim);
@@ -439,21 +439,10 @@ a:focus-visible {
     outline-offset: 3px;
 }
 
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--green-dark);
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--green-dim);
-}
+::-webkit-scrollbar { width: 8px }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--green-dark) }
+::-webkit-scrollbar-thumb:hover { background: var(--green-dim)}
 
 ::selection {
     background: var(--green);

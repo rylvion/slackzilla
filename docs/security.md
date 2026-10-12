@@ -14,7 +14,7 @@ React rendering `/admin` does not grant access. The server checks the session be
 
 The server does not store the administrator password in plaintext. `ADMIN_PASSWORD_HASH` uses this format:
 
-```text
+```bash
 pbkdf2$<algorithm>$<iterations>$<salt>$<derived-key>
 ```
 
@@ -38,9 +38,11 @@ The session cookie is `HttpOnly`, uses `Path=/` and `SameSite=Strict`, and uses 
 
 Cross-site request forgery abuses automatically attached cookies. Slackzilla uses a synchroniser-token-style check for authenticated state-changing requests.
 
-The authenticated admin summary contains the session CSRF token. The client sends it in `X-CSRF-Token` and may also include it as `csrf` in the request body. Protected handlers call `auth.verifyCsrf(req, session)` before changing state.
+`GET /api/session` returns the session CSRF token and safe session metadata when the request has a valid session. The client sends the token in `X-CSRF-Token` and may also include it as `csrf` in the request body. Protected handlers call `auth.verifyCsrf(req, session)` before changing state.
 
 CSRF checks protect service actions, feedback updates and replies, feedback deletion, and logout. The token is not a password and must not be logged or exposed in public responses.
+
+The CSRF token is only returned by `/api/session` after a successful login. It is not available to unauthenticated clients, so it cannot be used to bypass the login challenge.
 
 ## Dangerous Actions
 

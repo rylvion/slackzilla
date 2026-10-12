@@ -15,6 +15,9 @@ const endpoints = [
     ["GET", "/api/logs/download", "Bounded log snapshot as plain text."],
     ["GET", "/api/admin/summary", "Authenticated admin dashboard data."],
     ["GET", "/api/admin/server-events", "Authenticated full server event history."],
+    ["GET", "/api/admin/errors", "Authenticated full server error records and stack traces."],
+    ["GET", "/api/admin/errors/stream", "Authenticated live server error stream."],
+    ["GET", "/api/admin/log-archives", "Authenticated list of rotated log archives."],
     ["GET", "/api/admin/events", "Authenticated admin event stream."],
     ["POST", "/api/admin/control", "Authenticated control actions with CSRF protection."],
     ["GET/POST", "/api/admin/feedback", "Authenticated feedback search and actions."],
@@ -26,7 +29,7 @@ function Api() {
         <PageShell title="API" description="Slackzilla API reference">
             <section className="panel">
                 <div className="panel-header"><h1>API Surface</h1><span className="panel-subtitle">modular / same-origin / JSON envelopes</span></div>
-                <div className="panel-body"><p>Public telemetry endpoints do not require authentication. Admin endpoints require the secure admin session cookie and state-changing requests also require the CSRF token returned by the admin summary.</p></div>
+                <div className="panel-body"><p>Public telemetry endpoints do not require authentication. Admin endpoints require the secure admin session cookie and state-changing requests also require the CSRF token returned by <code>/api/session</code>.</p></div>
             </section>
             
             <section className="panel">

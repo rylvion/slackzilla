@@ -1,4 +1,99 @@
-import { useEffect, useState } from "react"
+import { createContext, createElement, useContext, useEffect, useState } from "react"
+
+let sessionRequest = null
+let sessionState = { session: null, loading: true, error: null }
+let sessionStateAvailable = false
+const sessionListeners = new Set()
+const SessionContext = createContext(null)
+
+function publishSessionState(nextState) {
+    sessionState = nextState
+    sessionStateAvailable = true
+    sessionListeners.forEach(listener => listener(sessionState))
+}
+
+function subscribeToSession(listener) {
+    sessionListeners.add(listener)
+    if (sessionStateAvailable) listener(sessionState)
+    return () => sessionListeners.delete(listener)
+}
+
+function fetchSession() {
+    const request = getJson("/api/session")
+    sessionRequest = request
+
+    request.then(result => {
+        if (sessionRequest !== request) return
+        publishSessionState({ session: result, loading: false, error: null })
+    }).catch(error => {
+        if (sessionRequest !== request) return
+        sessionRequest = null
+        publishSessionState({
+            session: { authenticated: false, csrfToken: null, session: null },
+            loading: false,
+            error
+        })
+    })
+
+    return request
+}
+
+export function getSession() {
+    if (sessionRequest) return sessionRequest
+    if (sessionStateAvailable) return Promise.resolve(sessionState.session)
+
+    publishSessionState({ session: null, loading: true, error: null })
+    return fetchSession()
+}
+
+export function refreshSession() {
+    sessionRequest = null
+    publishSessionState({ session: null, loading: true, error: null })
+    return fetchSession()
+}
+
+export function invalidateSession() {
+    sessionRequest = null
+    publishSessionState({
+        session: { authenticated: false, csrfToken: null, session: null },
+        loading: false,
+        error: null
+    })
+}
+
+export async function getCsrfToken() {
+    const result = await getSession()
+    return result?.authenticated ? result.csrfToken : null
+}
+
+export function SessionProvider({ children }) {
+    const [state, setState] = useState({ session: null, loading: true, error: null })
+
+    useEffect(() => {
+        const unsubscribe = subscribeToSession(setState)
+
+        getSession().catch(() => {})
+
+        return unsubscribe
+    }, [])
+
+    return createElement(SessionContext.Provider, {
+        value: {
+            session: state.session,
+            loading: state.loading,
+            authenticated: Boolean(state.session?.authenticated),
+            csrfToken: state.session?.csrfToken || null
+        }
+    }, children)
+}
+
+export function useSession() {
+    const context = useContext(SessionContext)
+
+    if (!context) throw new Error("useSession must be used within SessionProvider")
+
+    return context
+}
 
 export async function getJson(url, options = {}) {
     const response = await fetch(url, {

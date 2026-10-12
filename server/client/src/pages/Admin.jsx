@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import PageShell from "../components/PageShell"
-import { getJson, useStatusStream } from "../components/utils/api"
-import "../css/admin.css"
+import { getCsrfToken, getJson, useSession, useStatusStream } from "../components/utils/api"
+import ansiLine from "../components/logs/ansi-handler"
+import "../css/admin/base.css"
+import "../css/admin/main.css"
+import "../css/shared/logs/log-terminal.css"
 
 function formatFeedbackTime(timestamp) {
     if (!timestamp) return "time unavailable"
@@ -16,13 +19,11 @@ function formatFeedbackTime(timestamp) {
     })
 }
 
-function sortServerEvents(events) {
-    return [...events].sort((a, b) => {
-        const aCritical = Number(a.statusCode) >= 400
-        const bCritical = Number(b.statusCode) >= 400
-        if (aCritical !== bCritical) return Number(bCritical) - Number(aCritical)
-        return new Date(b.time || 0).getTime() - new Date(a.time || 0).getTime()
-    })
+function formatBackupBytes(bytes) {
+    const value = Number(bytes) || 0
+    if (value < 1024) return `${value} B`
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function Admin() {
@@ -34,33 +35,37 @@ function Admin() {
     const [selectedFeedback, setSelectedFeedback] = useState(null)
     const [responseText, setResponseText] = useState("")
     const [feedback, setFeedback] = useState([])
-    const [serverEvents, setServerEvents] = useState([])
+    const [serverErrors, setServerErrors] = useState([])
+    const [archives, setArchives] = useState([])
+    const [logMessage, setLogMessage] = useState("")
+    const [restoreTarget, setRestoreTarget] = useState(null)
     const { status } = useStatusStream({})
+    const { csrfToken } = useSession()
 
     useEffect(() => {
         getJson("/api/admin/summary").then(setSummary).catch(error => setError(error.message))
     }, [])
 
     useEffect(() => {
-        if (!summary?.csrfToken) return
-        getJson("/api/admin/server-events?limit=1000")
-            .then(result => setServerEvents(result.events || []))
-            .catch(error => setError(error.message))
-    }, [summary?.csrfToken])
+        if (!csrfToken) return
+        getJson("/api/admin/errors").then(result => setServerErrors(result.errors || [])).catch(error => setError(error.message))
+        getJson("/api/admin/log-archives").then(result => setArchives(result.archives || [])).catch(error => setError(error.message))
+    }, [csrfToken])
 
     useEffect(() => {
-        if (!summary?.csrfToken) return
+        if (!csrfToken) return
         getJson(`/api/admin/feedback?status=${feedbackStatus}`).then(result => setFeedback(result.feedback || [])).catch(error => setError(error.message))
-    }, [summary?.csrfToken, feedbackStatus])
+    }, [csrfToken, feedbackStatus])
 
     async function feedbackAction(id, action, extra = {}) {
-        if (!summary?.csrfToken) return
+        const token = await getCsrfToken().catch(() => null)
+        if (!token) return
         setBusy(`feedback-${id}`)
         try {
             const result = await getJson(`/api/admin/feedback/${id}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-CSRF-Token": summary.csrfToken },
-                body: JSON.stringify({ action, csrf: summary.csrfToken, ...extra })
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+                body: JSON.stringify({ action, csrf: token, ...extra })
             })
             if (action === "delete") {
                 setSelectedFeedback(null)
@@ -82,15 +87,16 @@ function Admin() {
     }
 
     async function control(action) {
-        if (!summary?.csrfToken) return
+        const token = await getCsrfToken().catch(() => null)
+        if (!token) return
         const dangerous = ["start", "stop", "restart", "redeploy"].includes(action)
         if (dangerous && !confirmAction(`Confirm ${action} service action?`)) return
         setBusy(action)
         try {
             const result = await getJson("/api/admin/control", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-CSRF-Token": summary.csrfToken },
-                body: JSON.stringify({ action, csrf: summary.csrfToken, confirmed: dangerous })
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+                body: JSON.stringify({ action, csrf: token, confirmed: dangerous })
             })
             setSummary(current => ({ ...current, status: result.status || current.status }))
         } catch (requestError) {
@@ -99,6 +105,40 @@ function Admin() {
             setBusy("")
         }
     }
+
+    async function logControl(action, payload = {}, confirmation = "") {
+        const token = await getCsrfToken().catch(() => null)
+        if (!token) return
+        if (confirmation && !window.confirm(confirmation)) return
+        setBusy(action)
+        setLogMessage("")
+        try {
+            const result = await getJson("/api/admin/control", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+                body: JSON.stringify({ action, csrf: token, confirmed: true, ...payload })
+            })
+            setLogMessage(`[SUCCESS] ${action} completed`)
+            const archivesResult = await getJson("/api/admin/log-archives")
+            setArchives(archivesResult.archives || [])
+            return result
+        } catch (requestError) {
+            setLogMessage(`[ERROR] ${action}: ${requestError.message}`)
+        } finally {
+            setBusy("")
+        }
+    }
+
+    const errorOverview = useMemo(() => {
+        const groups = new Map()
+        for (const capturedError of serverErrors) {
+            const group = groups.get(capturedError.message) || { message: capturedError.message, count: 0, latest: capturedError }
+            group.count += 1
+            if (new Date(capturedError.time) > new Date(group.latest.time)) group.latest = capturedError
+            groups.set(capturedError.message, group)
+        }
+        return [...groups.values()].sort((a, b) => new Date(b.latest.time) - new Date(a.latest.time))
+    }, [serverErrors])
 
     if (error && !summary) {
         return (
@@ -114,7 +154,6 @@ function Admin() {
     }
     const adminStatus = summary?.status || status || {}
     const stats = summary?.commandStats || []
-    const orderedServerEvents = sortServerEvents(serverEvents)
 
     return (
         <PageShell title="Admin" description="Authenticated Slackzilla admin controls" active="admin-login">
@@ -138,6 +177,8 @@ function Admin() {
                                 {busy === action ? "working..." : action}
                             </button>
                         ))}
+                        <button className="button action-stop" disabled={Boolean(busy)} onClick={() => logControl("reset-telemetry", {}, "Reset telemetry history?")}>reset telemetry</button>
+
                     </div>
                     <div className="admin-meta">
                         <span>service: {summary?.runtimeConfig?.botServiceName || "unknown"}</span>
@@ -147,7 +188,61 @@ function Admin() {
                 </div>
             </section>
 
+            <section className="panel admin-controls-panel">
+                <div className="panel-header"><h2>Log controls</h2><span className="panel-subtitle">dangerous actions require confirmation · <Link to="/admin/logs">view logs</Link></span></div>
+                <div className="panel-body admin-log-controls">
+                    {logMessage && <p className={logMessage.startsWith("[SUCCESS]") ? "success-banner" : "error-banner"}>{logMessage}</p>}
+                    <div className="admin-log-actions">
+                        <button className="button" disabled={Boolean(busy)} onClick={() => logControl("rotate-logs", {}, "Archive current logs and start fresh?")}>rotate logs</button>
+                    </div>
+                    <div className="admin-backups">
+                        <div className="admin-backups__header"><h3>Log backups</h3><span>{archives.length} available</span></div>
+                        {archives.map(archive => <article className={`admin-backup-card ${archive.name.startsWith("slackzilla-before-restore-") ? "admin-backup-card--restore" : ""}`} key={archive.name}>
+                            <div className="admin-backup-card__identity"><strong>{archive.name}</strong>{archive.name.startsWith("slackzilla-before-restore-") && (
+                                <span className="backup-type backup-type-restore">before restore</span>
+                            )}<span>created {formatFeedbackTime(archive.createdAt)}</span></div>
+                            <div className="admin-backup-card__metadata"><span>{formatBackupBytes(archive.bytes)}</span><span>{archive.lines} lines</span><span>updated {formatFeedbackTime(archive.updatedAt)}</span></div>
+                            <div className="admin-backup-card__actions">
+                                <button className="button" disabled={Boolean(busy)} onClick={() => setRestoreTarget(archive)}>restore / switch</button>
+                                <button className="button button-danger" disabled={Boolean(busy)} onClick={() => logControl("delete-log-archive", { archive: archive.name }, "Delete this log backup permanently?")}>delete</button>
+                            </div>
+                            
+                        </article>)}
+                        {!archives.length && <p className="muted">No log backups yet. Rotate the current log to create one.</p>}
+                    </div>
+                </div>
+            </section>
+
+            {restoreTarget && (
+                <div className="admin-modal-backdrop">
+                    <div className="admin-modal">
+                        <h3>Restore log backup?</h3>
+                        <p>What should happen to the current log?</p>
+                        <div className="admin-modal__actions">
+                            <button className="button" onClick={() => {
+                                const archive = restoreTarget.name
+                                setRestoreTarget(null)
+                                logControl("restore-log", { archive, saveCurrent: false })
+                            }}>restore only</button>
+                            <button className="button" onClick={() => {
+                                const archive = restoreTarget.name
+                                setRestoreTarget(null)
+                                logControl("restore-log", { archive, saveCurrent: true })
+                            }}>save current & restore</button>
+                            <button className="button" onClick={() => setRestoreTarget(null)}>cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <section className="admin-columns">
+                <div className="panel admin-overview-panel">
+                    <div className="panel-header"><h2>Error overview</h2><span className="panel-subtitle">{serverErrors.length} captured · <Link to="/admin/errors">open debugger</Link></span></div>
+                    <div className="panel-body"><div className="admin-error-overview">
+                        {errorOverview.slice(0, 8).map(group => <Link className="admin-error-overview__item" to={`/admin/errors?error=${encodeURIComponent(group.message)}`} key={group.message}><strong>{group.count > 1 ? `(${group.count}) ` : ""}{group.message}</strong><span>{group.latest.source} · {formatFeedbackTime(group.latest.time)}</span></Link>)}
+                        {!errorOverview.length && <p className="muted">No captured server errors.</p>}
+                    </div></div>
+                </div>
                 <div className="panel">
                     <div className="panel-header">
                         <h2>Feedback queue</h2>
@@ -208,20 +303,41 @@ function Admin() {
                     </div>
                 </div>
 
-                <div className="panel">
-                    <div className="panel-header">
-                        <h2>Server activity</h2>
-                        <span className="panel-subtitle">{serverEvents.length} events · <Link to="/admin/events">open full event view</Link></span>
+                <div className="dashboard-activity-grid">
+                    <div className="panel">
+                        <div className="panel-header">
+                            <h2>Server activity</h2>
+                                <span className="panel-subtitle">{(summary?.criticalEvents || []).length} events · <Link to="/admin/events">open full event view</Link></span>                        </div>
+                        <div className="panel-body">
+                            <div className="mini-list server-events-list">
+                                {(summary?.criticalEvents || []).slice(0, 20).map((event, index) => (
+                                    <div className="server-event server-event--critical" key={`${event.statusCode}-${event.path}-${index}`}>
+                                        <span><code>{event.methods?.join(", ")} {event.path}</code></span>
+                                        <strong>({event.count}) {event.statusCode}</strong>
+                                    </div>
+                                ))}
+
+                                {!(summary?.criticalEvents || []).length && (
+                                    <p className="muted">No critical server events recorded.</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <div className="panel-body">
-                        <div className="mini-list server-events-list">
-                            {orderedServerEvents.slice(0, 10).map((event, index) => (
-                                <div className={Number(event.statusCode) >= 400 ? "server-event server-event--critical" : "server-event"} key={`${event.time}-${index}`}>
-                                    <span><code>{event.method} {event.path}</code><time>{formatFeedbackTime(event.time)}</time></span>
-                                    <strong>{event.statusCode || "received"}</strong>
+
+                    <div className="panel">
+                        <div className="panel-header">
+                            <h2>Log snapshot</h2>
+                            <span className="panel-subtitle">{summary?.logs?.length || 0} lines · <Link to="/admin/logs">open full log view</Link></span>
+                        </div>
+                        <div className="panel-body">
+                            <div className="terminal terminal--snapshot">
+                                <div className="log-lines">
+                                    {summary?.logs?.length
+                                        ? summary.logs.map((text, index) => ansiLine({number: index + 1, text, highlightLine: null, highlighted: false }, index))
+                                        : <div className="muted">$ waiting for log output...</div>
+                                    }
                                 </div>
-                            ))}
-                            {!serverEvents.length && <p className="muted">No server events recorded.</p>}
+                            </div>
                         </div>
                     </div>
                 </div>
