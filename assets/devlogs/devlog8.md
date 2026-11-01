@@ -41,8 +41,8 @@ ___
 <p align="right">
   <em>
     <b>
-      <a href="#">
-        visit non existent devlog 9 (coming soon)
+      <a href="devlog9.md">
+        visit devlog 9
       </a>
     </b>
   </em>

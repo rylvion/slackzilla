@@ -11,13 +11,8 @@ function getHelp() {
     )
 }
 
-function countWords(text) {
-    return text.trim().split(/\s+/).filter(Boolean).length
-}
-
-function countLines(text) {
-    return text.split(/\r?\n/).length
-}
+const countWords = (text) => text.trim().split(/\s+/).filter(Boolean).length
+const countLines = (text) => text.split(/\r?\n/).length
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {

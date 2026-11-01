@@ -44,6 +44,22 @@ CSRF checks protect service actions, feedback updates and replies, feedback dele
 
 The CSRF token is only returned by `/api/session` after a successful login. It is not available to unauthenticated clients, so it cannot be used to bypass the login challenge.
 
+## Terminal Authentication and Command Security
+
+The embedded terminal is a restricted command interface, not a shell. The browser sends registered backend commands to `POST /api/terminal` as a command name plus an argument array. The server validates the command against [`server/lib/terminal/commands.js`](../server/lib/terminal/commands.js), enforces its declared permission, and invokes the handler through the shared server context. Unregistered commands, arbitrary shell text, dynamic module names, filesystem paths, and external proxy URLs are not accepted.
+
+Public terminal commands such as `status`, `uptime`, `logs`, `version`, `docs`, `rag`, and `command` do not require an administrator session, but they remain subject to input validation and terminal rate limiting. The `command` family only invokes registered Slack command adapters; blocked commands such as `/sz-ask` cannot recursively invoke the assistant through the terminal.
+
+The `sudo` terminal family requires the same `slackzilla_admin_session` cookie and CSRF validation as other administrative APIs. Mutating controls use operation-bound master-password re-authentication followed by explicit confirmation. The server binds the re-authentication token to the requested control, consumes it once, and delegates execution to the existing admin-control handler. Unknown controls are rejected before credentials or confirmation are requested. `sudo logout` invalidates the session and clears the cookie through that shared control path.
+
+Terminal requests are rate limited to 20 requests per 60 seconds per authenticated session or client IP, with a 500 ms cooldown. The browser additionally prevents duplicate privileged submissions and redraws interactive prompts so typed password characters cannot create repeated operation messages. These client safeguards do not replace server-side authorization or rate limiting.
+
+The terminal can inspect browser `sessionStorage` and `localStorage` through its own page context. Storage values are shown only after administrator authentication, the terminal-state key is protected from deletion, and authentication cookies are not exposed because Slackzilla cookies are HttpOnly. The terminal never writes session cookies, raw CSRF tokens, or passwords into command history or terminal output.
+
+The terminal's `api get` and `api post` helpers are same-origin browser requests, not an unrestricted server proxy. GET routes are allow-listed; internal POST routes may be submitted by normal users, but each destination API retains its own authentication, CSRF, confirmation, method, and rate-limit checks. RAG API and terminal tools additionally reject external URLs and credential-bearing headers.
+
+See [`POST /api/terminal`](post/terminal-endpoint.md) for the complete payload, limits, command list, error codes, and implementation path.
+
 ## Dangerous Actions
 
 The browser asks for confirmation before dangerous actions, but the security boundary is server-side. The control API rejects service actions without `confirmed: true` using `409 CONFIRMATION_REQUIRED`. Feedback deletion has the same requirement. A caller cannot bypass the browser prompt by posting directly without confirmation.

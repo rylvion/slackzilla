@@ -1,6 +1,7 @@
 const { listCommands, loadIndex } = require("./rag")
 const { runCommand } = require("../command-runner")
 const { getReleaseInfo } = require("../release-info")
+const { executeCommand: executeTerminalCommand, getCommand: getTerminalCommand } = require("../terminal/commands")
 
 
 function createRagToolContext(context) {
@@ -52,12 +53,42 @@ function createRagToolContext(context) {
 
         getReleaseInfo,
 
+        runApiCommand: async ({ method, path, body, headers = {} }) => {
+            if (!/^\/api\//.test(path) || path.startsWith("//")) throw new Error("only internal /api/ routes are supported")
+            const safeHeaders = {}
+            for (const [name, value] of Object.entries(headers || {})) {
+                if (/(authorization|cookie|csrf|password|secret|token|api[-_]?key)/i.test(name)) throw new Error(`header '${name}' is not permitted for RAG API requests`)
+                safeHeaders[name] = String(value).slice(0, 512)
+            }
+            const response = await fetch(`http://127.0.0.1:${context.runtimeConfig.port}${path}`, {
+                method,
+                headers: { Accept: "application/json", ...safeHeaders, ...(method === "POST" ? { "Content-Type": "application/json" } : {}) },
+                ...(method === "POST" && body !== undefined ? { body: JSON.stringify(body) } : {})
+            })
+            const text = await response.text()
+            let parsed = text
+            try { parsed = text ? JSON.parse(text) : null }
+            catch { /* preserve useful plain-text responses */ }
+            return { status: response.status, ok: response.ok, body: parsed }
+        },
+
         runCommand: (commandId, text) => runCommand(commandId, text, {
             userId: "rag-tool",
             username: "RAG tool",
             channelId: "api",
             teamId: "api"
         }),
+
+        runTerminalCommand: async (commandName, args = []) => {
+            const command = getTerminalCommand(commandName)
+            if (!command || command.permission !== "public") {
+                const error = new Error(`terminal command '${commandName}' is not available to the RAG`)
+                error.statusCode = 403
+                throw error
+            }
+
+            return executeTerminalCommand(commandName, args, context, null)
+        },
 
         getLogs: (limit = 20) =>
             context.splitLogLines(

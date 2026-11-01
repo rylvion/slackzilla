@@ -68,18 +68,16 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         try {
-            const text = command.text?.trim()
+            const expression = command.text?.trim()
 
-            if (!text) {
-                log.warn("{user} used {cmd} with no text", command)
+            if (!expression) {
+                log.warn("{user} used {cmd} with no expression", command)
                 await respond("You need to give me a mathematical expression.")
                 return
             }
 
-            if (text.toLowerCase() === "help") {
+            if (expression.toLowerCase() === "help") {
                 await respond(
                     "> *Available commands:*\n" +
                     ">  help        Show this help menu\n" +
@@ -96,30 +94,22 @@ module.exports = (app, meta) => {
             }
 
             const start = performance.now()
-            const result = calculate(text)
+            const result = calculate(expression)
             const end = performance.now()
 
             const seconds = ((end - start) / 1000).toFixed(6)
 
-            log.success(
-                "{user} calculated expression via {cmd}: '{0}'",
-                command,
-                cyan(text)
-            )
+            log.success("{user} calculated expression via {cmd}: '{0}' = '{1}' (computed in {2} seconds)", command, cyan(expression), cyan(result), seconds)
 
             await respond(
                 `**Result:** \`${result}\`\n` +
-                `**Expression:** \`${text}\`\n` +
+                `**Expression:** \`${expression}\`\n` +
                 `Computed within **${seconds}** *seconds*`
             )
 
         } catch (err) {
             log.error("{user} failed {cmd}: {0}", command, err.message)
-
-            await respond(
-                `❌ smth went wrong while evaluating your expression.\n` +
-                `\`${err.message}\``
-            )
+            await respond( `❌ smth went wrong while evaluating your expression.\n` + `\`${err.message}\``)
         }
     })
 }

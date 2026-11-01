@@ -1,5 +1,6 @@
 const fs = require("fs")
 const path = require("path")
+const crypto = require("crypto")
 
 const dataDir = __dirname
 const logDir = path.join(__dirname, "..", "logs")
@@ -38,9 +39,8 @@ const defaultBotState = {
     commandCount: null
 }
 
-function ensureDir(filePath) {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true })
-}
+
+const ensureDir = (filePath) => fs.mkdirSync(path.dirname(filePath), { recursive: true })
 
 function readJson(filePath, fallback) {
     try {
@@ -91,9 +91,7 @@ function getLogSnapshot(maxBytes = 256 * 1024) {
     }
 }
 
-function readLogLines() {
-    return String(getLogSnapshot().content || "").split(/\r?\n/).filter(Boolean)
-}
+const readLogLines = () => String(getLogSnapshot().content || "").split(/\r?\n/).filter(Boolean)
 
 function writeLogLines(lines) {
     ensureDir(logFile)
@@ -113,9 +111,7 @@ function deleteLastLogLines(count) {
     return writeLogLines(lines.slice(0, Math.max(0, lines.length - Math.max(1, Number(count) || 1))))
 }
 
-function clearLog() {
-    return writeLogLines([])
-}
+const clearLog = () => writeLogLines([])
 
 function deleteLogFile() {
     ensureDir(logFile)
@@ -207,23 +203,14 @@ function restoreLogArchive(name, saveCurrent = false) {
 
 function deleteLogArchive(name) {
     const safeName = path.basename(String(name || ""))
-
-    if (!safeName || safeName !== name || !safeName.endsWith(".log")) {
-        throw new Error("invalid log archive")
-    }
+    if (!safeName || safeName !== name || !safeName.endsWith(".log")) throw new Error("invalid log archive")
 
     const archive = path.join(logArchiveDir, safeName)
 
-    if (!fs.existsSync(archive)) {
-        throw new Error("log archive not found")
-    }
-
+    if (!fs.existsSync(archive)) throw new Error("log archive not found")
     fs.unlinkSync(archive)
 
-    return {
-        name: safeName,
-        deleted: true
-    }
+    return {name: safeName, deleted: true}
 }
 
 function getArchiveMetadata(name) {
@@ -244,6 +231,40 @@ function getServerErrors() {
     return Array.isArray(errors) ? errors : []
 }
 
+const fingerprint = value => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex")
+
+function groupServerErrors(source = getServerErrors()) {
+    const groups = new Map()
+    for (const error of source) {
+        const normalised = {
+            name: error.name || "Error",
+            message: error.message || "",
+            code: error.code || null,
+            stack: error.stack || ""
+        }
+        const groupId = `error-${fingerprint(normalised)}`
+        const group = groups.get(groupId) || {
+            id: groupId,
+            fingerprint: groupId,
+            name: normalised.name,
+            message: normalised.message,
+            stack: normalised.stack,
+            occurrences: [],
+            count: 0,
+            firstSeen: null,
+            lastSeen: null
+        }
+        const occurrence = { id: error.id, time: error.time, source: error.source }
+        group.occurrences.push(occurrence)
+        group.count = group.occurrences.length
+        const times = group.occurrences.map(item => new Date(item.time).getTime()).filter(Number.isFinite)
+        group.firstSeen = times.length ? new Date(Math.min(...times)).toISOString() : null
+        group.lastSeen = times.length ? new Date(Math.max(...times)).toISOString() : null
+        groups.set(groupId, group)
+    }
+    return [...groups.values()].sort((a, b) => new Date(b.lastSeen || 0) - new Date(a.lastSeen || 0))
+}
+
 function recordServerError(error) {
     const errors = getServerErrors()
     errors.unshift(error)
@@ -251,14 +272,32 @@ function recordServerError(error) {
     return error
 }
 
+
+const deleteServerError = id => deleteServerErrors([id]).deleted === 1
+
+function deleteServerErrors(ids) {
+    const errors = getServerErrors()
+    const idSet = new Set(ids)
+    const remaining = errors.filter(error => !idSet.has(error.id))
+    const deleted = errors.length - remaining.length
+    if (deleted) writeJson(serverErrorsFile, remaining)
+    return { deleted, missing: ids.length - deleted }
+}
+
+
+function deleteServerErrorGroup(groupId) {
+    const group = groupServerErrors().find(item => item.id === groupId)
+    if (!group) return { deleted: 0, missing: 1 }
+    return deleteServerErrors(group.occurrences.map(item => item.id))
+}
+
+
 function readJsonArray(filePath) {
     const data = readJson(filePath, [])
     return Array.isArray(data) ? data : []
 }
 
-function readFeedback() {
-    return readJsonArray(feedbackFile)
-}
+const readFeedback = () => readJsonArray(feedbackFile)
 
 function normaliseFeedbackEntry(entry = {}) {
     const status = String(entry.status || "unread").toLowerCase()
@@ -278,9 +317,7 @@ function normaliseFeedbackEntry(entry = {}) {
     }
 }
 
-function saveFeedback(items) {
-    writeJson(feedbackFile, items.map(normaliseFeedbackEntry))
-}
+const saveFeedback = items => writeJson(feedbackFile, items.map(normaliseFeedbackEntry))
 
 function addFeedback(entry) {
     const items = readFeedback()
@@ -347,50 +384,26 @@ function listFeedback({ query = "", status = "all" } = {}) {
     return items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 }
 
-function readBotState() {
-    return readJson(botStateFile, defaultBotState)
-}
+const readBotState = () => readJson(botStateFile, defaultBotState)
+const getBotState = () => readBotState()
 
 function saveBotState(patch) {
-    const state = {
-        ...defaultBotState,
-        ...readBotState(),
-        ...patch,
-        lastUpdatedAt: new Date().toISOString()
-    }
-
+    const state = {...defaultBotState, ...readBotState(), ...patch, lastUpdatedAt: new Date().toISOString()}
     writeJson(botStateFile, state)
     return state
 }
 
-function getBotState() {
-    return readBotState()
-}
-
-function recordBotHeartbeat(patch = {}) {
-    const now = new Date().toISOString()
-
-    return saveBotState({
-        ...patch,
-        status: "online",
-        lastHeartbeatAt: now
-    })
-}
-
-function readMetrics() {
-    return readJson(metricsFile, defaultMetrics)
-}
-
-function saveMetrics(metrics) {
-    writeJson(metricsFile, metrics)
-}
+const recordBotHeartbeat = (patch = {}) => saveBotState({ ...patch, status: "online", lastHeartbeatAt: new Date().toISOString() })
+const readMetrics = () => readJson(metricsFile, defaultMetrics)
+const saveMetrics = (metrics) => writeJson(metricsFile, metrics)
 
 function recordServerEvent(event = {}) {
     const metrics = readMetrics()
     metrics.serverEvents = Array.isArray(metrics.serverEvents) ? metrics.serverEvents : []
     metrics.serverEvents.unshift({
-        source: "server",
-        time: new Date().toISOString(),
+        id: event.id || crypto.randomUUID(),
+        source: event.source || "server",
+        time: event.time || new Date().toISOString(),
         method: event.method || null,
         path: event.path || null,
         type: event.type || "request",
@@ -402,7 +415,68 @@ function recordServerEvent(event = {}) {
 
 function getServerEvents(limit = 100) {
     const metrics = readMetrics()
-    return (metrics.serverEvents || []).slice(0, limit)
+    const events = Array.isArray(metrics.serverEvents) ? metrics.serverEvents : []
+    let changed = false
+    for (const event of events) {
+        if (!event.id) {
+            event.id = crypto.randomUUID()
+            changed = true
+        }
+    }
+    if (changed) saveMetrics(metrics)
+    return events.slice(0, limit)
+}
+
+function groupServerEvents(limit = 100, source = null) {
+    const groups = new Map()
+    for (const event of (source || getServerEvents(limit))) {
+        const groupingPath = event.path || null
+        const signature = {
+            method: event.method || null,
+            path: groupingPath,
+            type: event.type || "request",
+            statusCode: event.statusCode || null,
+            source: event.source || "server"
+        }
+        const groupId = `event-${fingerprint(signature)}`
+        const group = groups.get(groupId) || {
+            id: groupId,
+            signature: groupId,
+            method: signature.method,
+            path: signature.path,
+            type: signature.type,
+            statusCode: signature.statusCode,
+            source: signature.source,
+            occurrences: [],
+            count: 0
+        }
+        group.occurrences.push({ id: event.id, time: event.time, source: event.source || "server", path: event.path })
+        group.count = group.occurrences.length
+        groups.set(groupId, group)
+    }
+    return [...groups.values()].sort((a, b) => new Date(b.occurrences[0]?.time || 0) - new Date(a.occurrences[0]?.time || 0))
+}
+
+
+const deleteServerEvent = id => deleteServerEvents([id]).deleted === 1
+
+function deleteServerEvents(ids) {
+    const metrics = readMetrics()
+    const events = Array.isArray(metrics.serverEvents) ? metrics.serverEvents : []
+    const idSet = new Set(ids)
+    const remaining = events.filter(event => !idSet.has(event.id))
+    const deleted = events.length - remaining.length
+    if (deleted) {
+        metrics.serverEvents = remaining
+        saveMetrics(metrics)
+    }
+    return { deleted, missing: ids.length - deleted }
+}
+
+function deleteServerEventGroup(groupId) {
+    const group = groupServerEvents(1000).find(item => item.id === groupId)
+    if (!group) return { deleted: 0, missing: 1 }
+    return deleteServerEvents(group.occurrences.map(item => item.id))
 }
 
 function recordCommandUsage(commandName, command) {
@@ -449,15 +523,7 @@ function recordCommandUsage(commandName, command) {
     saveMetrics(metrics)
 }
 
-function getCommandStats() {
-    const metrics = readMetrics()
-    return Object.entries(metrics.commands)
-        .map(([name, value]) => ({
-            name,
-            ...value
-        }))
-        .sort((a, b) => b.count - a.count)
-}
+const getCommandStats = () => Object.entries(readMetrics().commands).map(([name, value]) => ({ name, ...value })).sort((a, b) => b.count - a.count)
 
 function getBotMetrics() {
     const metrics = readMetrics()
@@ -472,27 +538,15 @@ function getBotMetrics() {
     }
 }
 
-function readDeploymentState() {
-    return readJson(deploymentFile, defaultDeployment)
-}
+const readDeploymentState = () => readJson(deploymentFile, defaultDeployment)
 
 function saveDeploymentState(patch) {
-    const state = {
-        ...defaultDeployment,
-        ...readDeploymentState(),
-        ...patch,
-        lastUpdatedAt: new Date().toISOString()
-    }
-
+    const state = {...defaultDeployment, ...readDeploymentState(), ...patch, lastUpdatedAt: new Date().toISOString() }
     writeJson(deploymentFile, state)
     return state
 }
 
-function setDeploymentOutput(lines) {
-    return saveDeploymentState({
-        lastDeploymentOutput: lines
-    })
-}
+const setDeploymentOutput = lines => saveDeploymentState({ lastDeploymentOutput: lines })
 
 module.exports = {
     logFile,
@@ -509,7 +563,11 @@ module.exports = {
     rotateLog,
     restoreLogArchive,
     getServerErrors,
+    groupServerErrors,
     recordServerError,
+    deleteServerError,
+    deleteServerErrors,
+    deleteServerErrorGroup,
     addFeedback,
     updateFeedback,
     deleteFeedback,
@@ -523,6 +581,10 @@ module.exports = {
     getBotMetrics,
     recordServerEvent,
     getServerEvents,
+    groupServerEvents,
+    deleteServerEvent,
+    deleteServerEvents,
+    deleteServerEventGroup,
     readDeploymentState,
     saveDeploymentState,
     setDeploymentOutput

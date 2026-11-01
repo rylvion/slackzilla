@@ -54,12 +54,54 @@ export function markdownToHtml(markdown) {
     if (!source.trim()) return ""
 
     try {
-        const html = marked.parse(source)
+        const slugCounts = new Map()
+        const renderer = new marked.Renderer()
+        
+        renderer.heading = ({ text, tokens, depth }) => {
+            const base = String(text ?? "")
+                .replace(/<[^>]*>/g, "")
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;|&apos;/g, "'")
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, "")
+                .replace(/\s+/g, "-")
+                .replace(/-+/g, "-") || "section"
 
-        return DOMPurify.sanitize(html, {
-            ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^:]*$)/i
+            const count = slugCounts.get(base) || 0
+            slugCounts.set(base, count + 1)
+
+            const id = count ? `${base}-${count}` : base
+            const content = marked.Parser.parseInline(tokens)
+
+            return `<h${depth} id="${id}">${content}</h${depth}>\n`
+        }
+
+
+        const html = marked.parse(source, { renderer })
+        .replace(/<h([1-6])([^>]*)>([\s\S]*?)<\/h\1>/gi, (match, depth, attributes, content) => {
+            if (/\bid=["'][^"']+["']/i.test(attributes)) return match
+
+            const text = content.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim()
+            const id = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-") || "section"
+
+            return `<h${depth}${attributes} id="${id}">${content}</h${depth}>`
         })
-    } catch {
+        .replace(
+            /<p>([\s\S]*?)<\/p>/gi, (paragraph, content) => {
+            const badgeContent = content.replace(/<br\s*\/?>/gi, "").trim()
+            const containsOnlyBadges = /^(?:\s*(?:<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>|<img\b[^>]*>)\s*){2,}$/i.test(badgeContent)
+
+            return containsOnlyBadges? `<p class="markdown-badges">${content.replace(/<br\s*\/?>(?:\s*)/gi, "")}</p>` : paragraph
+        })
+
+        return DOMPurify.sanitize(html, {ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^:]*$)/i})
+
+    } catch (error) {
+        console.error("Markdown rendering failed:", error)
         return DOMPurify.sanitize(source)
     }
 }

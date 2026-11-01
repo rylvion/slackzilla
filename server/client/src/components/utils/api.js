@@ -139,10 +139,8 @@ export async function streamJson(url, options = {}, onEvent = () => {}) {
     if (!response.ok) {
         const text = await response.text()
         let body = null
-
         try { body = JSON.parse(text) }
-        catch { /* The server may return plain text for transport errors. */ }
-
+        catch { /* the server may return plain text for transport errors. */ }
         throw new Error(body?.error || `Request failed with ${response.status}`)
     }
 
@@ -151,35 +149,52 @@ export async function streamJson(url, options = {}, onEvent = () => {}) {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ""
+    let cancelled = false
+
+    const cancelReader = () => {
+        cancelled = true
+        reader.cancel().catch(() => {})
+    }
+
+    if (options.signal?.aborted) {
+        await reader.cancel().catch(() => {})
+        throw new DOMException("The operation was aborted", "AbortError")
+    }
+
+    options.signal?.addEventListener("abort", cancelReader, { once: true })
 
     const processEvent = rawEvent => {
+        if (cancelled) return
+
         const lines = rawEvent.split(/\r?\n/)
         const event = lines.find(line => line.startsWith("event:"))?.slice(6).trim() || "message"
-        const data = lines
-            .filter(line => line.startsWith("data:"))
-            .map(line => line.slice(5).trim())
-            .join("\n")
-
+        const data = lines.filter(line => line.startsWith("data:")).map(line => line.slice(5).trim()).join("\n")
         if (!data) return
 
         try { onEvent(event, JSON.parse(data)) }
         catch { onEvent(event, data) }
     }
 
-    while (true) {
-        const { done, value } = await reader.read()
-        buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+    try {
+        while (!cancelled) {
+            const { done, value } = await reader.read()
+            if (cancelled) break
 
-        const events = buffer.split(/\r?\n\r?\n/)
-        buffer = events.pop() || ""
-        events.forEach(processEvent)
+            buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+            const events = buffer.split(/\r?\n\r?\n/)
+            buffer = events.pop() || ""
+            events.forEach(processEvent)
 
-        if (done) break
+            if (done) break
+        }
+
+        if (!cancelled && buffer.trim()) processEvent(buffer)
+    } finally {
+        options.signal?.removeEventListener("abort", cancelReader)
+        if (cancelled) await reader.cancel().catch(() => {})
+        reader.releaseLock()
     }
-
-    if (buffer.trim()) processEvent(buffer)
 }
-
 export function useStatusStream(initial = {}) {
     const [status, setStatus] = useState(initial || {})
     const [connected, setConnected] = useState(false)

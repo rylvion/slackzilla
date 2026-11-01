@@ -34,6 +34,16 @@ function AdminLogin() {
             const result = await response.json()
 
             if (!response.ok || result.ok === false) {
+                const retryAfter = Number(response.headers.get("Retry-After"))
+
+                if (response.status === 429 && retryAfter > 0) {
+                    const minutes = Math.floor(retryAfter / 60)
+                    const seconds = retryAfter % 60
+                    const wait = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+
+                    throw new Error(`Too many login attempts. Try again in ${wait}.`)
+                }
+
                 throw new Error(result.error || `Login failed with ${response.status}`)
             }
 
@@ -47,19 +57,26 @@ function AdminLogin() {
     }
 
     return (
-        <PageShell title="Admin Login" description="Login to the admin panel">
-            <section className="panel">
-                <div className="panel-header">
-                    <h1>Admin Login</h1>
-                    <span className="panel-subtitle">Login to the admin panel</span>
+        <PageShell title="Admin Login" description="Login to the admin panel" shellClassName="login-shell">
+            <section className="panel panel--interactive admin-login-panel" data-panel-id="admin-login">
+                <div className="panel-header admin-login-header">
+                    <div>
+                        <span className="admin-login-prompt">&gt; ROOT ACCESS</span>
+                        <h1>Administrator Console</h1>
+                    </div>
+                    <span className="panel-subtitle">RESTRICTED</span>
                 </div>
-                <div className="panel-body">
-                    {error && <p className="error-banner">{error}</p>}
+                <div className="panel-body admin-login-body">
+                    <p className="admin-login-description">Authenticate to continue to the Slackzilla administrator console.</p>
                     <form className="admin-login-form" onSubmit={submit}>
                         <label htmlFor="password">Password</label>
-                        <input type="password" name="password" id="password" placeholder="Enter your password" value={password} onChange={event => setPassword(event.target.value)} required />
-                        <button type="submit" disabled={busy}>{busy ? "Logging in..." : "Login"}</button>
+                        <input type="password" name="password" id="password" placeholder="Enter administrator password" value={password} onChange={event => setPassword(event.target.value)} required autoComplete="current-password" />
+                        <button type="submit" disabled={busy} aria-busy={busy}>{busy ? "> AUTHENTICATING..." : "> LOGIN"}</button>
                     </form>
+                    <div className={`admin-login-status${error ? " admin-login-status--error" : ""}`} role={error ? "alert" : "status"} aria-live="polite">
+                        {error ? error : "Authentication required"}
+                    </div>
+                    <p className="admin-login-footer">SLACKZILLA // RESTRICTED</p>
                 </div>
             </section>
         </PageShell>

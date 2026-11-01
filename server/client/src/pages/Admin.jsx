@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import PageShell from "../components/PageShell"
-import { getCsrfToken, getJson, useSession, useStatusStream } from "../components/utils/api"
+import { getCsrfToken, getJson, invalidateSession, useSession, useStatusStream } from "../components/utils/api"
 import ansiLine from "../components/logs/ansi-handler"
 import "../css/admin/base.css"
 import "../css/admin/main.css"
@@ -41,6 +41,7 @@ function Admin() {
     const [restoreTarget, setRestoreTarget] = useState(null)
     const { status } = useStatusStream({})
     const { csrfToken } = useSession()
+    const navigate = useNavigate()
 
     useEffect(() => {
         getJson("/api/admin/summary").then(setSummary).catch(error => setError(error.message))
@@ -129,16 +130,26 @@ function Admin() {
         }
     }
 
-    const errorOverview = useMemo(() => {
-        const groups = new Map()
-        for (const capturedError of serverErrors) {
-            const group = groups.get(capturedError.message) || { message: capturedError.message, count: 0, latest: capturedError }
-            group.count += 1
-            if (new Date(capturedError.time) > new Date(group.latest.time)) group.latest = capturedError
-            groups.set(capturedError.message, group)
+    async function logout() {
+        const token = await getCsrfToken().catch(() => null)
+        if (!token) return
+        setBusy("logout")
+        try {
+            await getJson("/api/admin/control", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+                body: JSON.stringify({ action: "logout", csrf: token, confirmed: true })
+            })
+            invalidateSession()
+            navigate("/admin/login", { replace: true })
+        } catch (requestError) {
+            setError(requestError.message)
+        } finally {
+            setBusy("")
         }
-        return [...groups.values()].sort((a, b) => new Date(b.latest.time) - new Date(a.latest.time))
-    }, [serverErrors])
+    }
+
+    const errorOverview = useMemo(() => [...serverErrors].sort((a, b) => new Date(b.lastSeen || 0) - new Date(a.lastSeen || 0)), [serverErrors])
 
     if (error && !summary) {
         return (
@@ -178,6 +189,7 @@ function Admin() {
                             </button>
                         ))}
                         <button className="button action-stop" disabled={Boolean(busy)} onClick={() => logControl("reset-telemetry", {}, "Reset telemetry history?")}>reset telemetry</button>
+                        <button className="button" disabled={Boolean(busy)} onClick={logout}>logout</button>
 
                     </div>
                     <div className="admin-meta">
@@ -237,13 +249,13 @@ function Admin() {
 
             <section className="admin-columns">
                 <div className="panel admin-overview-panel">
-                    <div className="panel-header"><h2>Error overview</h2><span className="panel-subtitle">{serverErrors.length} captured · <Link to="/admin/errors">open debugger</Link></span></div>
+                    <div className="panel-header"><h2>Error overview</h2><span className="panel-subtitle">{serverErrors.reduce((total, group) => total + group.count, 0)} captured · <Link to="/admin/errors">open debugger</Link></span></div>
                     <div className="panel-body"><div className="admin-error-overview">
-                        {errorOverview.slice(0, 8).map(group => <Link className="admin-error-overview__item" to={`/admin/errors?error=${encodeURIComponent(group.message)}`} key={group.message}><strong>{group.count > 1 ? `(${group.count}) ` : ""}{group.message}</strong><span>{group.latest.source} · {formatFeedbackTime(group.latest.time)}</span></Link>)}
+                        {errorOverview.slice(0, 8).map(group => <Link className="admin-error-overview__item" to={`/admin/errors?error=${encodeURIComponent(group.id)}`} key={group.id}><strong>{group.count > 1 ? `(${group.count}) ` : ""}{group.message}</strong><span>{group.occurrences[0]?.source} · {formatFeedbackTime(group.lastSeen)}</span></Link>)}
                         {!errorOverview.length && <p className="muted">No captured server errors.</p>}
                     </div></div>
                 </div>
-                <div className="panel">
+                <div className="panel admin-feedback-panel">
                     <div className="panel-header">
                         <h2>Feedback queue</h2>
                         <select className="feedback-filter" value={feedbackStatus} onChange={event => setFeedbackStatus(event.target.value)}>
@@ -287,7 +299,7 @@ function Admin() {
                     </div>
                     </div>
 
-                <div className="panel">
+                <div className="panel admin-commands-panel">
                     <div className="panel-header">
                         <h2>Recent Commands</h2>
                     </div>
@@ -311,8 +323,8 @@ function Admin() {
                         <div className="panel-body">
                             <div className="mini-list server-events-list">
                                 {(summary?.criticalEvents || []).slice(0, 20).map((event, index) => (
-                                    <div className="server-event server-event--critical" key={`${event.statusCode}-${event.path}-${index}`}>
-                                        <span><code>{event.methods?.join(", ")} {event.path}</code></span>
+                                    <div className="server-event server-event--critical" key={event.id || index}>
+                                        <span><code>{event.method} {event.path}</code></span>
                                         <strong>({event.count}) {event.statusCode}</strong>
                                     </div>
                                 ))}

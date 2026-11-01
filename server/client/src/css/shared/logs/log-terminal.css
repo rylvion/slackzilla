@@ -1,6 +1,6 @@
 .terminal {
     position: relative;
-    height: min(70vh, 720px);
+    height: auto;
     overflow-y: auto;
     overflow-x: auto;
     padding: 14px 16px;
@@ -118,7 +118,7 @@
 
 @media (max-width: 700px) {
     .terminal {
-        height: 65vh;
+        height: auto;
         padding: 12px 10px;
         font-size: 0.68rem;
     }

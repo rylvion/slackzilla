@@ -4,16 +4,12 @@ function parseCookies(cookieHeader = "") {
     return cookieHeader.split(";").reduce((cookies, pair) => {
         const index = pair.indexOf("=")
 
-        if (index === -1) {
-            return cookies
-        }
+        if (index === -1) return cookies
 
         const name = pair.slice(0, index).trim()
         const value = pair.slice(index + 1).trim()
 
-        if (name) {
-            cookies[name] = decodeURIComponent(value)
-        }
+        if (name) cookies[name] = decodeURIComponent(value)
 
         return cookies
     }, {})
@@ -51,6 +47,7 @@ function createAuth(options) {
     const sessions = new Map()
     const loginChallenges = new Map()
     const loginAttempts = new Map()
+    const reauthenticationTokens = new Map()
 
     function isApiRequest(req) {
         try {
@@ -63,20 +60,13 @@ function createAuth(options) {
         }
     }
 
-    function hashPassword(password, salt, iterations, algorithm) {
-        return crypto.pbkdf2Sync(password, salt, Number(iterations), 64, algorithm || "sha512").toString("hex")
-    }
+    const hashPassword = (password, salt, iterations, algorithm) => crypto.pbkdf2Sync(password, salt, Number(iterations), 64, algorithm || "sha512").toString("hex")
 
     function verifyPassword(password) {
-        if (!passwordHash) {
-            return false
-        }
+        if (!passwordHash) return false
 
         const parts = String(passwordHash).split("$")
-
-        if (parts.length !== 5 || parts[0] !== "pbkdf2") {
-            return false
-        }
+        if (parts.length !== 5 || parts[0] !== "pbkdf2") return false
 
         const [, algorithm, iterations, salt, hash] = parts
         const candidate = hashPassword(password, salt, iterations, algorithm)
@@ -84,9 +74,34 @@ function createAuth(options) {
         return timingSafeEqual(candidate, hash)
     }
 
-    function signSession(sessionId) {
-        return crypto.createHmac("sha256", sessionSecret).update(sessionId).digest("hex")
+    function issueReauthenticationToken(req, session, operation, password) {
+        if (!session || !operation || !verifyPassword(String(password || ""))) {
+            recordFailedLogin(req)
+            return null
+        }
+
+        clearLoginAttempts(req)
+        const token = crypto.randomBytes(32).toString("hex")
+        reauthenticationTokens.set(token, {
+            sessionId: session.sessionId,
+            operation: String(operation),
+            ip: getRequestIp(req),
+            expiresAt: Date.now() + 60_000
+        })
+        return token
     }
+
+    function consumeReauthenticationToken(req, session, operation, token) {
+        const challenge = reauthenticationTokens.get(String(token || ""))
+        if (!challenge || !session || challenge.sessionId !== session.sessionId || challenge.operation !== String(operation) || challenge.ip !== getRequestIp(req) || challenge.expiresAt <= Date.now()) {
+            return false
+        }
+
+        reauthenticationTokens.delete(String(token))
+        return true
+    }
+
+    const signSession = sessionId => crypto.createHmac("sha256", sessionSecret).update(sessionId).digest("hex")
 
     function createSession(ip, userAgent) {
         const sessionId = crypto.randomUUID()
@@ -107,33 +122,20 @@ function createAuth(options) {
         return sessions.get(sessionId)
     }
 
-    function getRequestIp(req) {
-        return String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown").split(",")[0].trim()
-    }
+    const getRequestIp = req => String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown").split(",")[0].trim()
 
     function getSessionFromRequest(req) {
         const cookies = parseCookies(req.headers.cookie || "")
         const value = cookies.slackzilla_admin_session
 
-        if (!value) {
-            return null
-        }
+        if (!value) return null
 
         const [sessionId, signature] = value.split(".")
-
-        if (!sessionId || !signature) {
-            return null
-        }
-
-        if (!timingSafeEqual(signature, signSession(sessionId))) {
-            return null
-        }
-
+        if (!sessionId || !signature) return null
+        if (!timingSafeEqual(signature, signSession(sessionId))) return null
         const session = sessions.get(sessionId)
 
-        if (!session) {
-            return null
-        }
+        if (!session) return null
 
         if (session.expiresAt <= Date.now()) {
             sessions.delete(sessionId)
@@ -141,7 +143,6 @@ function createAuth(options) {
         }
 
         session.lastActivityAt = new Date().toISOString()
-
         return session
     }
 
@@ -166,9 +167,7 @@ function createAuth(options) {
         res.setHeader("Set-Cookie", cookies)
     }
 
-    function clearCookie(res, name) {
-        setCookie(res, name, "", { maxAge: 0 })
-    }
+    const clearCookie = (res, name) => setCookie(res, name, "", { maxAge: 0 })
 
     function issueLoginChallenge(req, res) {
         const token = crypto.randomBytes(32).toString("hex")
@@ -196,19 +195,14 @@ function createAuth(options) {
         const token = submitted || cookies.slackzilla_login_csrf
         const challenge = token && loginChallenges.get(token)
 
-        if (!challenge) {
-            return false
-        }
+        if (!challenge) return false
 
         if (challenge.expiresAt <= Date.now()) {
             loginChallenges.delete(token)
             return false
         }
 
-        if (challenge.ip !== getRequestIp(req)) {
-            return false
-        }
-
+        if (challenge.ip !== getRequestIp(req)) return false
         loginChallenges.delete(token)
         return true
     }
@@ -256,13 +250,8 @@ function createAuth(options) {
         loginAttempts.set(key, state)
     }
 
-    function clearLoginAttempts(req) {
-        loginAttempts.delete(getRequestIp(req))
-    }
-
-    function createSessionCookie(sessionId) {
-        return `${sessionId}.${signSession(sessionId)}`
-    }
+    const clearLoginAttempts = req => loginAttempts.delete(getRequestIp(req))
+    const createSessionCookie = sessionId => `${sessionId}.${signSession(sessionId)}`
 
     function login(req, res, password) {
         const rateLimit = checkLoginRateLimit(req)
@@ -271,7 +260,8 @@ function createAuth(options) {
             return {
                 ok: false,
                 status: 429,
-                message: "too many login attempts"
+                message: "too many login attempts",
+                retryAfter: rateLimit.retryAfter
             }
         }
 
@@ -285,6 +275,8 @@ function createAuth(options) {
 
         if (!verifyPassword(password)) {
             recordFailedLogin(req)
+            issueLoginChallenge(req, res)
+            
             return {
                 ok: false,
                 status: 401,
@@ -360,7 +352,9 @@ function createAuth(options) {
         getSessionFromRequest,
         getRequestIp,
         setCookie,
-        verifyPassword
+        verifyPassword,
+        issueReauthenticationToken,
+        consumeReauthenticationToken
     }
 }
 

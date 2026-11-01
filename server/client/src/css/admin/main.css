@@ -37,6 +37,27 @@
     margin-top: 16px;
 }
 
+.admin-feedback-panel,
+.admin-commands-panel {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.admin-feedback-panel .panel-body {
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.admin-feedback-panel .feedback-item,
+.admin-feedback-panel .feedback-detail {
+    min-width: 0;
+}
+
+.admin-feedback-panel .feedback-item p,
+.admin-feedback-panel .feedback-id {
+    overflow-wrap: anywhere;
+}
+
 .feedback-item {
     padding: 16px 15px;
     border-bottom: 1px solid rgba(0, 255, 120, 0.08);

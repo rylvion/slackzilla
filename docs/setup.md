@@ -184,24 +184,6 @@ sudo systemctl restart slackzilla-webhook
 
 Use a reverse proxy for HTTPS and set `COOKIE_SECURE=true` when HTTPS is active.
 
-## Validation Checklist
-
-```bash
-npm run build
-npm run lint
-npm run validate-manifest
-npm run validate-commands
-
-```
-
-Then test:
-
-```bash
-curl -i http://localhost:9000/api/status
-curl -i http://localhost:9000/api/commands
-curl -i http://localhost:9000/api/ask
-```
-
 Use an API client for JSON POST requests, authenticated APIs, CSRF headers, and webhook signatures.
 
 ## Troubleshooting

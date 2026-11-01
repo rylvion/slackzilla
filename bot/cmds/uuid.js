@@ -36,20 +36,19 @@ function createUuid() {
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
-
-        log.info("{user} used {cmd}", command)
-
         if (command.text?.trim().toLowerCase() === "help") {
             log.success("{user} viewed {cmd} help", command)
-
             await respond(getHelp())
             return
         }
 
-        const uuid = createUuid()
-
-        log.success("{user} generated a uuid via {cmd}", command)
-
-        await respond(`🆔 ${uuid}`)
+        try {
+            const uuid = createUuid()
+            log.success("{user} generated a uuid via {cmd}", command)
+            await respond(uuid)
+        } catch (error) {
+            log.error("{user} failed to generate a uuid via {cmd}: {error}", command, error)
+            await respond("❌ Failed to generate a uuid. Please try again later.")
+        }
     })
 }

@@ -19,14 +19,8 @@ function execCommand(command, args = [], options = {}) {
         let stdout = ""
         let stderr = ""
 
-        child.stdout.on("data", chunk => {
-            stdout += chunk.toString("utf8")
-        })
-
-        child.stderr.on("data", chunk => {
-            stderr += chunk.toString("utf8")
-        })
-
+        child.stdout.on("data", chunk => {stdout += chunk.toString("utf8")})
+        child.stderr.on("data", chunk => {stderr += chunk.toString("utf8")})
         child.on("error", reject)
 
         child.on("close", code => {
@@ -34,22 +28,14 @@ function execCommand(command, args = [], options = {}) {
                 resolve({ stdout, stderr, code })
                 return
             }
-
             reject(new Error(`${command} exited with code ${code}${stderr ? `: ${stderr.trim()}` : ""}`))
         })
     })
 }
 
 function execSyncSafe(command, args, cwd) {
-    const result = childProcess.spawnSync(command, args, {
-        cwd,
-        encoding: "utf8"
-    })
-
-    if (result.status !== 0) {
-        throw new Error(result.stderr || `failed to run ${command}`)
-    }
-
+    const result = childProcess.spawnSync(command, args, {cwd, encoding: "utf8"})
+    if (result.status !== 0) throw new Error(result.stderr || `failed to run ${command}`)
     return String(result.stdout || "").trim() || "unknown"
 }
 
@@ -61,17 +47,9 @@ function readGitInfo(projectDir) {
         const branch = execSyncSafe("git", ["branch", "--show-current"], cwd)
         const lastCommitAt = execSyncSafe("git", ["log", "-1", "--format=%cI"], cwd)
 
-        return {
-            commit,
-            branch,
-            lastCommitAt
-        }
+        return {commit, branch, lastCommitAt }
     } catch {
-        return {
-            commit: "unknown",
-            branch: "unknown",
-            lastCommitAt: null
-        }
+        return { commit: "unknown", branch: "unknown", lastCommitAt: null}
     }
 }
 
@@ -95,30 +73,21 @@ function checkServiceStatus(serviceName) {
     }
 
     try {
-        const result = childProcess.spawnSync("systemctl", ["is-active", serviceName], {
-            encoding: "utf8"
-        })
-
-        if (result.status === 0) {
-            return String(result.stdout || "active").trim() || "active"
-        }
-
+        const result = childProcess.spawnSync("systemctl", ["is-active", serviceName], { encoding: "utf8" })
+        if (result.status === 0) { return String(result.stdout || "active").trim() || "active" }
         return String(result.stdout || result.stderr || "inactive").trim() || "inactive"
+
     } catch {
         try {
             if (process.platform === "win32") {
                 const fallback = childProcess.spawnSync("tasklist", [], { encoding: "utf8" })
-                if (fallback.status === 0 && /node\.exe/i.test(String(fallback.stdout || ""))) {
-                    return "active"
-                }
+                if (fallback.status === 0 && /node\.exe/i.test(String(fallback.stdout || ""))) { return "active" }
             } else {
                 const fallback = childProcess.spawnSync("pgrep", ["-f", serviceName], { encoding: "utf8" })
-                if (fallback.status === 0) {
-                    return "active"
-                }
+                if (fallback.status === 0) { return "active" }
             }
         } catch {
-            // fall through to unknown
+            // fall through to unknown 
         }
 
         return "unknown"
@@ -144,10 +113,7 @@ function readNetworkBytes() {
     if (process.platform !== "win32") {
         try {
             const content = fs.readFileSync("/proc/net/dev", "utf8")
-            return content
-            .split(/\r?\n/)
-            .slice(2)
-            .reduce((totals, line) => {
+            return content.split(/\r?\n/).slice(2).reduce((totals, line) => {
                 const separator = line.indexOf(":")
                 if (separator === -1) return totals
 
@@ -196,9 +162,8 @@ function getNetworkUsage() {
         }
     }
 
-    const elapsedSeconds = previousNetworkSample
-        ? Math.max((now - previousNetworkSample.at) / 1000, 0.001)
-        : null
+    const elapsedSeconds = previousNetworkSample? Math.max((now - previousNetworkSample.at) / 1000, 0.001) : null
+    
     const usage = {
         rxBytes: current.rxBytes,
         txBytes: current.txBytes,
@@ -218,14 +183,10 @@ function getDiskUsage(projectDir) {
 
         try {
             const stats = fs.statfsSync(candidate)
-        const total = Number(stats.blocks) * Number(stats.bsize)
-        const free = Number(stats.bavail) * Number(stats.bsize)
+            const total = Number(stats.blocks) * Number(stats.bsize)
+            const free = Number(stats.bavail) * Number(stats.bsize)
 
-            return {
-                total,
-                free,
-                used: Math.max(0, total - free)
-            }
+            return {total, free, used: Math.max(0, total - free) }
         } catch {
             continue
         }
@@ -244,7 +205,7 @@ function getRuntimeSnapshot(previousSample, projectDir, botServiceName) {
     const network = getNetworkUsage()
 
     return {
-        botOnline: bot.status,
+        botOnline: bot.online,
         botConnectionState: bot,
         uptime: process.uptime(),
         nodeVersion: process.version,
@@ -268,9 +229,7 @@ function getRuntimeSnapshot(previousSample, projectDir, botServiceName) {
     }
 }
 
-function runSystemctl(action, serviceName) {
-    return execCommand("systemctl", [action, serviceName], { shell: false })
-}
+const runSystemctl = (action, serviceName) => execCommand("systemctl", [action, serviceName], { shell: false })
 
 function runDeployScript(deployScript, env, onOutput) {
     return new Promise((resolve, reject) => {

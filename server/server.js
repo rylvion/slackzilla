@@ -10,12 +10,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", "bot", ".env") })
 const store = require("./database/store")
 const { createAuth } = require("./lib/auth")
 const { sendText, sendJson, sendHtml, parseBody } = require("./lib/http")
-const {
-    runDeployScript,
-    runSystemctl,
-    getRuntimeSnapshot,
-    saveDeploymentState
-} = require("./lib/system")
+const {runDeployScript, runSystemctl, getRuntimeSnapshot, saveDeploymentState } = require("./lib/system")
 const { listCommands } = require("./lib/command-runner")
 
 const { handleStatusApi } = require("./api/status")
@@ -30,6 +25,7 @@ const { handleRoutesApi } = require("./api/routes")
 const { handleReleaseApi } = require("./api/release")
 const { handleAskApi } = require("./api/ask")
 const { handleSessionApi } = require("./api/session")
+const { handleTerminalApi } = require("./api/terminal")
 
 const port = Number(process.env.PORT || 9000)
 const projectDir = process.env.PROJECT_DIR || process.cwd()
@@ -290,7 +286,9 @@ function buildCriticalEventGroups(events) {
 
 function buildAdminSummary() {
     const { telemetryHistory, ...status } = latestStatusPayload || renderStatusPayload()
-    const criticalEvents = buildCriticalEventGroups(store.getServerEvents(1000)).slice(0, 20)
+    const criticalEvents = store.groupServerEvents(1000)
+        .filter(event => Number(event.statusCode) >= 400)
+        .slice(0, 20)
 
     return {
         status,
@@ -374,12 +372,21 @@ function handleStatic(req, res, pathname) {
     if (pathname.startsWith("/public/")) {
         rootPath = path.join(__dirname, "public")
         filePath = path.normalize( path.join(rootPath, pathname.slice("/public/".length)) )
-    } else if (pathname.startsWith("/assets/attachments/")) {
-        rootPath = path.join(__dirname, "..", "assets")
-        filePath = path.normalize( path.join(rootPath, pathname.slice("/assets/".length)) )
     } else if (pathname.startsWith("/assets/")) {
-        rootPath = path.join(__dirname, "client", "dist")
-        filePath = path.normalize( path.join(rootPath, pathname.slice(1)) )
+        const sourceRoot = path.join(__dirname, "..", "assets")
+        const sourcePath = path.normalize(path.join(sourceRoot, pathname.slice("/assets/".length)))
+        const sourceRelative = path.relative(sourceRoot, sourcePath)
+        const sourceIsInsideRoot = sourceRelative && !sourceRelative.startsWith("..") && !path.isAbsolute(sourceRelative)
+        const distRoot = path.join(__dirname, "client", "dist")
+        const distPath = path.normalize(path.join(distRoot, pathname.slice(1)))
+
+        if (sourceIsInsideRoot && fs.existsSync(sourcePath) && !fs.statSync(sourcePath).isDirectory()) {
+            rootPath = sourceRoot
+            filePath = sourcePath
+        } else {
+            rootPath = distRoot
+            filePath = distPath
+        }
     } else if (pathname === "/favicon.svg") {
         rootPath = path.join(__dirname, "client", "dist")
         filePath = path.join(rootPath, "favicon.svg")
@@ -406,6 +413,7 @@ function handleStatic(req, res, pathname) {
         ".json": "application/json; charset=utf-8",
         ".svg": "image/svg+xml",
         ".png": "image/png",
+        ".gif": "image/gif",
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
@@ -531,7 +539,7 @@ const context = {
     metricsClients,
     logClients,
     serverErrorClients,
-    getServerErrors: () => serverErrors.slice(),
+    getServerErrors: () => store.groupServerErrors(),
     recordServerError,
     resetTelemetry,
     adminClients,
@@ -551,6 +559,7 @@ const context = {
 
 async function handleApi(req, res, url) {
     if (url.pathname === "/api/session" && handleSessionApi({ req, res, context })) return true
+    if (await handleTerminalApi({ req, res, url, context })) return true
     if (await handleCommandsApi({ req, res, url, context })) return true
     if (await handleRoutesApi({ req, res, url, context })) return true
     if (await handleReleaseApi({ req, res, url, context })) return true
@@ -587,6 +596,7 @@ function handleReactApp(req, res, pathname) {
         "/status",
         "/commands",
         "/logs",
+        "/terminal",
         "/api",
         "/ai",
         "/docs",
@@ -597,7 +607,7 @@ function handleReactApp(req, res, pathname) {
         "/admin/logs",
         "/admin/login"
     ])
-    const statusCode = browserRoutes.has(pathname) ? 200 : 404
+    const statusCode = browserRoutes.has(pathname) || pathname.startsWith("/docs/") ? 200 : 404
 
     const distRoot = path.join(__dirname, "client", "dist")
     const indexPath = path.join(distRoot, "index.html")
@@ -628,6 +638,10 @@ async function handleAdminLogin(req, res, url) {
     const result = auth.login(req, res, String(body.password || ""))
 
     if (!result.ok) {
+        if (result.status === 429 && Number.isFinite(result.retryAfter)) {
+            res.setHeader("Retry-After", String(result.retryAfter))
+        }
+
         sendJson(res, result.status || 401, {
             ok: false,
             error: result.message
@@ -654,7 +668,7 @@ async function handleRequest(req, res) {
 
     res.once("finish", () => {
         try {
-            store.recordServerEvent({ method: req.method, path: url.pathname, type: classifyServerRequest(url.pathname), statusCode: res.statusCode })
+            store.recordServerEvent({ method: req.method, path: `${url.pathname}${url.search}`, type: classifyServerRequest(url.pathname), statusCode: res.statusCode })
         } catch {
             // telemetry must not prevent the request from being served.
         }

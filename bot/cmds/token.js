@@ -4,26 +4,19 @@ const { log } = require("../utils/logger")
 function getHelp() {
     return (
         "🔐 *token command help*\n" +
+        "gets a random token of a given length (from 1 to 256 characters, default: 32)\n\n" +
         "> *Usage:*\n" +
         "> `/sz-token` - generates a 32 character token\n" +
         "> `/sz-token <length>` - generates a token with a custom length\n\n" +
-        "> *Examples:*\n" +
-        "> `/sz-token`\n" +
-        "> `/sz-token 16`\n" +
-        "> `/sz-token 64`"
+        "> `/sz-token help` - shows this help message"
     )
 }
 
-function parseLength(text) {
-    if (!text) {
-        return 32
-    }
+function parseLength(param) {
+    if (!param) return 32
 
-    const length = Number.parseInt(text, 10)
-
-    if (!Number.isFinite(length) || length < 1 || length > 256) {
-        return null
-    }
+    const length = Number.parseInt(param, 10)
+    if (!Number.isFinite(length) || length < 1 || length > 256) return null
 
     return length
 }
@@ -38,7 +31,6 @@ module.exports = (app, meta) => {
         await ack()
 
         log.info("{user} used {cmd}", command)
-
         const length = parseLength(command.text?.trim())
 
         if (command.text?.trim().toLowerCase() === "help") {
@@ -56,10 +48,7 @@ module.exports = (app, meta) => {
         }
 
         const token = createToken(length)
-
         log.success("{user} generated a token via {cmd} ({0} chars)", command, length)
-
-        await respond(`🔐 token (${length} chars):
-\`${token}\``)
+        await respond(token)
     })
 }

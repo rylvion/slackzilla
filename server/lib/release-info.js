@@ -42,6 +42,11 @@ function getReleaseInfo(requestedVersion) {
     }
 }
 
+function listReleaseVersions() {
+    return [packageJson.version, ...Object.keys(releaseHistory).filter(version => version !== packageJson.version)]
+}
+
 module.exports = {
-    getReleaseInfo
+    getReleaseInfo,
+    listReleaseVersions
 }

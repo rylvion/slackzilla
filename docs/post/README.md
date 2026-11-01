@@ -1,5 +1,5 @@
 # POST API Documentation
-**Last updated at:** _29/09/2026_
+**Last updated at:** _01/11/2026_
 
 Each page in this section provides a guide for a specific POST API endpoint. These guides document the endpoint's purpose, authentication requirements, supported operations, and expected request format.
 
@@ -26,6 +26,7 @@ Each page should follow the structure below:
 | `POST /api/ask`                | Submits a question to the codebase assistant and streams the response.                         | [ask.md](ask.md)                       | No        |
 | `POST /api/admin/feedback/:id` | Performs actions on feedback entries, including marking as read, responding, and deleting.     | [admin-feedback.md](admin-feedback.md) | Yes       |
 | `POST /api/admin/control`      | Executes administrative actions involving services, deployment, logs, telemetry, and archives. | [admin-control.md](admin-control.md)   | Yes       |
+| `POST /api/terminal`           | Executes one registered terminal command with command-specific permissions and validation.     | [terminal-endpoint.md](terminal-endpoint.md) | Conditional |
 | `POST /webhook`                | Receives deployment notifications and triggers the configured webhook handler.                 | [webhook.md](../webhook.md)            | Yes       |
 
 ## Authentication

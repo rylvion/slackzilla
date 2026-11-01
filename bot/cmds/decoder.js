@@ -12,7 +12,8 @@ function getHelp() {
         "> `/sz-decode base64 aGVsbG8gd29ybGQ=`\n" +
         "> `/sz-decode hex 68656c6c6f`\n" +
         "> `/sz-decode pbkdf2 pbkdf2$sha512$600000$salt$abcdef...`\n\n" +
-        `> *Supported algorithms:* ${algorithms}`
+        `> *Supported algorithms:* ${algorithms}`,
+        "> *Note:* If you want more algorithms, please use /sz-feedback to request them"
     )
 }
 
@@ -46,7 +47,6 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
 
         const text = command.text?.trim()
 
@@ -75,7 +75,9 @@ module.exports = (app, meta) => {
         if (algorithm === "base64") {
             try {
                 const decoded = Buffer.from(value, "base64").toString("utf8")
-                await respond(`🔓 base64:\n\`${decoded}\``)
+                await respond(decoded)
+                log.success("{user} decoded base64 via {cmd}", command)
+                
             } catch {
                 await respond("❌ invalid base64")
             }
@@ -85,7 +87,8 @@ module.exports = (app, meta) => {
         if (algorithm === "hex") {
             try {
                 const decoded = Buffer.from(value, "hex").toString("utf8")
-                await respond(`🔓 hex:\n\`${decoded}\``)
+                log.success("{user} decoded hex via {cmd}", command)
+                await respond(decoded)
             } catch {
                 await respond("❌ invalid hex string")
             }
@@ -95,7 +98,8 @@ module.exports = (app, meta) => {
         if (algorithm === "rand") {
             try {
                 const decoded = Buffer.from(value, "hex").toString("utf8")
-                await respond(`🔓 rand:\n\`${decoded}\``)
+                log.success("{user} decoded rand via {cmd}", command)
+                await respond(decoded)
             } catch {
                 await respond("❌ invalid rand hex output")
             }

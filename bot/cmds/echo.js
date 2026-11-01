@@ -11,7 +11,7 @@ module.exports = (app, meta) => {
 
             if (!text) {
                 log.warn("{user} used {cmd} with no text", command)
-                await respond("🗣️ you didn't give me anything to echo")
+                await respond(" you didn't give me anything to echo")
                 return
             }
 
@@ -22,7 +22,7 @@ module.exports = (app, meta) => {
         } catch (err) {
             log.error("{user} failed {cmd}: {0}", command, err.message)
 
-            await respond(`❌ something went wrong trying to echo your message`)
+            await respond(`something went wrong trying to echo your message`)
         }
     })
 }

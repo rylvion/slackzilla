@@ -125,12 +125,65 @@ body::after {
     top: 56px;
     left: 0;
     bottom: 0;
-    width: 220px;
+    width: var(--sidebar-width, 220px);
     padding: 22px 14px;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
 
     z-index: 50;
+    transition: width 160ms ease;
+}
+
+.sidebar--collapsed {
+    overflow: hidden;
+}
+
+.sidebar--collapsed .sidebar-title,
+.sidebar--collapsed nav,
+.sidebar--collapsed .sidebar-footer {
+    visibility: hidden;
+}
+
+.sidebar-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    background: rgba(0, 255, 102, 0.04);
+    color: var(--green);
+    font: 600 12px var(--font-mono);
+    cursor: pointer;
+}
+
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+    border-color: var(--border-bright);
+    background: var(--green-faint);
+}
+
+.sidebar-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+    z-index: 2;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:focus-visible,
+.sidebar-is-resizing .sidebar-resize-handle {
+    background: rgba(0, 255, 102, 0.18);
+    outline: 1px solid var(--border-bright);
+    outline-offset: -1px;
+}
+
+.sidebar-is-resizing {
+    cursor: ew-resize;
+    user-select: none;
 }
 
 .sidebar-title {
@@ -220,15 +273,15 @@ body::after {
 
 .internal-links {
     position: sticky;
-    top: 76px;
+    top: 56px;
     display: flex;
     gap: 4px;
-    margin-bottom: 24px;
-    padding-bottom: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
     padding-left: 28px;
     z-index: 10;
-    padding-top: 15px;
+    padding-top: 8px;
 }
 
 .internal-links a {
@@ -260,24 +313,89 @@ body::after {
 }
 
 .main-content {
-    margin-left: 220px;
+    position: relative;
+    margin-left: var(--sidebar-width, 220px);
     padding-top: 56px;
     min-height: 100vh;
+    overflow: hidden;
+    background:
+        linear-gradient(rgba(0, 255, 102, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 102, 0.025) 1px, transparent 1px),
+        #030603;
+    background-size: 32px 32px;
+    border-left: 1px solid rgba(0, 255, 102, 0.08);
+}
+
+.main-content::before {
+    content: "";
+    position: absolute;
+    inset: 56px 0 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0,
+        transparent 3px,
+        rgba(0, 255, 102, 0.018) 4px
+    );
 }
 
 .content {
-    width: min(1200px, 100%);
+    position: relative;
+    width: min(1440px, calc(100% - 48px));
+    min-width: 0;
+    min-height: calc(100vh - 56px);
     margin: 0 auto;
-    padding: 28px;
+    padding: 16px 28px 40px;
+    box-sizing: border-box;
+    background: transparent;
+    box-shadow: none;
 }
 
 .panel {
+    position: relative;
     margin-bottom: 24px;
     background: var(--panel);
     border: 1px solid var(--border);
     box-shadow:
         0 0 0 1px rgba(0, 255, 102, 0.01),
         0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.panel--interactive {
+    touch-action: none;
+}
+
+.panel--has-interactions {
+    touch-action: none;
+    resize: both;
+    min-width: 320px;
+    min-height: 180px;
+}
+
+.panel--has-interactions .panel-header {
+    cursor: move;
+    user-select: none;
+}
+
+.panel--is-moving,
+.panel--is-resizing {
+    position: relative;
+    z-index: 1000 !important;
+    box-shadow:
+        0 0 0 1px var(--green),
+        0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.panel-resize-handle {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    z-index: 3;
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid var(--green-dark);
+    border-bottom: 2px solid var(--green-dark);
+    cursor: nwse-resize;
 }
 
 .panel:hover {
@@ -439,10 +557,10 @@ a:focus-visible {
     outline-offset: 3px;
 }
 
-::-webkit-scrollbar { width: 8px }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--green-dark) }
-::-webkit-scrollbar-thumb:hover { background: var(--green-dim)}
+::-webkit-scrollbar {width: 8px; height: 8px;}
+::-webkit-scrollbar-track {background: var(--bg);}
+::-webkit-scrollbar-thumb {background: var(--green-dark);}
+::-webkit-scrollbar-thumb:hover {background: var(--green-dim);}
 
 ::selection {
     background: var(--green);
@@ -455,7 +573,7 @@ a:focus-visible {
     }
 
     .main-content {
-        margin-left: 180px;
+        margin-left: var(--sidebar-width, 180px);
     }
 
     .stats {
@@ -490,6 +608,7 @@ a:focus-visible {
     .main-content {
         margin-left: 0;
         padding-top: 0;
+        border-left: 0;
     }
 
     .header {
@@ -497,7 +616,12 @@ a:focus-visible {
     }
 
     .content {
+        width: 100%;
+        min-height: 0;
         padding: 18px;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
     }
 
     .internal-links {
@@ -505,6 +629,17 @@ a:focus-visible {
 
         overflow-x: auto;
         white-space: nowrap;
+    }
+
+    .panel--has-interactions {
+        width: 100% !important;
+        min-width: 0;
+        resize: none;
+        transform: none !important;
+    }
+
+    .panel-resize-handle {
+        display: none;
     }
 }
 

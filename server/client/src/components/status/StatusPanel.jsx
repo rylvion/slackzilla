@@ -2,7 +2,7 @@ import { stat } from "./stats"
 
 function StatusPanel({ status: suppliedStatus } = {}) {
     const state = suppliedStatus || window.__SLACKZILLA__ || {}
-    const online = state.botOnline ?? state.summary?.botOnline ?? false
+    const online = (state.botOnline ?? state.summary?.botOnline) === true
     const uptime = state.uptimeText ?? state.uptime ?? state.summary?.uptime ?? "Unknown"
     const deployment = state.deploymentStatus ?? state.deployment ?? state.summary?.deployment ?? null
     const lastDeployedAt = state.lastDeploymentText ?? state.lastDeployedAt ?? state.summary?.lastDeployedAt ?? "Unknown"

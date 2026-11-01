@@ -30,24 +30,26 @@ module.exports = (app, meta) => {
 
         if (!text) {
             log.error("{user} used {cmd} with no text", command)
-
             await respond("❌ send me some feedback first")
             return
         }
 
-        const feedback = {
-            id: crypto.randomUUID(),
-            userId: command.user_id,
-            username: command.user_name,
-            message: text,
-            timestamp: new Date().toISOString(),
-            status: "unread"
+        try {
+            const feedback = {
+                id: crypto.randomUUID(),
+                userId: command.user_id,
+                username: command.user_name,
+                message: text,
+                timestamp: new Date().toISOString(),
+                status: "unread"
+            }
+
+            addFeedback(feedback)
+            log.success("{user} submitted feedback via {cmd}", command)
+            await respond(`✅ thanks for the feedback. i saved it with id ${feedback.id}`)
+        } catch (error) {
+            log.error("{user} failed to submit feedback via {cmd}: {0}", command, error)
+            await respond("❌ failed to submit feedback. please try again later.")
         }
-
-        addFeedback(feedback)
-
-        log.success("{user} submitted feedback via {cmd}", command)
-
-        await respond(`✅ thanks for the feedback. i saved it with id ${feedback.id}`)
     })
 }

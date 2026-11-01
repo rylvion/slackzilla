@@ -1,105 +1,238 @@
-import PageShell from "../components/PageShell"
+import { useEffect, useMemo, useState } from "react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import DocsLayout from "../components/DocsLayout"
+import { documentGroup } from "../components/utils/docs-navigation.mjs"
+import ErrorPanel from "../components/ErrorPanel"
+import { documentByRoute, rewriteMarkdownLinks } from "../components/utils/docs"
+import { markdownToHtml } from "../components/utils/markdown"
 import "../css/docs.css"
 
 function Docs() {
-    return (
-        <PageShell title="Docs" description="Slackzilla operations and extension guide">
-            <section className="panel">
-                    <div className="panel-header">
-                        <h1>API developer guide</h1>
-                        <span className="panel-subtitle">create - register - test</span>
-                    </div>
+    const { pathname, hash, search } = useLocation()
+    const navigate = useNavigate()
+    const requestedRoute = pathname !== "/docs"? pathname.replace(/\/+$/, "") : pathname
+    const route = requestedRoute.startsWith("/docs/") && requestedRoute.endsWith(".md") ? requestedRoute.slice(0, -3) : requestedRoute
+    const isAllDocuments = route === "/docs/all"
+    const groupMatch = route.match(/^\/docs\/group\/(.+)$/)
+    const selectedGroup = groupMatch ? decodeURIComponent(groupMatch[1]) : null
+    const isGroupIndex = selectedGroup !== null
+    const isIndexPage = isAllDocuments || isGroupIndex
+    const document = isIndexPage ? null : documentByRoute.get(route)
+    const [externalLink, setExternalLink] = useState(null)
 
-                    <div className="docs-content">
-                        <p className="docs-lead">An API endpoint is a URL and HTTP method that lets another program request data or ask Slackzilla to perform an action. This project uses a small Node <code>http</code> server, so API handlers are plain functions rather than Express routers.</p>
+    useEffect(() => {
+        sessionStorage.setItem('slackzilla_docs_page', `${pathname}${search}${hash}`)
+    }, [pathname, search, hash])
 
-                        <div className="docs-section">
-                            <span className="eyebrow">01 / ARCHITECTURE</span>
-                            <h2>How an API request works</h2>
-                            <p>The server receives every request in <code>server/server.js</code>. The <code>handleApi</code> function checks each registered handler in order. A handler examines <code>url.pathname</code> and <code>req.method</code>, sends a response when it owns the request, and returns <code>true</code>. Returning <code>false</code> lets the next handler try.</p>
-                            <p>API modules live under <code>server/api/&lt;name&gt;/index.js</code>. They receive <code>req</code>, <code>res</code>, <code>url</code>, and a shared <code>context</code>. Use <code>context.sendOk(res, data)</code> for successful JSON and <code>context.sendError(res, status, code, message)</code> for errors. JSON responses normally look like <code>{"{"}ok: true, data: ...{"}"}</code>.</p>
-                        </div>
 
-                        <div className="docs-section">
-                            <span className="eyebrow">02 / THREE PARTS</span>
-                            <h2>Implementation, schema, registry</h2>
-                            <div className="doc-grid docs-three">
-                                <article><h3>Implementation</h3><p>The JavaScript handler that receives the request and produces the response.</p><code>server/api/status/index.js</code></article>
-                                <article><h3>Schema</h3><p>A JSON Schema describing the response shape. It is documentation and contract information; runtime validation is not currently automatic.</p><code>server/api/status/status.schema.json</code></article>
-                                <article><h3>Registry</h3><p>Frontend metadata used to describe method, path, ownership, authentication and schema links. It does not create or serve an API.</p><code>server/client/src/components/utils/api-routes.js</code></article>
-                            </div>
-                        </div>
+    const allDocuments = useMemo(() => {
+        return [...documentByRoute.values()].sort((a, b) => {
+            const groupComparison = documentGroup(a).localeCompare(documentGroup(b))
+            return groupComparison || a.title.localeCompare(b.title)
+        })
+    }, [])
 
-                        <div className="docs-section">
-                            <span className="eyebrow">03 / WORKFLOW</span>
-                            <h2>Add an API without learning the whole backend</h2>
-                            <ol className="docs-steps">
-                                <li>Create <code>server/api/myApi/</code>.</li>
-                                <li>Add <code>server/api/myApi/index.js</code> and export <code>handleMyApi</code>.</li>
-                                <li>Add <code>server/api/myApi/my-api.schema.json</code> describing the response.</li>
-                                <li>Import the handler in <code>server/server.js</code> and add it to <code>handleApi</code>.</li>
-                                <li>Add matching metadata to <code>api-routes.js</code>, linking <code>livesAt</code> and <code>schema</code>.</li>
-                                <li>Build, start the server, and test the endpoint.</li>
-                            </ol>
-                        </div>
+    const visibleDocuments = useMemo(() => {
+        if (!isGroupIndex) return allDocuments
+        return allDocuments.filter(item => documentGroup(item).toLowerCase() === selectedGroup.toLowerCase())
 
-                        <div className="docs-section">
-                            <span className="eyebrow">04 / EXAMPLE</span>
-                            <h2>A complete small endpoint</h2>
-                            <p>Folder structure:</p>
-                            <pre><code>{`server/api/myApi/
-|------index.js
-|------my-api.schema.json`}</code></pre>
-                            <p>Implementation:</p>
-                            <pre><code>{`function handleMyApi({ req, res, url, context }) {
-    if (url.pathname !== "/api/my-api" || req.method !== "GET") {
-        return false
+    }, [allDocuments, isGroupIndex, selectedGroup])
+
+    const documentsByGroup = useMemo(() => {return Object.groupBy(allDocuments, item => documentGroup(item))}, [allDocuments])
+    const html = useMemo(() => document ? markdownToHtml(rewriteMarkdownLinks(document.markdown, document.source)) : "", [document])
+
+    useEffect(() => {
+        let frame1
+        let frame2
+
+        frame1 = window.requestAnimationFrame(() => {
+            frame2 = window.requestAnimationFrame(() => {
+                if (hash) {
+
+                    const usedIds = new Set([...window.document.querySelectorAll("[id]")].map(element => element.id))
+
+                    window.document.querySelectorAll(".docs-markdown h1, .docs-markdown h2, .docs-markdown h3, .docs-markdown h4, .docs-markdown h5, .docs-markdown h6").forEach(heading => {
+                        if (heading.id) return
+
+                        const base = heading.textContent.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-") || "section"
+
+                        let id = base
+                        let count = 1
+
+                        while (usedIds.has(id)) { id = `${base}-${count++}`}
+
+                        heading.id = id
+                        usedIds.add(id)
+                    })
+
+                    let id
+                    try { id = decodeURIComponent(hash.slice(1))}
+                    catch { id = hash.slice(1) }
+
+                    const target = window.document.getElementById(id)
+                    if (target) target.scrollIntoView({block: "start",behavior: "smooth"})
+                    return
+                }
+
+                window.scrollTo({ top: 0, left: 0, behavior: "instant"})
+            })
+        })
+
+        return () => {
+            window.cancelAnimationFrame(frame1)
+            if (frame2) window.cancelAnimationFrame(frame2)
+        }
+    }, [route, hash, search, html])
+
+
+
+
+    function handleContentClick(event) {
+        const link = event.target.closest("a")
+        if (!link) return
+
+        const destination = link.getAttribute("href")
+        let url
+
+        try {
+            url = new URL(destination, window.location.href)
+        } catch {
+            event.preventDefault()
+            return
+        }
+
+        if (!["http:", "https:", "mailto:", "tel:"].includes(url.protocol)) {
+            event.preventDefault()
+            return
+        }
+
+        if (url.origin === window.location.origin && (url.pathname === "/docs" || url.pathname.startsWith("/docs/"))) {
+            event.preventDefault()
+            navigate(`${url.pathname}${url.search}${url.hash}`)
+            return
+        }
+
+        event.preventDefault()
+        setExternalLink(url.href)
     }
 
-    context.sendOk(res, { message: "Hello from my API" })
-    return true
+    return (
+        <DocsLayout
+            title={isAllDocuments ? "All Documentation" : isGroupIndex ? selectedGroup.toUpperCase() : document?.title || "Documentation"}
+            subtitle={isAllDocuments ? `${allDocuments.length} documents available` : isGroupIndex ? `${visibleDocuments.length} documents in this group` : document?.source || "document not found"}
+            activeRoute={route}
+            overlay={externalLink && (
+                <ErrorPanel
+                    overlay={true}
+                    mode="confirm"
+                    title="Open external destination?"
+                    message="This link will open in a new browser tab."
+                    details={externalLink}
+                    confirmLabel="open in new tab"
+                    cancelLabel="stay here"
+                    onConfirm={() => {
+                        window.open(externalLink, "_blank", "noopener,noreferrer")
+                        setExternalLink(null)
+                    }}
+                    onCancel={() => setExternalLink(null)}
+                />
+            )}>
+                
+            <main className="docs-main">
+                <div className="docs-breadcrumb">
+                    <Link to="/docs/all">DOCS</Link>
+                    <span>/</span>
+
+                    {isAllDocuments ? (
+                        <strong>ALL DOCUMENTS</strong>
+                    ) : isGroupIndex ? (
+                        <>
+                            <Link to={`/docs/group/${encodeURIComponent(selectedGroup)}`}>
+                                {selectedGroup.toUpperCase()}
+                            </Link>
+                            <span>/</span>
+                            <strong>DOCUMENT INDEX</strong>
+                        </>
+                    ) : document ? (
+                        <>
+                            <Link to={`/docs/group/${encodeURIComponent(documentGroup(document))}`}>
+                                {documentGroup(document).toUpperCase()}
+                            </Link>
+                            <span>/</span>
+                            <strong>{document.title}</strong>
+                        </>
+                    ) : (
+                        <>
+                            <span>NOT FOUND</span>
+                            <span>/</span>
+                            <strong>MISSING DOCUMENT</strong>
+                        </>
+                    )}
+                </div>
+
+                {isIndexPage ? (
+                    <article className="markdown-content docs-markdown docs-index">
+                        {isAllDocuments ? (
+                            <>
+                                <h2>All documentation</h2>
+                                <p>Browse every registered documentation file by group.</p>
+
+                                {Object.entries(documentsByGroup).map(([group, items]) => (
+                                    <section className="docs-index-group" key={group}>
+                                        <h3>
+                                            <Link to={`/docs/group/${encodeURIComponent(group)}`}>
+                                                {group}
+                                            </Link>
+                                            <span className="docs-index-count">{items.length}</span>
+                                        </h3>
+
+                                        <ul>
+                                            {items.map(item => (
+                                                <li key={item.route}>
+                                                    <Link to={item.route}>{item.title}</Link>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </section>
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                <h2>{selectedGroup}</h2>
+                                <p>
+                                    {visibleDocuments.length
+                                        ? `Documentation files in the ${selectedGroup} group.`
+                                        : "No documents were found in this group."}
+                                </p>
+
+                                {visibleDocuments.length > 0 && (
+                                    <ul>
+                                        {visibleDocuments.map(item => (
+                                            <li key={item.route}>
+                                                <Link to={item.route}>{item.title}</Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </>
+                        )}
+                    </article>
+                ) : document ? (
+                    <article
+                        className="markdown-content docs-markdown"
+                        onClick={handleContentClick}
+                        dangerouslySetInnerHTML={{ __html: html }}
+                    />
+                ) : (
+                    <article className="docs-markdown">
+                        <h2>Document not found</h2>
+                        <p>No documentation file is registered for <code>{pathname}</code>.</p>
+                        <Link to="/docs">Return to documentation</Link>
+                    </article>
+                )}
+            </main>
+        </DocsLayout>
+    )
 }
 
-module.exports = { handleMyApi }`}</code></pre>
-                            <p>Register it in <code>server/server.js</code>:</p>
-                            <pre><code>{`const { handleMyApi } = require("./api/myApi")
-
-async function handleApi(req, res, url) {
-    if (await handleMyApi({ req, res, url, context })) return true
-    // existing handlers follow
-}`}</code></pre>
-                                                <p>Schema file:</p>
-                                                <pre><code>{`{
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "My API response data",
-    "type": "object",
-    "required": ["message"],
-    "properties": {
-        "message": { "type": "string" }
-    }  
-}`}</code></pre>
-                            <p>Link the implementation and schema in the frontend registry. Include an <code>id</code>, <code>operationId</code>, <code>uuid</code>, <code>method</code>, <code>path</code>, <code>description</code>, <code>tags</code>, <code>categories</code>, <code>livesAt</code>, <code>schema</code>, <code>parameters</code>, and <code>responses</code>.</p>
-                        </div>
-
-                        <div className="docs-section">
-                            <span className="eyebrow">05 / SAFETY</span>
-                            <h2>Requests, auth and CSRF</h2>
-                            <p>Read query values from <code>url.searchParams</code>. For JSON or form bodies, use <code>context.parseBody(req)</code> and assign the result to <code>req.body</code>. Keep input validation close to the handler and return a useful status code.</p>
-                            <p>Private endpoints must call <code>context.auth.requireSession(req, res)</code> before reading data. State-changing admin endpoints must also call <code>context.auth.verifyCsrf(req, session)</code>. Document these requirements in the registry so clients know what to send.</p>
-                        </div>
-
-                        <div className="docs-section">
-                            <span className="eyebrow">06 / TESTING</span>
-                            <h2>Test locally</h2>
-                            <p>Build the client, then start the dashboard server. <code>npm start</code> starts both bot and server; <code>npm run build</code> followed by <code>npm run server</code> is the narrower dashboard check.</p>
-                            <pre><code>{`npm start`}</code></pre>
-                            <p>A browser is enough for a simple public <code>GET</code>. Use Postman or another API client for headers, query parameters, request bodies, authentication, CSRF, and methods such as <code>POST</code>.</p>
-                            <p>Before considering an API complete, check its status code and response against the schema, confirm the handler is registered, verify <code>livesAt</code> and <code>schema</code> paths, and test authentication and CSRF rules where applicable.</p>
-                        </div>
-                    </div>
-                </section>
-            </PageShell>
-        )
-    }
-
-    export default Docs
+export default Docs

@@ -15,42 +15,18 @@ const excuses = [
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
-
-        log.info("{user} used {cmd}", command)
-
         try {
-            log.info("{user} is fetching API: {cmd}", command)
-
-            const res = await fetchWithTimeout(
-                "https://uselessfacts.jsph.pl/random.json?language=en",
-                5000
-            )
-
+            const res = await fetchWithTimeout("https://uselessfacts.jsph.pl/random.json?language=en", 5000 )
             const data = await res.json()
 
-            log.success(
-                "{user} fetched fact from API {0} ({1})",
-                command,
-                cyan(res.url),
-                cyan(res.status)
-            )
+            log.success("{user} used {cmd} to fetch a fact from API {0} ({1})", command, cyan(res.url), cyan(res.status))
 
             const fact = data.text
-
-            await respond(`🧠 did you know that ${fact}`)
+            await respond(`Did you know that ${fact}`)
 
         } catch (err) {
-            log.error(
-                "{user} failed {cmd}: {0}",
-                command,
-                err.message
-            )
-
-            await respond(
-                `❌ couldn't fetch a fun fact right now\n\nHere's an excuse instead: ${
-                    excuses[Math.floor(Math.random() * excuses.length)]
-                }`
-            )
+            log.error("{user} failed {cmd}: {0}", command, err.message)
+            await respond(`❌ couldn't fetch a fun fact right now\n\nHere's an excuse instead: ${excuses[Math.floor(Math.random() * excuses.length)]}`)
         }
     })
 }

@@ -16,6 +16,7 @@
 | [Reverse Proxy](#reverse-proxy)                 | Hack Club Nest domain configuration                   |
 | [Extension Rules](#extension-rules)             | Extension guides and rules                            |
 | [Command Architecture](#command-architecture)   | Command registration, execution, and shared utilities |
+| [Terminal Architecture](#terminal-architecture) | Browser terminal, virtual contexts, and terminal API  |
 
 This document describes the active architecture in this repository. Slackzilla uses two Node.js processes and a shared file-backed store. It does not use Express, a database server, or automatic module discovery.
 
@@ -65,6 +66,18 @@ The exact operations performed depend on the individual command implementation.
 Command implementations can use the shared utilities in `bot/utils/` for common functionality, including logging, fetching, command loading, and metrics integration. This keeps reusable behaviour separate from individual command handlers. The bot and dashboard server are separate Node.js processes, but both can access the shared file-backed data under `server/database/` and the log output under `server/logs/`. This allows command activity to contribute to information displayed by the dashboard without requiring the HTTP server to execute the commands itself.
 
 A new command should follow the existing command implementation conventions, use the appropriate metadata entry in `bot/data/commands.json`, and integrate with the existing loading, logging, and metrics mechanisms where applicable. See [The Command Extension Guide](command-extension-guide.md) for how to add new commands and the repository's current implementation rules.
+
+## Terminal Architecture
+
+The embedded terminal is a restricted browser interface, not an operating-system shell. The React page [`server/client/src/pages/Terminal.jsx`](../server/client/src/pages/Terminal.jsx) owns xterm.js, local commands, input editing, history, authentication-aware identity, output formatting, and the virtual context stack. Browser-only features such as session/local storage inspection stay in this page because they require access to the active browser's storage APIs.
+
+Server-backed terminal commands are registered explicitly in [`server/lib/terminal/commands.js`](../server/lib/terminal/commands.js). The frontend keeps matching command metadata for help, dispatch, directory classification, and formatting. Requests are sent as bounded `POST /api/terminal` payloads and handled by [`server/api/terminal/index.js`](../server/api/terminal/index.js), which parses the request, applies rate limits and permissions, resolves the registered handler, and returns the structured result. There is no dynamic module loading, shell execution, or arbitrary command forwarding.
+
+The terminal shares the server's API and data helpers rather than calling its own HTTP endpoints recursively. A command handler receives parsed `args`, the shared server `context`, and the authenticated session. Existing helpers such as `context.renderStatusSummary()`, `context.store.getLogSnapshot()`, `context.splitLogLines()`, and `context.getBotMetrics()` allow terminal output and ordinary API responses to use the same data source. New handlers must keep public data under `PERMISSIONS.PUBLIC`; administrative data and mutations remain under `PERMISSIONS.ADMIN` with the existing session, CSRF, confirmation, and re-authentication controls.
+
+Virtual directories are metadata-driven views over the registered command families. `dir` only lists the current context; `cd`, `cd ..`, relative paths, `exit`, and idle Ctrl+C operate on the shared context stack. The root exposes command, API, logs, and storage contexts. API `get` and `post` are terminal contexts for same-origin requests, while storage session/local contexts execute against the active browser page. Argument-taking Slack commands are represented as virtual directories and still execute through the existing Slack command adapter.
+
+Terminal persistence uses the browser's session storage for the input buffer, draft, command history, context stack, and cleared-output state. It does not persist command responses, session cookies, CSRF secrets, or other reusable credentials. The terminal state key is protected from terminal deletion. See the [Terminal documentation](terminal.md) and [Terminal Extension Guide](extension/terminal-extension-guide.md) for the command contract and extension workflow.
 
 ## HTTP Request Dispatch
 
@@ -161,7 +174,7 @@ Finally, the workflow reads `manifest.json` and sends it to Slack's `apps.manife
 
 ## Reverse Proxy
 
-~~Nginx is installed as a reverse proxy for Slackzilla and listens on port `80`. It matches requests for `rylvion.hackclub.app` and forwards them to the Node.js server running on `localhost:9000`. The proxy preserves the requested hostname through the `Host` header and passes the original client address through `X-Real-IP`. This can be tested locally by sending a request to port `80` with `Host: rylvion.hackclub.app`, which returns the same Slackzilla application served directly by port `9000`. The active Nginx configuration is located at `server/sites-enabled/slackzilla.conf` ~~
+~~Nginx is installed as a reverse proxy for Slackzilla and listens on port `80`. It matches requests for `rylvion.hackclub.app` and forwards them to the Node.js server running on `localhost:9000`. The proxy preserves the requested hostname through the `Host` header and passes the original client address through `X-Real-IP`. This can be tested locally by sending a request to port `80` with `Host: rylvion.hackclub.app`, which returns the same Slackzilla application served directly by port `9000`. The active Nginx configuration is located at `server/sites-enabled/slackzilla.conf`~~
 
 <div align="center">
     <img src="../assets/docs/nest-domain.config.png" alt="Hack Club Nest Domain Configuration" width="600">

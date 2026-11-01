@@ -118,4 +118,4 @@ jobs:
                     -H "X-GitHub-Event: push" \
                     -H "X-GitHub-Delivery: ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
                     -H "X-Hub-Signature-256: $signature" \
-                    --data "$payload" 
+                    --data "$payload"

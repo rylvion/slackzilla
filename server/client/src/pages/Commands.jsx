@@ -1,82 +1,107 @@
+
 import Panel from "../components/commands/Panel"
 import PageShell from "../components/PageShell"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { getJson } from "../components/utils/api"
 import "../css/commands.css"
 
 function Commands() {
     const [commands, setCommands] = useState([])
-    const [commandId, setCommandId] = useState("")
-    const [commandText, setCommandText] = useState("")
-    const [response, setResponse] = useState(null)
-    const [error, setError] = useState("")
-    const [busy, setBusy] = useState(false)
-
-    const selectedCommand = commands.find(command => command.id === commandId)
+    const [loadError, setLoadError] = useState("")
+    const [expandedId, setExpandedId] = useState("")
+    const [argumentsById, setArgumentsById] = useState({})
+    const [busyIds, setBusyIds] = useState([])
+    const [results, setResults] = useState({})
+    const busyRef = useRef(new Set())
 
     useEffect(() => {
+        let active = true
+
         getJson("/api/commands")
-            .then(data => setCommands(data.commands || []))
-            .catch(requestError => setError(requestError.message))
+            .then(data => {
+                if (active) setCommands(data.commands || [])
+            })
+            .catch(error => {
+                if (active) setLoadError(error.message)
+            })
+
+        return () => { active = false }
     }, [])
 
-    async function runCommand(event) {
-        event.preventDefault()
-        if (!commandId) return
+    async function runCommand(command, text = "") {
+        if (busyRef.current.has(command.id)) return
 
-        setBusy(true)
-        setError("")
-        setResponse(null)
+        busyRef.current.add(command.id)
+        setBusyIds([...busyRef.current])
+        setResults(previous => ({
+            ...previous,
+            [command.id]: { loading: true, error: "", response: null }
+        }))
 
         try {
-            const data = await getJson(`/api/commands/${commandId}`, {
+            const data = await getJson(`/api/commands/${encodeURIComponent(command.id)}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: commandText })
+                body: JSON.stringify({ text })
             })
-            setResponse(data)
-        } catch (requestError) {
-            setError(requestError.message)
+
+            setResults(previous => ({
+                ...previous,
+                [command.id]: { loading: false, error: "", response: data }
+            }))
+        } catch (error) {
+            setResults(previous => ({
+                ...previous,
+                [command.id]: { loading: false, error: error.message, response: null }
+            }))
         } finally {
-            setBusy(false)
+            busyRef.current.delete(command.id)
+            setBusyIds([...busyRef.current])
         }
     }
 
+    function handleCommandClick(command) {
+        if (busyRef.current.has(command.id)) return
+
+        if (!command.usageHint?.trim()) {
+            setExpandedId("")
+            runCommand(command)
+            return
+        }
+
+        setExpandedId(current => current === command.id ? "" : command.id)
+    }
+
+    function handleArgumentsChange(commandId, value) {
+        setArgumentsById(previous => ({ ...previous, [commandId]: value }))
+    }
+
+    function handleArgumentsSubmit(event, command) {
+        event.preventDefault()
+        runCommand(command, argumentsById[command.id] || "")
+    }
+
     return (
-        <>
-            <PageShell title="Commands" description="Slackzilla command reference">
-                <section id="commands" className="panel">
-                    <div className="panel-header">
-                        <h1>Commands</h1>
-                        <span className="panel-subtitle">Slackzilla command reference</span>
-                    </div>
+        <PageShell title="Commands" description="Slackzilla command reference">
+            <section id="commands" className="panel">
+                <div className="panel-header">
+                    <h1>Commands</h1>
+                </div>
 
-                    <div className="panel-body">
-                        <p>Browse the available Slackzilla commands and their usage information.</p>
-                    </div>
+                {loadError && <div className="panel-body"><p className="command-error">{loadError}</p></div>}
 
-                    <div className="panel-body command-runner">
-                        <h2>Run a command</h2>
-                        <form onSubmit={runCommand}>
-                            <label htmlFor="command-id">Command</label>
-                            <select id="command-id" value={commandId} onChange={event => setCommandId(event.target.value)} required>
-                                <option value="">Select a command</option>
-                                {commands.map(command => <option key={command.id} value={command.id}>{command.command} - {command.description}</option>)}
-                            </select>
-                            <label htmlFor="command-text">Arguments</label>
-                            <input id="command-text" value={commandText} onChange={event => setCommandText(event.target.value)} placeholder={selectedCommand?.usageHint || "No usage hint available"} />
-                            <button className="button command-run-button" type="submit" disabled={busy || !commandId}>{busy ? "Running..." : "Run command"}</button>
-                        </form>
-                        {error && <p className="command-error">{error}</p>}
-                        {response && <pre className="command-response">{response.responses?.map(item => typeof item === "string" ? item : JSON.stringify(item, null, 2)).join("\n")}</pre>}
-                    </div>
-
-                    <div id="command-panel" className="panel-body">
-                        <Panel />
-                    </div>
-                </section> 
-            </PageShell>
-        </>
+                <Panel
+                    commands={commands}
+                    expandedId={expandedId}
+                    argumentsById={argumentsById}
+                    busyIds={busyIds}
+                    results={results}
+                    onCommandClick={handleCommandClick}
+                    onArgumentsChange={handleArgumentsChange}
+                    onArgumentsSubmit={handleArgumentsSubmit}
+                />
+            </section>
+        </PageShell>
     )
 }
 

@@ -1,50 +1,61 @@
 # `POST /api/admin/control`
 
-**Last updated at:** _06/10/2026_
+**Last updated at:** _15/10/2026_
 
 ## TOC
 
-| Section                                 | Description                                               | Subsections                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Overview](#overview)                   | Summary of the endpoint's purpose and requirements.       | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| [Supported actions](#supported-actions) | List of available control actions and their requirements. | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| [Error responses](#error-responses)     | Possible error responses and their meanings.              | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| [Authentication](#authentication)       | Details on required authentication and CSRF protection.   | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| [Request Payload](#request-payload)     | Structure of the JSON request body.                       | [headers](#headers), [body](#body), [example](#example), [refresh](#refresh), [refresh-status](#refresh-status), [refresh-logs](#refresh-logs), [start](#start), [stop](#stop), [restart](#restart), [redeploy](#redeploy), [delete-log](#delete-log), [delete-lines](#delete-lines), [delete-line](#delete-line), [delete-last](#delete-last), [rotate-logs](#rotate-logs), [restore-log](#restore-log), [delete-log-archive](#delete-log-archive), [reset-telemetry](#reset-telemetry) |
-| [Implementation](#implementation)       | Explanation of how each action is executed.               | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| [Testing](#testing)                     | Instructions for testing the endpoint.                    | [requirements](#requirements), [browser-devtools](#1-browser-devtools), [bash-wsl-curl](#2-bash--wsl-curl), [powershell](#3-powershell), [notes](#notes)                                                                                                                                                                                                                                                                                                                                                  |
+| Section                                 | Description                                               | Subsections                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Overview](#overview)                   | Summary of the endpoint's purpose and requirements.       | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [Supported actions](#supported-actions) | List of available control actions and their requirements. | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [Error responses](#error-responses)     | Possible error responses and their meanings.              | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [Authentication](#authentication)       | Details on required authentication and CSRF protection.   | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [Request Payload](#request-payload)     | Structure of the JSON request body.                       | [headers](#headers), [body](#body), [example](#example), [refresh](#refresh), [refresh-status](#refresh-status), [refresh-logs](#refresh-logs), [start](#start), [stop](#stop), [restart](#restart), [redeploy](#redeploy), [delete-log](#delete-log), [delete-lines](#delete-lines), [delete-line](#delete-line), [delete-last](#delete-last), [rotate-logs](#rotate-logs), [restore-log](#restore-log), [delete-log-archive](#delete-log-archive), [reset-telemetry](#reset-telemetry), [delete-event](#delete-event), [delete-error](#delete-error), [delete-event-group](#delete-event-group), [delete-error-group](#delete-error-group), [delete-events](#delete-events), [delete-errors](#delete-errors) |
+| [Implementation](#implementation)       | Explanation of how each action is executed.               | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [Testing](#testing)                     | Instructions for testing the endpoint.                    | [requirements](#requirements), [browser-devtools](#1-browser-devtools), [bash-wsl-curl](#2-bash--wsl-curl), [powershell](#3-powershell), [notes](#notes)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ## Overview
 
-The `POST /api/admin/control` endpoint provides 15 authenticated administrative controls for managing Slackzilla's runtime services, deployments, logs, telemetry, and log archives.
+The `POST /api/admin/control` endpoint provides 23 authenticated administrative controls for managing Slackzilla's runtime services, deployments, logs, telemetry, log archives, server history records, and administrator sessions.
 
 All requests must be sent as JSON and include a valid administrative session (`slackzilla_admin_session` cookie) and `csrf` token or `X-CSRF-Token` header.
 
 Actions that modify services or stored data additionally require explicit confirmation through the `confirmed` property.
 
+The `logout` control ends the current administrator session and clears the `slackzilla_admin_session` cookie. It is authenticated, CSRF-protected, and requires `confirmed: true` when called through this endpoint or the terminal control adapter.
+
 ## Supported actions
 
-| Action               | Additional fields                 | Confirmation | Purpose                                                                                       | Link                                      |
-| -------------------- | --------------------------------- | ------------ | --------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `refresh`            | None                              | No           | Refreshes runtime status and broadcasts updated admin status and summary data.                | [refresh](#refresh)                       |
-| `refresh-status`     | None                              | No           | Refreshes and returns the current runtime status.                                             | [refresh-status](#refresh-status)         |
-| `refresh-logs`       | None                              | No           | Refreshes the current log snapshot and returns its size.                                      | [refresh-logs](#refresh-logs)             |
-| `start`              | None                              | Yes          | Starts the configured bot systemd service.                                                    | [start](#start)                           |
-| `stop`               | None                              | Yes          | Stops the configured bot systemd service.                                                     | [stop](#stop)                             |
-| `restart`            | None                              | Yes          | Restarts the configured bot systemd service.                                                  | [restart](#restart)                       |
-| `redeploy`           | None                              | Yes          | Runs the configured deployment script and updates deployment state.                           | [redeploy](#redeploy)                     |
-| `delete-log`         | None                              | Yes          | Clears the current log file.                                                                  | [delete-log](#delete-log)                 |
-| `delete-lines`       | `start`, `end`                    | Yes          | Deletes a range of log lines. Both values must be positive integers.                          | [delete-lines](#delete-lines)             |
-| `delete-line`        | `line`                            | Yes          | Deletes one log line. The line number must be a positive integer.                             | [delete-line](#delete-line)               |
-| `delete-last`        | `count`                           | Yes          | Deletes the specified number of lines from the end of the log.                                | [delete-last](#delete-last)               |
-| `rotate-logs`        | None                              | Yes          | Rotates the current log into an archive.                                                      | [rotate-logs](#rotate-logs)               |
-| `restore-log`        | `archive`, optional `saveCurrent` | Yes          | Restores a log archive. Set `saveCurrent` to `true` to save the current log before restoring. | [restore-log](#restore-log)               |
-| `delete-log-archive` | `archive`                         | Yes          | Deletes a stored log archive.                                                                 | [delete-log-archive](#delete-log-archive) |
-| `reset-telemetry`    | None                              | Yes          | Clears runtime telemetry history and broadcasts the updated status.                           | [reset-telemetry](#reset-telemetry)       |
+| Action               | Additional fields                                        | Confirmation | Purpose                                                                                       | Link                                      |
+| -------------------- | -------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `refresh`            | None                                                     | No           | Refreshes runtime status and broadcasts updated admin status and summary data.                | [refresh](#refresh)                       |
+| `refresh-status`     | None                                                     | No           | Refreshes and returns the current runtime status.                                             | [refresh-status](#refresh-status)         |
+| `refresh-logs`       | None                                                     | No           | Refreshes the current log snapshot and returns its size.                                      | [refresh-logs](#refresh-logs)             |
+| `logout`             | None                                                     | Yes          | Invalidates the current administrator session and clears its session cookie.                  | [logout](#logout)                         |
+| `start`              | None                                                     | Yes          | Starts the configured bot systemd service.                                                    | [start](#start)                           |
+| `stop`               | None                                                     | Yes          | Stops the configured bot systemd service.                                                     | [stop](#stop)                             |
+| `restart`            | None                                                     | Yes          | Restarts the configured bot systemd service.                                                  | [restart](#restart)                       |
+| `redeploy`           | None                                                     | Yes          | Runs the configured deployment script and updates deployment state.                           | [redeploy](#redeploy)                     |
+| `delete-log`         | None                                                     | Yes          | Clears the current log file.                                                                  | [delete-log](#delete-log)                 |
+| `delete-lines`       | `start` [`number`], `end` [`number`]                     | Yes          | Deletes a range of log lines. Both values must be positive integers.                          | [delete-lines](#delete-lines)             |
+| `delete-line`        | `line` [`number`]                                        | Yes          | Deletes one log line. The line number must be a positive integer.                             | [delete-line](#delete-line)               |
+| `delete-last`        | `count` [`number`]                                       | Yes          | Deletes the specified number of lines from the end of the log.                                | [delete-last](#delete-last)               |
+| `rotate-logs`        | None                                                     | Yes          | Rotates the current log into an archive.                                                      | [rotate-logs](#rotate-logs)               |
+| `restore-log`        | `archive` [`string`], optional `saveCurrent` [`boolean`] | Yes          | Restores a log archive. Set `saveCurrent` to `true` to save the current log before restoring. | [restore-log](#restore-log)               |
+| `delete-log-archive` | `archive` [`string`]                                     | Yes          | Deletes a stored log archive.                                                                 | [delete-log-archive](#delete-log-archive) |
+| `reset-telemetry`    | None                                                     | Yes          | Clears runtime telemetry history and broadcasts the updated status.                           | [reset-telemetry](#reset-telemetry)       |
+| `delete-event`       | `id` [`string` (UUID)]                                   | Yes          | Deletes one server event occurrence by UUID; it cannot clear event history.                   | [delete-event](#delete-event)             |
+| `delete-error`       | `id` [`string` (UUID)]                                   | Yes          | Deletes one server error occurrence by UUID; other occurrences remain.                        | [delete-error](#delete-error)             |
+| `delete-event-group` | `groupId` [`string`]                                     | Yes          | Deletes every occurrence in one grouped server event signature.                               | [delete-event-group](#delete-event-group) |
+| `delete-error-group` | `groupId` [`string`]                                     | Yes          | Deletes every occurrence in one grouped server error fingerprint.                             | [delete-error-group](#delete-error-group) |
+| `delete-events`      | `ids` [`string[]` (UUIDs)]                               | Yes          | Deletes selected or filtered server event occurrences in one operation.                       | [delete-events](#delete-events)           |
+| `delete-errors`      | `ids` [`string[]` (UUIDs)]                               | Yes          | Deletes selected or matching server error occurrences in one operation.                       | [delete-errors](#delete-errors)           |
 
 Some actions include additional data. For example, `refresh-logs` returns the refreshed log size, `rotate-logs` returns the created archive, and `redeploy` returns the deployment state.
 
 Invalid or unknown actions return an error response. Dangerous actions without confirmation return `409 CONFIRMATION_REQUIRED`. Invalid log ranges return `400 INVALID_LOG_RANGE`.
+
+All deletion controls require the literal boolean `confirmed: true`. Missing, false, or non-boolean confirmation returns `409 CONFIRMATION_REQUIRED`.
 
 Control action failures are recorded as server errors and return `500 CONTROL_ACTION_FAILED`.
 
@@ -113,17 +124,21 @@ The endpoint accepts a JSON request body. Every request must include a valid `ac
 
 ### Body
 
-| Field         | Type    | Required                            | Description                                               |
-| ------------- | ------- | ----------------------------------- | --------------------------------------------------------- |
-| `action`      | String  | Yes                                 | Control action to execute. Must be a supported action.    |
-| `csrf`        | String  | Conditional                         | CSRF token. Required when `X-CSRF-Token` is not provided. |
-| `confirmed`   | Boolean | Conditional                         | Must be `true` for protected actions.                     |
-| `start`       | Integer | `delete-lines`                      | Starting log line. Must be a positive integer.            |
-| `end`         | Integer | `delete-lines`                      | Ending log line. Must be a positive integer.              |
-| `line`        | Integer | `delete-line`                       | Log line to delete. Must be a positive integer.           |
-| `count`       | Integer | `delete-last`                       | Number of lines to delete.                                |
-| `archive`     | String  | `restore-log`, `delete-log-archive` | Archive identifier.                                       |
-| `saveCurrent` | Boolean | `restore-log`                       | Set to `true` to save the current log before restoring.   |
+| Field         | Type               | Required                                   | Description                                                                     |
+| ------------- | ------------------ | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| `action`      | `string`           | Yes                                        | Control action to execute. Must be a supported action.                          |
+| `csrf`        | `string`           | Conditional                                | CSRF token. Required when `X-CSRF-Token` is not provided.                       |
+| `confirmed`   | `boolean`          | Conditional                                | Must be `true` for protected actions.                                           |
+| `start`       | `integer`          | `delete-lines`                             | Starting log line. Must be a positive integer.                                  |
+| `end`         | `integer`          | `delete-lines`                             | Ending log line. Must be a positive integer.                                    |
+| `line`        | `integer`          | `delete-line`                              | Log line to delete. Must be a positive integer.                                 |
+| `count`       | `integer`          | `delete-last`                              | Number of lines to delete. Must be a positive integer.                          |
+| `archive`     | `string`           | `restore-log`, `delete-log-archive`        | Archive identifier.                                                             |
+| `saveCurrent` | `boolean`          | Optional for `restore-log`                 | Set to `true` to save the current log before restoring.                         |
+| `id`          | `string` (UUID)    | `delete-event`, `delete-error`             | UUID of the server event or error occurrence to delete.                         |
+| `groupId`     | `string`           | `delete-event-group`, `delete-error-group` | Stable group fingerprint. Must use the appropriate `event-` or `error-` prefix. |
+| `ids`         | `string[]` (UUIDs) | `delete-events`, `delete-errors`           | Non-empty array of occurrence UUIDs to delete.                                  |
+| `archive`     | `string`           | `delete-log-archive`                       | Identifier of the stored log archive to delete.                                 |
 
 ### Example
 
@@ -155,6 +170,17 @@ An action with additional fields:
 }
 ```
 
+A bulk deletion of server event/errors occurrences:
+
+```json
+{
+    "action": "delete-events", // or "delete-errors"
+    "ids": ["event-occurrence-uuid-1", "event-occurrence-uuid-2"],
+    "confirmed": true,
+    "csrf": "session-csrf-token"
+}
+```
+
 The CSRF token may be supplied either through the `X-CSRF-Token` header or the `csrf` body property. If both are provided, the body property takes precedence. The `action` value must be one of the actions listed in [Supported Actions](#supported-actions). An example request might be
 
 ```bash
@@ -171,121 +197,190 @@ X-CSRF-Token: your-csrf-token
 }
 ```
 
+### `refresh`
 
-### Refresh
+Recalculates the current runtime status and admin dashboard summary, then broadcasts the updated information to connected clients. Returns the rendered status summary, including the current status data. The broadcast status snapshot excludes `telemetryHistory`.
 
-`refresh` refreshes the current runtime status and broadcasts the updated status and admin summary to connected clients. It calls `context.refreshAndBroadcastStatus()` and `context.buildAdminSummary()` before returning the rendered status summary in the response. The returned `status` follows the `/api/status` response structure, while the broadcast status snapshot excludes `telemetryHistory`.
+### `refresh-status`
 
-### Refresh Status
+Refreshes the current runtime status and broadcasts the updated status and admin summary to connected clients. Returns the rendered status summary. Unlike `refresh`, this action is intended specifically for refreshing status rather than explicitly refreshing the broader dashboard data.
 
-`refresh-status` refreshes the current runtime status and broadcasts the updated status and admin summary to connected clients using `context.refreshAndBroadcastStatus()`, then returns the rendered status summary. The returned `status` follows the `/api/status` response structure, while the broadcast status snapshot excludes `telemetryHistory`.
+### `refresh-logs`
 
-### Refresh Logs
+Reloads the current log snapshot and broadcasts the updated logs to connected clients. Log clients receive the complete snapshot, while admin clients receive the last 50 lines. The admin summary is also updated. Returns the total log file size in bytes.
 
-`refresh-logs` refreshes the current log snapshot and broadcasts the updated logs to connected clients using `context.refreshAndBroadcastLogs()`. The complete log snapshot is sent to log clients, the last 50 lines are sent to admin clients, and an updated admin summary is broadcast before the action returns the total log file size in bytes.
+### `logout`
 
-### Start
+Invalidates the authenticated administrator session server-side and clears the `slackzilla_admin_session` cookie. The request still requires the existing session and valid CSRF token. When called from the terminal, the terminal first performs operation-bound master-password re-authentication, waits for the terminal request limiter cooldown, then sends the confirmed control request. A successful response is `{ "action": "logout", "authenticated": false }`.
 
-`start` starts the configured bot systemd service using `context.runSystemctl("start", context.runtimeConfig.botServiceName)`, waits for the command to complete successfully, refreshes and broadcasts the runtime status, and returns the executed action.
+The terminal refreshes `/api/session` after success so its identity and prompt immediately change from `hecker` to `noob`. A later `sudo` command enters the normal login flow without requiring a page reload.
 
-### Stop
+### `start`
 
-`stop` stops the configured bot systemd service using `context.runSystemctl("stop", context.runtimeConfig.botServiceName)`, waits for the command to complete successfully, refreshes and broadcasts the runtime status, and returns the executed action.
+Starts the configured bot systemd service. After the command completes successfully, the endpoint refreshes and broadcasts the runtime status. Returns the executed action.
 
-### Restart
+### `stop`
 
-`restart` restarts the configured bot systemd service using `context.runSystemctl("restart", context.runtimeConfig.botServiceName)`, waits for the command to complete successfully, refreshes and broadcasts the runtime status, and returns the executed action.
+Stops the configured bot systemd service. After the command completes successfully, the endpoint refreshes and broadcasts the runtime status. Returns the executed action.
 
-### Redeploy
+### `restart`
 
-`redeploy` executes the configured deployment script using `context.runDeployScript()`, captures its standard output and standard error in the application log, saves the resulting deployment state with `context.saveDeploymentState()`, refreshes and broadcasts the runtime status, broadcasts the deployment and admin summary events, and returns the saved deployment state. A deployment is considered successful when the script exits with code `0`.
+Restarts the configured bot systemd service. After the command completes successfully, the endpoint refreshes and broadcasts the runtime status. Returns the executed action.
 
-### Delete Log
+### `redeploy`
 
-`delete-log` clears the contents of the current log file using `context.store.deleteLogFile()`, refreshes and broadcasts the updated log information, and returns the executed action with a confirmation message. The log file itself remains in place with a size of 0 bytes.
+Runs the configured deployment script and captures its standard output and standard error in the application log. Saves the resulting deployment state, refreshes the runtime status, and broadcasts deployment and admin summary updates. Returns the saved deployment state. A deployment is considered successful when the script exits with code `0`.
 
-### Delete Lines
+```json
+{
+    "action": "redeploy",
+    "confirmed": true
+}
+```
 
-`delete-lines` removes a specified range of lines from the current log using `context.store.deleteLogLines(body.start, body.end)`, refreshes and broadcasts the updated log information, and returns the executed action with the updated log file size. Both `start` and `end` must be positive integers, and `start` must not exceed `end`.
+### `delete-log`
 
-### Delete Line
+Clears the contents of the current log file without removing the file itself. The resulting file remains present with a size of 0 bytes. The endpoint refreshes and broadcasts the updated log information, then returns the executed action and a confirmation message.
 
-`delete-line` removes a single specified line by passing the line number as both the start and end position to `context.store.deleteLogLines()`, then refreshes and broadcasts the updated log information before returning the executed action and updated log file size. The `line` value must be a positive integer.
+```json
+{
+    "action": "delete-log",
+    "confirmed": true
+}
+```
 
-### Delete Last
+### `delete-lines`
 
-`delete-last` removes a specified number of lines from the end of the current log using `context.store.deleteLastLogLines()`, refreshes and broadcasts the updated log information, and returns the executed action with the updated log file size. If `count` is omitted or falsy, it defaults to 100 lines, and if the requested count exceeds the available lines, the log is cleared.
+Deletes an inclusive range of lines from the current log, starting at `start` and ending at `end`. Both values must be positive integers, and `start` must not exceed `end`. The endpoint refreshes and broadcasts the updated log information, then returns the executed action and updated log file size.
 
-### Rotate Logs
+```json
+{
+    "action": "delete-lines",
+    "start": 10,
+    "end": 20, // it will delete line 20 as well since the range is inclusive
+    "confirmed": true
+}
+```
 
-`rotate-logs` rotates the current log into an archive using `context.store.rotateLog()`, refreshes and broadcasts the updated log information, and returns the created archive information.
+### `delete-line`
 
-### Restore Log
+Deletes one specified line from the current log. The `line` value must be a positive integer. The endpoint removes the line, refreshes and broadcasts the updated log information, and returns the executed action and updated log file size.
 
-`restore-log` restores a selected log archive using `context.store.restoreLogArchive()`, optionally saving the current log first when `saveCurrent` is `true`. The action then refreshes and broadcasts the updated log information before returning the restoration result.
+```json
+{
+    "action": "delete-line",
+    "line": 15, // delete line 15
+    "confirmed": true
+}
+```
 
-### Delete Log Archive
+### `delete-last`
 
-`delete-log-archive` deletes the specified stored log archive using `context.store.deleteLogArchive()`, refreshes and broadcasts the updated log information, and returns the result of the archive deletion.
+Removes a specified number of lines from the end of the current log. If `count` is omitted or falsy, it defaults to 100 lines. If the requested count exceeds the number of available lines, the entire log is cleared. The endpoint refreshes and broadcasts the updated log information, then returns the executed action and updated log file size.
 
-### Reset Telemetry
+```json
+{
+    "action": "delete-last",
+    "count": 50, // delete the last 50 lines
+    "confirmed": true
+}
+```
 
-`reset-telemetry` clears the runtime telemetry history using `context.resetTelemetry()`, refreshes and broadcasts the updated runtime status, and returns the resulting action status.
+### `rotate-logs`
+
+Archives the current log and rotates it using the log storage system. The endpoint refreshes and broadcasts the updated log information, then returns details of the newly created archive.
+
+### `restore-log`
+
+Restores the current log from the specified archive. If `saveCurrent` is `true`, the existing log is saved before the restoration takes place. The endpoint then refreshes and broadcasts the updated log information and returns the restoration result.
+
+### `delete-log-archive`
+
+Permanently deletes the specified stored log archive. The endpoint refreshes and broadcasts the updated log information, then returns the archive deletion result.
+
+### `reset-telemetry`
+
+Clears the runtime telemetry history, refreshes the runtime status, and broadcasts the updated status to connected clients. Returns the resulting action status.
+
+### `delete-event`
+
+Deletes one server event occurrence identified by its UUID. Other occurrences, including those belonging to the same event group, remain untouched. The deletion is persisted to `metrics.json`, and subsequent grouped event responses reflect the updated occurrence count and group data.
+
+### `delete-error`
+
+Deletes one server error occurrence identified by its UUID. Other error occurrences, including those sharing the same error fingerprint, remain untouched. The deletion is persisted to `server-errors.json`, and subsequent grouped error responses reflect the updated occurrence count and timestamps.
+
+### `delete-event-group`
+
+Deletes every occurrence belonging to the specified server event group fingerprint. The `groupId` must identify the relevant event group. The updated event history is persisted to `metrics.json`, and the response reports the number of occurrences deleted. Unrelated event groups remain unchanged.
+
+### `delete-error-group`
+
+Deletes every occurrence belonging to the specified server error fingerprint. The `groupId` must identify the relevant error group. The updated error history is persisted to `server-errors.json`, and the response reports the number of occurrences deleted. Unrelated error groups remain unchanged.
+
+### `delete-events`
+
+Deletes the server event occurrences identified by the supplied, non-empty `ids` array. Each identifier must be a valid UUID. The filtered event history is persisted to `metrics.json`, and the response reports the number of records deleted. Records not selected for deletion remain available.
+
+### `delete-errors`
+
+Deletes the server error occurrences identified by the supplied, non-empty `ids` array. Each identifier must be a valid UUID. The filtered error history is persisted to `server-errors.json`, and the response reports the number of records deleted. Records not selected for deletion remain available.
 
 ## Implementation
 
 notes: `context` is found on `server.js` and `context.store` is `server/database/store.js`
 
-| Action                  | Dependent function                    | Description                                                                    | What function/action is used to perform this action                                                                                            | Originating file           |
-| ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| Authentication          | `context.auth.requireSession()`       | Verifies that the request has an authenticated admin session.                  | Called before processing any control action.                                                                                                   | `server/lib/auth.js`       |
-| CSRF validation         | `context.auth.verifyCsrf()`           | Validates the CSRF token before processing the action.                         | Called before processing any control action.                                                                                                   | `server/lib/auth.js`       |
-| Request parsing         | `context.parseBody()`                 | Parses the incoming JSON request body.                                         | Called before processing any control action.                                                                                                   | `server/lib/http.js`       |
-| Confirmation validation | `dangerousActions.includes()`         | Checks whether an action requires explicit confirmation before execution.      | Checks the `dangerousActions` array against the requested action.                                                                              | `handleControlApi()`       |
-| Log deletion            | `context.store.deleteLogFile()`       | Clears the contents of the current log file.                                   | `delete-log`                                                                                                                                   | `server/database/store.js` |
-| Log line deletion       | `context.store.deleteLogLines()`      | Deletes a specified range of log lines or a single line.                       | `delete-lines`, `delete-line`                                                                                                                  | `server/database/store.js` |
-| Last log deletion       | `context.store.deleteLastLogLines()`  | Removes the specified number of lines from the end of the log.                 | `delete-last`                                                                                                                                  | `server/database/store.js` |
-| Log rotation            | `context.store.rotateLog()`           | Archives the current log and rotates it.                                       | `rotate-logs`                                                                                                                                  | `server/database/store.js` |
-| Log restoration         | `context.store.restoreLogArchive()`   | Restores a selected log archive, optionally saving the current log.            | `restore-log`                                                                                                                                  | `server/database/store.js` |
-| Archive deletion        | `context.store.deleteLogArchive()`    | Deletes a specified log archive.                                               | `delete-log-archive`                                                                                                                           | `server/database/store.js` |
-| Telemetry reset         | `context.resetTelemetry()`            | Clears collected telemetry data.                                               | `reset-telemetry`                                                                                                                              | `server/server.js`         |
-| Deployment              | `context.runDeployScript()`           | Executes the deployment script and captures its output.                        | `redeploy`                                                                                                                                     | `server/lib/system.js`     |
-| Deployment state        | `context.saveDeploymentState()`       | Saves the deployment status, timestamp, output and result.                     | `redeploy`, deployment error handler                                                                                                           | `server/database/store.js` |
-| Service management      | `context.runSystemctl()`              | Executes system service commands to start, stop or restart the bot.            | `start`, `stop`, `restart`                                                                                                                     | `server/lib/system.js`     |
-| Status refresh          | `context.refreshAndBroadcastStatus()` | Refreshes system status and broadcasts the updated information.                | `start`, `stop`, `restart`, `redeploy`, `reset-telemetry`, `refresh`, `refresh-status`, deployment error handler                               | `server/server.js`         |
-| Log refresh             | `context.refreshAndBroadcastLogs()`   | Refreshes log data and broadcasts the updated logs to connected admin clients. | `delete-log`, `delete-lines`, `delete-last`, `delete-line`, `rotate-logs`, `restore-log`, `refresh-logs`                                       | `server/server.js`         |
-| Dashboard summary       | `context.buildAdminSummary()`         | Generates the admin dashboard summary, including the CSRF token.               | `redeploy`, `refresh`, deployment error handler                                                                                                | `server/server.js`         |
-| Event broadcasting      | `context.broadcast()`                 | Sends deployment, status or summary events to connected admin clients.         | `redeploy` (deploy and summary events), `refresh` (summary event), deployment error handler (deploy and summary events)                        | `server/server.js`         |
-| Status rendering        | `context.renderStatusSummary()`       | Generates the current status summary for the API response.                     | `refresh`, `refresh-status`                                                                                                                    | `server/server.js`         |
-| Error recording         | `context.recordServerError()`         | Records errors that occur during control action execution.                     | `catch` block for failed control actions.                                                                                                      | `server/server.js`         |
-| Error response          | `context.sendError()`                 | Returns structured error responses for invalid requests or failed actions.     | Authentication, CSRF validation, confirmation validation, invalid log ranges, unknown actions, control action failures and malformed requests. | `server/lib/http.js`       |
-| Success response        | `context.sendOk()`                    | Returns a successful API response containing the action result.                | All successfully completed control actions.                                                                                                    | `server/lib/http.js`       |
+| Action                  | Dependent function                       | Description                                                                          | What function/action is used to perform this action                                                                                            | Originating file           |
+| ----------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Authentication          | `context.auth.requireSession()`          | Verifies that the request has an authenticated admin session.                        | Called before processing any control action.                                                                                                   | `server/lib/auth.js`       |
+| Session logout          | `context.auth.logout()`                  | Invalidates the current session and clears the administrator cookie.                 | `logout`                                                                                                                                       | `server/lib/auth.js`       |
+| CSRF validation         | `context.auth.verifyCsrf()`              | Validates the CSRF token before processing the action.                               | Called before processing any control action.                                                                                                   | `server/lib/auth.js`       |
+| Request parsing         | `context.parseBody()`                    | Parses the incoming JSON request body.                                               | Called before processing any control action.                                                                                                   | `server/lib/http.js`       |
+| Confirmation validation | `dangerousActions.includes()`            | Checks whether an action requires explicit confirmation before execution.            | Checks the `dangerousActions` array against the requested action.                                                                              | `handleControlApi()`       |
+| Log deletion            | `context.store.deleteLogFile()`          | Clears the contents of the current log file.                                         | `delete-log`                                                                                                                                   | `server/database/store.js` |
+| Log line deletion       | `context.store.deleteLogLines()`         | Deletes a specified range of log lines or a single line.                             | `delete-lines`, `delete-line`                                                                                                                  | `server/database/store.js` |
+| Last log deletion       | `context.store.deleteLastLogLines()`     | Removes the specified number of lines from the end of the log.                       | `delete-last`                                                                                                                                  | `server/database/store.js` |
+| Log rotation            | `context.store.rotateLog()`              | Archives the current log and rotates it.                                             | `rotate-logs`                                                                                                                                  | `server/database/store.js` |
+| Log restoration         | `context.store.restoreLogArchive()`      | Restores a selected log archive, optionally saving the current log.                  | `restore-log`                                                                                                                                  | `server/database/store.js` |
+| Archive deletion        | `context.store.deleteLogArchive()`       | Deletes a specified log archive.                                                     | `delete-log-archive`                                                                                                                           | `server/database/store.js` |
+| Telemetry reset         | `context.resetTelemetry()`               | Clears collected telemetry data.                                                     | `reset-telemetry`                                                                                                                              | `server/server.js`         |
+| Event group deletion    | `context.store.deleteServerEventGroup()` | Deletes all occurrences in one server event group and persists `metrics.json`.       | `delete-event-group`                                                                                                                           | `server/database/store.js` |
+| Error group deletion    | `context.store.deleteServerErrorGroup()` | Deletes all occurrences in one server error group and persists `server-errors.json`. | `delete-error-group`                                                                                                                           | `server/database/store.js` |
+| Event bulk deletion     | `context.store.deleteServerEvents()`     | Deletes the submitted event occurrence IDs and persists `metrics.json`.              | `delete-events`                                                                                                                                | `server/database/store.js` |
+| Error bulk deletion     | `context.store.deleteServerErrors()`     | Deletes the submitted error occurrence IDs and persists `server-errors.json`.        | `delete-errors`                                                                                                                                | `server/database/store.js` |
+| Deployment              | `context.runDeployScript()`              | Executes the deployment script and captures its output.                              | `redeploy`                                                                                                                                     | `server/lib/system.js`     |
+| Deployment state        | `context.saveDeploymentState()`          | Saves the deployment status, timestamp, output and result.                           | `redeploy`, deployment error handler                                                                                                           | `server/database/store.js` |
+| Service management      | `context.runSystemctl()`                 | Executes system service commands to start, stop or restart the bot.                  | `start`, `stop`, `restart`                                                                                                                     | `server/lib/system.js`     |
+| Status refresh          | `context.refreshAndBroadcastStatus()`    | Refreshes system status and broadcasts the updated information.                      | `start`, `stop`, `restart`, `redeploy`, `reset-telemetry`, `refresh`, `refresh-status`, deployment error handler                               | `server/server.js`         |
+| Log refresh             | `context.refreshAndBroadcastLogs()`      | Refreshes log data and broadcasts the updated logs to connected admin clients.       | `delete-log`, `delete-lines`, `delete-last`, `delete-line`, `rotate-logs`, `restore-log`, `refresh-logs`                                       | `server/server.js`         |
+| Dashboard summary       | `context.buildAdminSummary()`            | Generates the admin dashboard summary, including the CSRF token.                     | `redeploy`, `refresh`, deployment error handler                                                                                                | `server/server.js`         |
+| Event broadcasting      | `context.broadcast()`                    | Sends deployment, status or summary events to connected admin clients.               | `redeploy` (deploy and summary events), `refresh` (summary event), deployment error handler (deploy and summary events)                        | `server/server.js`         |
+| Status rendering        | `context.renderStatusSummary()`          | Generates the current status summary for the API response.                           | `refresh`, `refresh-status`                                                                                                                    | `server/server.js`         |
+| Error recording         | `context.recordServerError()`            | Records errors that occur during control action execution.                           | `catch` block for failed control actions.                                                                                                      | `server/server.js`         |
+| Error response          | `context.sendError()`                    | Returns structured error responses for invalid requests or failed actions.           | Authentication, CSRF validation, confirmation validation, invalid log ranges, unknown actions, control action failures and malformed requests. | `server/lib/http.js`       |
+| Success response        | `context.sendOk()`                       | Returns a successful API response containing the action result.                      | All successfully completed control actions.                                                                                                    | `server/lib/http.js`       |
 
 ## Testing
 
-You can test the endpoint using a simple script or command-line request. The following examples demonstrate how to send requests to `/api/admin/control` using Browser DevTools, Bash/WSL (`curl`), or PowerShell.
+Test `POST /api/admin/control` using Browser DevTools, Bash/WSL, or PowerShell.
 
 ### Requirements
 
-- You must be logged in as an admin user to test this endpoint.
-- You must have a valid `slackzilla_admin_session` cookie to access `/api/session`.
-- The `action` field must contain a valid, supported action.
-- A valid CSRF token must be provided in the `X-CSRF-Token` request header.
-- The `confirmed` field is required for dangerous actions.
+- An authenticated admin session with a valid `slackzilla_admin_session` cookie.
+- A valid CSRF token sent through the `X-CSRF-Token` header.
+- A supported `action`. Dangerous actions also require `confirmed: true`.
+
+Replace `action-name` in the examples with a supported action.
 
 ### 1. Browser DevTools
 
-Open the browser's Developer Tools (`F12`), navigate to the Console tab, and execute the following script:
+Open DevTools (`F12`), select **Console**, and run:
 
 ```javascript
-const csrfElement = document.querySelector('meta[name="csrf-token"]');
-const csrf = csrfElement?.getAttribute("content");
+const csrf = document.querySelector('meta[name="csrf-token"]')?.content; // or retrieve it from `/api/session` if not present in the DOM
 
-if (!csrf) {
-    throw new Error(
-        "CSRF token not found in meta tag. Ensure you are logged in and the session has loaded.",
-    );
-}
+if (!csrf)
+    throw new Error("CSRF token unavailable. Check admin authentication.");
 
 const result = await fetch("/api/admin/control", {
     method: "POST",
@@ -294,7 +389,6 @@ const result = await fetch("/api/admin/control", {
         "X-CSRF-Token": csrf,
     },
     credentials: "same-origin",
-    // modify the action field to test different actions
     body: JSON.stringify({
         action: "action-name",
         confirmed: true,
@@ -304,120 +398,114 @@ const result = await fetch("/api/admin/control", {
 console.log(await result.json());
 ```
 
-The script retrieves the CSRF token from the `<meta name="csrf-token">` element in the document head and uses it in the subsequent POST request.
-
-The browser automatically includes the `slackzilla_admin_session` cookie when `credentials` is set to `"same-origin"`. The meta tag is populated by the frontend after retrieving the authenticated session from `/api/session`, so ensure the session has loaded before executing the script.
+The browser automatically sends the session cookie.The CSRF meta tag is populated after the frontend retrieves the authenticated session from `/api/session`.
 
 ### 2. Bash / WSL (`curl`)
 
-The following example uses `curl` and `jq` to retrieve the CSRF token and send the request.
-
-Replace `YOUR_SESSION_COOKIE` with the value of your authenticated `slackzilla_admin_session` cookie and modify the action as required.
+Requires `curl` and `jq`.
 
 ```bash
-BASE_URL="http://localhost:9000" # or "http://$(ip route | grep default | awk '{print $3}'):9000" if your onwindows
+BASE_URL="http://localhost:9000"
 SESSION_COOKIE="YOUR_SESSION_COOKIE"
+ACTION="action-name"
 
 CSRF=$(curl -fsS "$BASE_URL/api/session" \
     -H "Cookie: slackzilla_admin_session=$SESSION_COOKIE" \
-    | jq -r '.data.csrfToken')
-
-if [ -z "$CSRF" ] || [ "$CSRF" = "null" ]; then
-    echo "Failed to retrieve CSRF token. Check your session cookie and admin authentication."
+    | jq -er '.data.csrfToken // empty') || {
+    echo "Failed to retrieve CSRF token. Check your session."
     exit 1
-fi
+}
 
-# modify the action field to test different actions
-curl -X POST "$BASE_URL/api/admin/control" \
+curl -fsS "$BASE_URL/api/admin/control" \
     -H "Content-Type: application/json" \
     -H "Cookie: slackzilla_admin_session=$SESSION_COOKIE" \
     -H "X-CSRF-Token: $CSRF" \
-    -d '{
-        "action": "action-name",
-        "confirmed": true
-    }'
+    -d "{\"action\":\"$ACTION\",\"confirmed\":true}"
 ```
 
-When running this request from WSL against a server running on Windows, `localhost` refers to the WSL environment rather than the Windows host. In this case, set `BASE_URL` to the Windows host address reported by:
+**WSL networking:** If Slackzilla runs on Windows and `localhost` does not reach it, find the Windows host address from WSL:
 
 ```bash
-ip route | grep default | awk '{print $3 ":9000"}'
+ip route | awk '/default/ {print $3}'
 ```
 
-it might be something like `172.XX.XX.XX:9000`. all you have to do is paste that in to the `BASE_URL`
+Set `BASE_URL` to `http://<WINDOWS_HOST_IP>:9000`, replacing the placeholder with the reported address.
 
-Make sure you change the `action` field to one of the supported actions listed above. The `confirmed` field is required for dangerous actions.
-
-**Requirements:**
-
-- `curl` must be installed.
-- `jq` must be installed to extract the CSRF token from the JSON response.
-- The session cookie must be valid and belong to an authenticated admin session.
+Obtain your session cookie from your authenticated browser session or the embedded terminal's `sudo` authentication flow.
 
 ### 3. PowerShell
 
-The following example uses `Invoke-RestMethod` to retrieve the CSRF token and send the POST request.
+Replace the session cookie and action, then run:
 
-Replace `YOUR_SESSION_COOKIE` with the value of your authenticated `slackzilla_admin_session` cookie.
-
-```pwsh
+```powershell
 & {
     $BaseUrl = "http://localhost:9000"
     $SessionCookie = "YOUR_SESSION_COOKIE"
-
     $WebSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-
     $Cookie = New-Object System.Net.Cookie
     $Cookie.Name = "slackzilla_admin_session"
     $Cookie.Value = $SessionCookie
     $Cookie.Domain = ([uri]$BaseUrl).Host
-
     $WebSession.Cookies.Add($Cookie)
 
-    $Session = Invoke-RestMethod `
-        -Uri "$BaseUrl/api/session" `
-        -Method Get `
-        -WebSession $WebSession
-
+    $Session = Invoke-RestMethod -Uri "$BaseUrl/api/session" -WebSession $WebSession
     $Csrf = $Session.data.csrfToken
 
     if (-not $Csrf) {
-        throw "CSRF token not found. Check your session cookie and admin authentication."
+        throw "CSRF token unavailable. Check your session."
     }
 
-    $Headers = @{
-        "X-CSRF-Token" = $Csrf
-        "Content-Type" = "application/json"
-    }
+    $Headers = @{ "X-CSRF-Token" = $Csrf }
+    $Body = @{ action = "action-name"; confirmed = $true } | ConvertTo-Json
 
-    $Body = @{
-        action = "action-name"
-        confirmed = $true
-    } | ConvertTo-Json
-
-    $Result = Invoke-RestMethod `
-        -Uri "$BaseUrl/api/admin/control" `
-        -Method Post `
-        -WebSession $WebSession `
-        -Headers $Headers `
-        -Body $Body
+    $Result = Invoke-RestMethod -Uri "$BaseUrl/api/admin/control" `
+        -Method Post -WebSession $WebSession -Headers $Headers `
+        -ContentType "application/json" -Body $Body
 
     $Result | ConvertTo-Json -Depth 10
 }
 ```
 
-**Requirements:**
+### 4. all cases
 
-- PowerShell must be available.
-- The session cookie must be valid and belong to an authenticated admin session.
+```bash
+POST /api/admin/control HTTP/1.1
+Host: localhost:9000
+Content-Type: application/json
+Cookie: slackzilla_admin_session=YOUR_SESSION
+X-CSRF-Token: YOUR_CSRF_TOKEN
 
+{
+    "action": "action-name",
+    "confirmed": true
+}
+```
+
+or type in the embedded terminal:
+
+```bash
+api post /api/admin/control --headers "X-CSRF-Token: YOUR_CSRF_TOKEN" --body '{"action":"action-name","confirmed":true}'
+```
+
+OR 
+
+```bash
+sudo execute YOUR_ACTION_NAME
+Master Password re-prompt: *******
+```
+
+For terminal logout, use `sudo logout` or `sudo execute logout`. Both use the same authenticated, CSRF-protected control path and require master-password re-authentication and confirmation in the terminal.
 ### Notes
 
-- Replace `"action-name"` with one of the supported actions.
-- The `confirmed` field is required for dangerous actions and can be omitted for other actions.
-- The `X-CSRF-Token` header is required for every request.
-- The `csrf` field in the request body is optional if the `X-CSRF-Token` header is provided.
-- Do not share session cookies or CSRF tokens, as they are associated with your authenticated session.
-- A successful request returns an `ok: true` response.
-- Failed requests return an appropriate error response indicating the reason for failure.
-- Control actions that depend on Linux utilities such as `systemctl` may fail when Slackzilla is running on Windows. For example, the `stop`, `restart`, and `start` actions require `systemctl` and will return `CONTROL_ACTION_FAILED` with a `spawn systemctl ENOENT` error when tested directly on Windows.
+- `confirmed` can be omitted for actions that do not require confirmation.
+- The `X-CSRF-Token` header is mandatory. A separate `csrf` body field is unnecessary when the header is provided.
+- Successful requests return `ok: true`; failures return an error response.
+- Control-action failures retain the underlying diagnostic message in the error response and are also recorded server-side.
+- **Windows compatibility:** Actions such as `start`, `stop`, and `restart` depend on Linux's `systemctl` utility. Running them directly on Windows may return `CONTROL_ACTION_FAILED` with `spawn systemctl ENOENT`.
+- **Security:** Never share your session cookie or CSRF token (it has 8hrs lifespan). Both are associated with your authenticated session.
+
+### Terminal API diagnostics
+
+The embedded terminal supports `api get` for an explicit allow-list of public same-origin API routes. Administrative API requests, including `api post /api/admin/control`, still require the current administrator session and CSRF token; the terminal retrieves the current token from `/api/session` when needed. It does not permit arbitrary external URLs or use terminal API requests to bypass control confirmation, re-authentication, or rate limits.
+
+Successful terminal login reports only `Session: active` and `CSRF token: available`. Raw session cookies and raw CSRF values are not printed or persisted in terminal output.

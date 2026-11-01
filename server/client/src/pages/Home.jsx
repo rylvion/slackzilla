@@ -1,9 +1,8 @@
 import PageShell from "../components/PageShell"
 import StatusPanel from "../components/status/StatusPanel"
 import { stat } from "../components/status/stats"
-import { useStatusStream } from "../components/utils/api"
-
 import { useEffect, useState } from "react"
+import { useStatusStream } from "../components/utils/api"
 
 function Home() {
     const [activityTimedOut, setActivityTimedOut] = useState(false)
@@ -13,18 +12,17 @@ function Home() {
         return () => clearTimeout(timer)
     }, [])
 
-    const state = window.__SLACKZILLA__ || {}
-    const { status, connected } = useStatusStream(state)
-
     const internalLinks = [
         { id: "overview", label: "Overview" },
         { id: "status",   label: "Status" },
         { id: "activity", label: "Activity" },
     ]
+    
+    const { status } = useStatusStream(window.__SLACKZILLA__ || {})
 
     return (
         <PageShell title="Dashboard" description="Slackzilla server overview" links={internalLinks} >   
-            <section id="overview" className="panel">
+            <section id="overview" className="panel panel--interactive" data-panel-id="dashboard-overview">
                 <div className="panel-header">
                     <h1>Dashboard</h1>
                     <span className="panel-subtitle">Slackzilla server overview</span>
@@ -36,16 +34,13 @@ function Home() {
                         run commands, view telemetary data and ask the RAG AI assistant questions 
                         about the bot and its commands.
                     </p>
-                    <div className="live-indicator">
-                        <span className={connected ? "dot" : "dot dot--red"} />
-                        {connected ? "CONNECTED" : "OFFLINE / RETRYING"}
-                    </div>
+
                 </div>
             </section>
 
             <StatusPanel status={status} />
 
-            <section className="panel">
+            <section className="panel panel--interactive" data-panel-id="dashboard-telemetry">
                 <div className="panel-header">
                     <h2>Bot Telemetry</h2>
                     <span className="panel-subtitle">persisted command activity</span>
@@ -59,7 +54,7 @@ function Home() {
                 </div>
             </section>
 
-            <section id="activity" className="panel">
+            <section id="activity" className="panel panel--interactive" data-panel-id="dashboard-activity">
                 <div className="panel-header">
                     <h2>Recent Activity</h2>
                 </div>

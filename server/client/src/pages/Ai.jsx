@@ -10,10 +10,7 @@ const AI_ACTIVITY_OPEN_STORAGE_KEY = "slackzilla.ai.activity-open"
 
 function getUsage(result, activities) {
     if (result?.usage) return result.usage
-
-    const completedActivity = [...activities].reverse().find(activity =>
-        activity.type === "ai" && activity.status === "completed" && activity.metadata
-    )
+    const completedActivity = [...activities].reverse().find(activity => activity.type === "ai" && activity.status === "completed" && activity.metadata)
 
     return {
         input: completedActivity?.metadata?.inputTokens,
@@ -22,9 +19,7 @@ function getUsage(result, activities) {
     }
 }
 
-function displayTokenCount(value) {
-    return Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "—"
-}
+const displayTokenCount = value => Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "—"
 
 function formatDuration(value) {
     const milliseconds = Number(value)
@@ -58,29 +53,9 @@ async function copyMarkdown(value) {
     return copied
 }
 
-function readSavedSession() {
-    try {
-        return JSON.parse(localStorage.getItem(AI_SESSION_STORAGE_KEY) || "null")
-    } catch {
-        return null
-    }
-}
-
-function readActivityOpen() {
-    try {
-        return localStorage.getItem(AI_ACTIVITY_OPEN_STORAGE_KEY) === "true"
-    } catch {
-        return false
-    }
-}
-
-function stringifyTraceValue(value, spacing = 2) {
-    try {
-        return JSON.stringify(value, null, spacing)
-    } catch {
-        return String(value)
-    }
-}
+const readSavedSession = () => { try { return JSON.parse(localStorage.getItem(AI_SESSION_STORAGE_KEY) || "null") } catch { return null } }
+const readActivityOpen = () => { try { return localStorage.getItem(AI_ACTIVITY_OPEN_STORAGE_KEY) === "true" } catch { return false } }
+const stringifyTraceValue = (value, spacing = 2) => { try { return JSON.stringify(value, null, spacing) } catch { return String(value) } }
 
 function tracePreview(value, emptyLabel = "(no arguments)") {
     if (value === undefined || value === null || (typeof value === "object" && !Object.keys(value).length)) { return emptyLabel }
@@ -118,22 +93,68 @@ function Ai() {
     const [thinkingOpen, setThinkingOpen] = useState(false)
     const [latestProgress, setLatestProgress] = useState("")
     const [copiedTarget, setCopiedTarget] = useState("")
+    const [stopped, setStopped] = useState(false)
     const [activityLogOpen, setActivityLogOpen] = useState(readActivityOpen)
+
     const activityLogRef = useRef(null)
     const requestStartedAtRef = useRef(null)
     const activitiesRef = useRef(savedSession?.activities || [])
+    const abortControllerRef = useRef(null)
     const answerRef = useRef(savedSession?.answer || savedSession?.result?.answer || "")
+    const requestInProgressRef = useRef(false)
+    const statusTimeoutRef = useRef(null)
 
     useEffect(() => {
         if (activityLogRef.current) activityLogRef.current.scrollTop = activityLogRef.current.scrollHeight
     }, [activities])
 
+    useEffect(() => () => clearTimeout(statusTimeoutRef.current), [])
+
+    function showTemporaryStatus({ error = "", stopped = false, message = "" } = {}) {
+        clearTimeout(statusTimeoutRef.current)
+
+        setError(error)
+        setStopped(stopped)
+        if (message) setLatestProgress(message)
+
+        statusTimeoutRef.current = setTimeout(() => {
+            setError("")
+            setStopped(false)
+            statusTimeoutRef.current = null
+        }, 3000)
+    }
+
+    function restoreSavedSession() {
+        const saved = readSavedSession()
+
+        setQuestion(saved?.question || "")
+        setResult(saved?.result || null)
+        setAnswer(saved?.answer || saved?.result?.answer || "")
+        setActivities(saved?.activities || [])
+        setTrace(saved?.trace || saved?.result?.trace || [])
+        setThinkingDurationMs(saved?.thinkingDurationMs || saved?.result?.thinkingDurationMs || null)
+
+        activitiesRef.current = saved?.activities || []
+        answerRef.current = saved?.answer || saved?.result?.answer || ""
+    }
+
     async function ask(event) {
         event.preventDefault()
-        if (!question.trim()) return
+
+        if (requestInProgressRef.current || !question.trim()) return
+
+        requestInProgressRef.current = true
+        clearTimeout(statusTimeoutRef.current)
+        statusTimeoutRef.current = null
+
+        const controller = new AbortController()
+        abortControllerRef.current = controller
+
+        const submittedQuestion = question.trim()
 
         setBusy(true)
         setError("")
+        setStopped(false)
         setResult(null)
         setAnswer("")
         setActivities([])
@@ -141,19 +162,21 @@ function Ai() {
         setThinkingDurationMs(null)
         setThinkingOpen(true)
         setLatestProgress("Starting request")
+
         requestStartedAtRef.current = performance.now()
         activitiesRef.current = []
         answerRef.current = ""
 
-        const submittedQuestion = question.trim()
-
         try {
+            console.log(`[${new Date().toISOString()}]: AI request started with question: ${submittedQuestion}`)
+
             await streamJson(
                 "/api/ask",
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question: submittedQuestion })
+                    body: JSON.stringify({ question: submittedQuestion }),
+                    signal: controller.signal
                 },
                 (eventName, payload) => {
                     if (eventName === "activity") {
@@ -162,52 +185,84 @@ function Ai() {
                         setTrace(currentTrace => [...currentTrace, { ...payload }])
                         setLatestProgress(payload.message || "Working")
                     }
+
                     if (eventName === "token") {
                         answerRef.current += payload.token || ""
                         setAnswer(answerRef.current)
                     }
+
                     if (eventName === "complete") {
                         const completedAnswer = payload.answer || answerRef.current
                         const completedActivities = activitiesRef.current
                         const completedThinkingDurationMs = requestStartedAtRef.current === null
                             ? payload.thinkingDurationMs
                             : performance.now() - requestStartedAtRef.current
+
                         const completedSession = {
                             question: submittedQuestion,
                             answer: completedAnswer,
                             result: payload,
                             activities: completedActivities,
-                            trace: payload.trace || activitiesRef.current,
+                            trace: payload.trace || completedActivities,
                             thinkingDurationMs: completedThinkingDurationMs,
                             sources: payload.sources || [],
                             images: payload.images || []
                         }
 
                         setResult(payload)
-                        setTrace(payload.trace || activitiesRef.current)
+                        setTrace(completedSession.trace)
                         setThinkingDurationMs(completedThinkingDurationMs)
                         setAnswer(completedAnswer)
                         answerRef.current = completedAnswer
                         setThinkingOpen(false)
+
                         try {
                             localStorage.setItem(AI_SESSION_STORAGE_KEY, JSON.stringify(completedSession))
                         } catch {
-                            // A storage quota or privacy restriction should not fail a completed answer.
+                            // Storage restrictions should not fail a completed answer.
                         }
                     }
+
                     if (eventName === "error") {
-                        setError(payload.error || "The AI request failed")
-                        setLatestProgress(payload.error || "The AI request failed")
+                        restoreSavedSession()
                         setThinkingOpen(false)
+                        showTemporaryStatus({
+                            error: payload.error || "The AI request failed",
+                            message: "Request failed: restoring saved data"
+                        })
                     }
                 }
             )
         } catch (requestError) {
-            setError(requestError.message)
+            restoreSavedSession()
+            setThinkingOpen(false)
+
+            if (requestError.name === "AbortError") {
+                showTemporaryStatus({
+                    stopped: true,
+                    message: "Generation stopped: restoring saved data"
+                })
+            } else {
+                showTemporaryStatus({
+                    error: requestError.message || "Something went wrong",
+                    message: "Request failed: restoring saved data"
+                })
+            }
         } finally {
+            if (abortControllerRef.current === controller) abortControllerRef.current = null
+
+            requestInProgressRef.current = false
             setBusy(false)
             setThinkingOpen(false)
         }
+    }
+
+    function stopAsk(event) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        if (!requestInProgressRef.current) return
+        abortControllerRef.current?.abort()
     }
 
     const tokenUsage = getUsage(result, activities)
@@ -224,7 +279,7 @@ function Ai() {
     }
 
     return (
-        <PageShell title="AI Assistant" description="Ask questions about Slackzilla">
+        <PageShell title="AI Assistant" description="Ask questions about Slackzilla" shellClassName="ai-page">
             <section className="panel ai-panel">
                 <div className="panel-header ai-page-header">
                     <div>
@@ -238,6 +293,9 @@ function Ai() {
                 </div>
 
                 <div className="panel-body ai-body">
+                    {error && <p className="ai-error-banner" role="alert">{error}</p>}
+                    {stopped && <p className="ai-stopped-banner" role="status">Generation stopped: restoring saved data</p>}
+
                     <form className="ai-command-form" onSubmit={ask}>
                         <label htmlFor="ai-question"><span>&gt;</span> query</label>
                         <textarea
@@ -256,13 +314,12 @@ function Ai() {
                         />
                         <div className="ai-command-footer">
                             <span>ctrl + enter to run</span>
-                            <button className="button ai-submit" type="submit" disabled={busy || !question.trim()}>
-                                {busy ? "running..." : "run query"}
-                            </button>
+                            {busy
+                                ? <button className="button ai-stop" type="button" onClick={stopAsk}>stop</button>
+                                : <button className="button ai-submit" type="submit" disabled={busy || !question.trim()}>{busy ? "running..." : "run query"}</button>
+                            }
                         </div>
                     </form>
-
-                    {error && <p className="error-banner">{error}</p>}
 
                     <div className="ai-terminal-grid">
                         <details open={activityLogOpen} onToggle={event => {
@@ -314,13 +371,8 @@ function Ai() {
                                         <div className="ai-thinking-trace">
                                             {busy && <p className="ai-thinking-progress">{latestProgress || "Working"}</p>}
                                             {thinkingEntries.map((entry, index) => {
-                                                if (entry.type === "reasoning" || entry.type === "commentary") {
-                                                    return <p className="ai-trace-reasoning" key={entry.id || `${entry.timestamp}-${index}`}>{entry.message}</p>
-                                                }
-
-                                                if (entry.type !== "tool") {
-                                                    return <p className="ai-trace-failure" key={entry.id || `${entry.timestamp}-${index}`}>{entry.message}</p>
-                                                }
+                                                if (entry.type === "reasoning" || entry.type === "commentary") return <p className="ai-trace-reasoning" key={entry.id || `${entry.timestamp}-${index}`}>{entry.message}</p>
+                                                if (entry.type !== "tool") return <p className="ai-trace-failure" key={entry.id || `${entry.timestamp}-${index}`}>{entry.message}</p>
 
                                                 const toolName = entry.metadata.toolName
                                                 const argumentsValue = entry.metadata.arguments || {}
@@ -366,7 +418,6 @@ function Ai() {
                                 </div>
                             </div>}
                         </section>
-
                     </div>
                 </div>
             </section>

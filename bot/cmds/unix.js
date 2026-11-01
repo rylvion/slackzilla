@@ -13,43 +13,37 @@ function getHelp() {
     )
 }
 
-function isTimestamp(text) {
-    return /^-?\d+(?:\.\d+)?$/.test(text)
-}
-
-function formatDate(date) {
-    return date.toLocaleString()
-}
+const isTimestamp = unix => /^-?\d+(?:\.\d+)?$/.test(unix)
+const formatDate = date => date.toLocaleString()
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
         log.info("{user} used {cmd}", command)
+        const unix = command.text?.trim()
 
-        const text = command.text?.trim()
-
-        if (text?.toLowerCase() === "help") {
+        if (unix?.toLowerCase() === "help") {
             log.success("{user} viewed {cmd} help", command)
 
             await respond(getHelp())
             return
         }
 
-        if (!text) {
+        if (!unix) {
             log.error("{user} used {cmd} with no text", command)
 
             await respond("❌ give me a unix timestamp or a date string")
             return
         }
 
-        if (isTimestamp(text)) {
-            const numeric = Number(text)
+        if (isTimestamp(unix)) {
+            const numeric = Number(unix)
             const millis = Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric
             const date = new Date(millis)
 
             if (Number.isNaN(date.getTime())) {
-                log.error("{user} used {cmd} with invalid timestamp: {0}", command, text)
+                log.error("{user} used {cmd} with invalid timestamp: {0}", command, unix)
 
                 await respond("❌ that timestamp does not look valid")
                 return
@@ -59,17 +53,17 @@ module.exports = (app, meta) => {
 
             log.success("{user} converted unix timestamp via {cmd}", command)
 
-            await respond(`⏱️ unix: ${unixSeconds}
+            await respond(`unix: ${unixSeconds}
 ms: ${date.getTime()}
 date: ${formatDate(date)}
 iso: ${date.toISOString()}`)
             return
         }
 
-        const date = new Date(text)
+        const date = new Date(unix)
 
         if (Number.isNaN(date.getTime())) {
-            log.error("{user} used {cmd} with invalid date: {0}", command, text)
+            log.error("{user} used {cmd} with invalid date: {0}", command, unix)
 
             await respond("❌ i could not parse that date")
             return
@@ -79,7 +73,7 @@ iso: ${date.toISOString()}`)
 
         log.success("{user} converted date via {cmd}", command)
 
-        await respond(`📅 date: ${formatDate(date)}
+        await respond(`date: ${formatDate(date)}
 unix: ${unixSeconds}
 ms: ${date.getTime()}
 iso: ${date.toISOString()}`)

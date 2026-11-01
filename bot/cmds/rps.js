@@ -30,7 +30,6 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
 
         const input = command.text?.trim().toLowerCase()
         const playerChoice = choices[input]
@@ -45,7 +44,7 @@ module.exports = (app, meta) => {
         const botChoice = pickBotChoice()
         const result = outcomes[playerChoice][botChoice]
 
-        log.success("{user} played rps via {cmd}: {0} vs {1}", command, playerChoice, botChoice)
+        log.success("{user} played rps via {cmd}: {0} vs {1} and {2}", command, playerChoice, botChoice, result)
 
         await respond(`🪨📄✂️ **ROCK PAPER SCISSORS**
 you picked *${playerChoice}* ${icons[playerChoice]}

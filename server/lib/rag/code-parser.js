@@ -98,11 +98,13 @@ function parseJavaScript(content, options = {}) {
                     const source = declaration.init.arguments[0]
 
                     if (source?.type === "Literal") {
-                        result.imports.push({
-                            source: source.value,
-                            importedAs: declaration.id.name,
-                            line: node.loc.start.line
-                        })
+                        const bindings = declaration.id.type === "ObjectPattern"
+                            ? declaration.id.properties.map(property => ({importedName: property.key.name, importedAs: property.value.name}))
+                            : [{importedName: null, importedAs: declaration.id.name}]
+
+                        for (const binding of bindings) {
+                            result.imports.push({source: source.value, ...binding, line: node.loc.start.line})
+                        }
                     }
                 }
             }
@@ -135,6 +137,22 @@ function parseJavaScript(content, options = {}) {
                     name: exportedName,
                     line: node.loc.start.line
                 })
+            }
+
+            if (
+                node.left.type === "MemberExpression" &&
+                node.left.object.name === "module" &&
+                node.left.property.name === "exports" &&
+                node.right.type === "ObjectExpression"
+            ) {
+                for (const property of node.right.properties) {
+                    if (property.type !== "Property") continue
+
+                    const name = property.key.name ?? property.key.value
+                    if (typeof name !== "string") continue
+                    
+                    result.exports.push({name, line: property.loc.start.line })
+                }
             }
         },
 
@@ -334,11 +352,15 @@ function inferRouteMethods(ast, result) {
                         item.argument.value === true
                     )
 
-                    if (
-                        ["===", "=="].includes(test.operator)
-                    ) {
+                    const returnsFalse = statements.some(item =>
+                        item.type === "ReturnStatement" &&
+                        item.argument?.type === "Literal" &&
+                        item.argument.value === false
+                    )
+
+                    if (["===", "=="].includes(test.operator)) {
                         methods.push(method)
-                    } else if (returnsTrue) {
+                    } else if (returnsTrue || returnsFalse) {
                         methods.push(method)
                     }
                 }
@@ -369,6 +391,16 @@ function inferRouteMethods(ast, result) {
         if (node.body?.type !== "BlockStatement") return
 
         const statements = node.body.body
+        const functionMethods = [...new Set(statements.flatMap(getAcceptedMethods))]
+
+        const functionInfo = result.functions.find(fn =>
+            fn.line === node.loc.start.line &&
+            fn.endLine === node.loc.end.line
+        )
+
+        if (functionInfo && functionMethods.length) {
+            functionInfo.methods = functionMethods
+        }
 
         for (let i = 0; i < statements.length; i++) {
             const statement = statements[i]
@@ -432,7 +464,7 @@ function inferRouteMethods(ast, result) {
     })
 }
 
-function getPathMethods(test) {
+function getPathMethods(test, includeNegative = false) {
     const methods = []
 
     function visit(node) {
@@ -460,7 +492,7 @@ function getPathMethods(test) {
 
         if (!isMethodReference || !isMethodLiteral) return
 
-        if (node.operator === "===" || node.operator === "==") {
+        if (node.operator === "===" || node.operator === "==" || (includeNegative && (node.operator === "!==" || node.operator === "!="))) {
             methods.push(right.value.toUpperCase())
         }
     }
@@ -506,6 +538,27 @@ function getPathRoutes(test, consequent = null) {
             ...route,
             methods
         }))
+    }
+
+    if (test.type === "LogicalExpression" && test.operator === "||") {
+        const statements = consequent?.type === "BlockStatement"
+            ? consequent.body
+            : consequent
+                ? [consequent]
+                : []
+        const returnsFalse = statements.some(statement =>
+            statement.type === "ReturnStatement" &&
+            statement.argument?.type === "Literal" &&
+            statement.argument.value === false
+        )
+
+        if (returnsFalse) {
+            const methods = [...new Set(getPathMethods(test, true))]
+            return [
+                ...getPathRoutes(test.left, consequent),
+                ...getPathRoutes(test.right, consequent)
+            ].map(route => ({ ...route, methods }))
+        }
     }
 
     if (

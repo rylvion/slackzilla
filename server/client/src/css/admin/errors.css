@@ -39,6 +39,13 @@
     font: 0.66rem var(--font-mono);
 }
 
+.admin-error-card__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+}
+
 .admin-error-card__details {
     display: grid;
     gap: 12px;
@@ -59,6 +66,51 @@
 
 .admin-error-instance > div span {
     color: #a66f6f;
+}
+
+.stack-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #a66f6f;
+    font: 0.64rem var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.history-occurrence-list {
+    display: grid;
+    gap: 5px;
+    margin-top: 12px;
+}
+
+.admin-error-card .history-occurrence-row {
+    border-color: rgba(255, 77, 77, 0.16);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.admin-error-card .history-occurrence-row time,
+.admin-error-card .history-occurrence-row code {
+    color: #a66f6f;
+}
+
+.admin-error-card .history-select input,
+.admin-error-card .history-occurrence-row input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    border: 1px solid rgba(255, 120, 120, 0.55);
+    border-radius: 2px;
+    appearance: none;
+    background: rgba(20, 4, 4, 0.96);
+    cursor: pointer;
+}
+
+.admin-error-card .history-select input:checked,
+.admin-error-card .history-occurrence-row input:checked {
+    border-color: #ff7777;
+    background: #ff7777;
+    box-shadow: inset 0 0 0 3px #1b0707;
 }
 
 .admin-error-toolbar {
@@ -99,4 +151,15 @@
     color: #ffbaba;
     font: 0.7rem/1.55 var(--font-mono);
     white-space: pre-wrap;
+}
+
+@media (max-width: 760px) {
+    .admin-error-card__header {
+        grid-template-columns: 1fr auto;
+    }
+
+    .admin-error-card__header > .button {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
 }

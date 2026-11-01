@@ -14,6 +14,40 @@ const toolDefinitions = [
     {
         type: "function",
         function: {
+            name: "runApiCommand",
+            description: "Call an internal same-origin Slackzilla API route from the RAG. Use GET or POST with an /api/ path only. Existing endpoint authentication, CSRF, confirmation, rate limits, and method checks still apply; no external URLs or credential headers are accepted.",
+            parameters: {
+                type: "object",
+                properties: {
+                    method: { type: "string", enum: ["GET", "POST"] },
+                    path: { type: "string", description: "Internal route beginning with /api/." },
+                    body: { type: "object", description: "Optional JSON request body for POST." },
+                    headers: { type: "object", description: "Optional non-credential request headers." }
+                },
+                required: ["method", "path"],
+                additionalProperties: false
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "runTerminalCommand",
+            description: "Run a registered public Slackzilla terminal command. This uses the terminal command registry, not an operating-system shell. Administrative commands, arbitrary API requests, and unregistered commands are not available to the RAG.",
+            parameters: {
+                type: "object",
+                properties: {
+                    command: { type: "string", description: "Registered terminal command name, such as status, uptime, logs, docs, rag, api, or command, use help to see all available commands." },
+                    args: { type: "array", items: { type: "string" }, description: "Arguments for the registered terminal command." }
+                },
+                required: ["command"],
+                additionalProperties: false
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
             name: "getCommands",
             description: "Search and inspect registered Slackzilla commands. With no filters, return only the command IDs. Use filters to find commands by id, command, description, category, or usage hint. Multiple filters are combined. Use fuzzy to search text across command metadata. Use an exact id when you need the full details of one command. This tool only provides command metadata; use runCommand to execute a command.",
             parameters: {
@@ -106,14 +140,14 @@ const toolDefinitions = [
             }
         }
     },
-    {
-        type: "function",
-        function: {
-            name: "getMetrics",
-            description: "Read current Slackzilla runtime and command metrics.",
-            parameters: { type: "object", properties: {}, additionalProperties: false }
-        }
-    },
+    // {
+    //     type: "function",
+    //     function: {
+    //         name: "getMetrics",
+    //         description: "Read current Slackzilla runtime and command metrics.",
+    //         parameters: { type: "object", properties: {}, additionalProperties: false }
+    //     }
+    // },
     {
         type: "function",
         function: {
@@ -232,11 +266,26 @@ function withTimeout(task) {
     })
 }
 
-function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, getLogs, getErrors, getMetrics, getRoutes } = {}) {
+function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, runApiCommand, runTerminalCommand, getLogs, getErrors, getMetrics, getRoutes } = {}) {
     const handlers = {
         getStatus,
         getCommands,
         getReleaseInfo: async args => getReleaseInfo?.(args?.version),
+        runApiCommand: async args => {
+            const method = String(args?.method || "GET").toUpperCase()
+            const path = String(args?.path || "")
+            if (!runApiCommand || !["GET", "POST"].includes(method) || !path.startsWith("/api/") || path.startsWith("//")) {
+                return { success: false, status: 400, error: "only GET or POST requests to internal /api/ routes are supported" }
+            }
+            const headers = args?.headers && typeof args.headers === "object" ? args.headers : {}
+            const blockedHeader = Object.keys(headers).find(name => /(authorization|cookie|csrf|password|secret|token|api[-_]?key)/i.test(name))
+            if (blockedHeader) return { success: false, status: 403, error: `header '${blockedHeader}' is not permitted for RAG API requests` }
+            try {
+                return { success: true, method, path, response: await runApiCommand({ method, path, body: args?.body, headers }) }
+            } catch (error) {
+                return { success: false, method, path, status: error.statusCode || 502, error: error.message || "API request failed" }
+            }
+        },
         runCommand: async args => {
             const commandId = String(args?.commandId || "").trim()
             const text = String(args?.text || "").slice(0, 500)
@@ -255,6 +304,31 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
                 output: await runCommand(commandId, text)
             }
         },
+        runTerminalCommand: async args => {
+            const command = String(args?.command || "").trim().toLowerCase()
+            const commandArgs = Array.isArray(args?.args) ? args.args.slice(0, 8).map(value => String(value).slice(0, 2048)) : []
+
+            if (!command || typeof runTerminalCommand !== "function") {
+                return { success: false, status: 400, error: "a registered public terminal command is required" }
+            }
+
+            try {
+                return {
+                    success: true,
+                    command,
+                    args: commandArgs,
+                    output: await runTerminalCommand(command, commandArgs)
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    command,
+                    args: commandArgs,
+                    status: Number.isInteger(error.statusCode) ? error.statusCode : 400,
+                    error: error.message || "terminal command failed"
+                }
+            }
+        },
         getLogs: async args => {
             const limit = Math.min(10, Math.max(1, Number(args?.limit) || 10))
             const result = await getLogs?.(limit)
@@ -271,7 +345,9 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
         getStatus: "/api/status",
         getCommands: "/api/commands",
         getReleaseInfo: "/api/release",
+        runApiCommand: "/api/",
         runCommand: "/api/commands/:id",
+        runTerminalCommand: "/api/terminal",
         getLogs: "/api/logs",
         getErrors: "/api/admin/errors",
         getMetrics: "/api/metrics",
@@ -280,7 +356,7 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
 
     return {
         definitions: toolDefinitions,
-        async execute(name, args = {}, onActivity) {
+        async execute(name, args = {}, onActivity, signal) {
             const handler = handlers[name]
             const endpoint = endpoints[name]
             const startedAt = Date.now()
@@ -289,7 +365,7 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
                 return { success: false, status: 400, error: "unknown read-only API tool" }
             }
 
-            const isCommandTool = name === "runCommand"
+            const isCommandTool = name === "runCommand" || name === "runTerminalCommand"
             const eventType = isCommandTool ? "command_tool" : "api_request"
             const emit = (status, message, extra = {}) => {
                 if (typeof onActivity === "function") {
@@ -297,7 +373,12 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
                 }
             }
 
-            emit("started", isCommandTool ? `COMMAND ${args?.commandId || "unknown"}` : `GET ${endpoint}`)
+            const activityName = name === "runCommand"
+                ? `COMMAND ${args?.commandId || "unknown"}`
+                : name === "runTerminalCommand"
+                    ? `TERMINAL ${args?.command || "unknown"}`
+                    : `GET ${endpoint}`
+            emit("started", activityName)
 
             try {
                 const data = await withTimeout(() => handler(args))
@@ -305,7 +386,7 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
                 const responseStatus = Number(data?.status) || 200
                 const failed = responseStatus >= 400
                 emit(failed ? "failed" : "completed", isCommandTool
-                    ? `COMMAND ${args?.commandId || "unknown"} ${failed ? "rejected" : "completed"} (${durationMs}ms)`
+                    ? `${activityName} ${failed ? "rejected" : "completed"} (${durationMs}ms)`
                     : `GET ${endpoint} ${responseStatus} (${durationMs}ms)`, { status: responseStatus, durationMs })
                 if (isCommandTool) {
                     const { output, ...rest } = data
@@ -322,7 +403,7 @@ function createRagTools({ getStatus, getCommands, getReleaseInfo, runCommand, ge
             } catch (error) {
                 const durationMs = Date.now() - startedAt
                 emit("failed", isCommandTool
-                    ? `COMMAND ${args?.commandId || "unknown"} failed (${durationMs}ms)`
+                    ? `${activityName} failed (${durationMs}ms)`
                     : `GET ${endpoint} 502 (${durationMs}ms)`, { status: 502, durationMs })
                 return { success: false, endpoint, status: 502, error: "API request failed" }
             }

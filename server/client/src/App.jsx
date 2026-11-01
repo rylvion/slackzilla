@@ -41,7 +41,7 @@ function renderRoutes(routes) {
                 ? <ProtectedRoute>{element}</ProtectedRoute>
                 : element
 
-            return <Route key={route.id} path={route.to} element={protectedElement} />
+            return <Route key={route.id} path={route.path || route.to} element={protectedElement} />
         })
 }
 

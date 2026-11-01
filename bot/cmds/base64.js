@@ -14,30 +14,29 @@ function getHelp() {
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
+        const params = command.text?.trim()
 
-        log.info("{user} used {cmd}", command)
-
-        const text = command.text?.trim()
-
-        if (text?.toLowerCase() === "help") {
+        if (params?.toLowerCase() === "help") {
             log.success("{user} viewed {cmd} help", command)
 
             await respond(getHelp())
             return
         }
 
-        if (!text) {
-            log.error("{user} used {cmd} with no text", command)
+        if (!params) {
+            log.error("{user} used {cmd} with no params", command)
 
             await respond("❌ gimme some text to encode")
             return
         }
 
-        const encoded = Buffer.from(text, "utf8").toString("base64")
-
-        log.success("{user} encoded text via {cmd}", command)
-
-        await respond(`🔐 base64:
-\`${encoded}\``)
+        try {
+            const encoded = Buffer.from(params, "utf8").toString("base64")
+            log.success("{user} encoded text via {cmd}", command)
+            await respond(encoded)
+        } catch (error) {
+            log.error("{user} failed to encode params via {cmd}: {0}", command, error.message)
+            await respond("❌ failed to encode text")
+        }
     })
 }

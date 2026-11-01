@@ -27,21 +27,21 @@ function parseOptions(args) {
     return options
 }
 
-function printUsage() {
+function printUsage(tools = { definitions: require("../server/lib/rag/rag-tools").createRagTools().definitions }) {
     console.error("Usage:")
     console.error("")
-    console.error("  npm run rag:use-tool -- --getStatus")
-    console.error("  npm run rag:use-tool -- --getCommands")
-    console.error("  npm run rag:use-tool -- --getReleaseInfo")
-    console.error("  npm run rag:use-tool -- --runCommand")
-    console.error("  npm run rag:use-tool -- --getLogs")
-    console.error("  npm run rag:use-tool -- --getErrors")
-    console.error("  npm run rag:use-tool -- --getMetrics")
-    console.error("  npm run rag:use-tool -- --getRoutes")
-    console.error()
+
+    for (const definition of tools.definitions) {
+        const toolName = definition.function?.name
+
+        if (!toolName) continue
+
+        console.error(`  npm run rag:use-tool -- --${toolName}`)
+    }
+
+    console.error("")
     console.error("Use --help or -h after the tool name to see tool-specific options.")
 }
-
 async function main() {
     const args = process.argv.slice(2)
     const toolName = args.find(arg => arg.startsWith("--"))?.slice(2)
@@ -99,6 +99,28 @@ async function main() {
 
         toolArgs.commandId = options.commandId
         toolArgs.text = String(options.text || "").slice(0, 500)
+    }
+
+    if (toolName === "runTerminalCommand") {
+        if (!options.command) {
+            console.error("runTerminalCommand requires --command")
+            process.exit(1)
+        }
+        toolArgs.command = options.command
+        toolArgs.args = options.args ? String(options.args).split(",").map(value => value.trim()).filter(Boolean) : []
+    }
+
+    if (toolName === "runApiCommand") {
+        if (!options.method || !options.path) {
+            console.error("runApiCommand requires --method and --path")
+            process.exit(1)
+        }
+        toolArgs.method = String(options.method).toUpperCase()
+        toolArgs.path = options.path
+        if (options.body) {
+            try { toolArgs.body = JSON.parse(options.body) }
+            catch { console.error("runApiCommand --body must be valid JSON"); process.exit(1) }
+        }
     }
 
     if (toolName === "getLogs" && options.limit) {

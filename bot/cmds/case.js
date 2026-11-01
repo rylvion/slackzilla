@@ -13,51 +13,26 @@ function getHelp() {
     )
 }
 
-function splitWords(text) {
-    return text
-        .trim()
-        .split(/[^a-zA-Z0-9]+/)
-        .filter(Boolean)
-}
-
-function toCamel(words) {
-    return words
-        .map((word, index) => index === 0 ? word.toLowerCase() : word[0].toUpperCase() + word.slice(1).toLowerCase())
-        .join("")
-}
-
-function toPascal(words) {
-    return words
-        .map(word => word[0].toUpperCase() + word.slice(1).toLowerCase())
-        .join("")
-}
-
-function toSnake(words) {
-    return words.map(word => word.toLowerCase()).join("_")
-}
-
-function toKebab(words) {
-    return words.map(word => word.toLowerCase()).join("-")
-}
+const splitWords = (text) => text.trim().split(/[^a-zA-Z0-9]+/).filter(Boolean)
+const toCamel = (words) => words.map((word, index) => index === 0 ? word.toLowerCase() : word[0].toUpperCase() + word.slice(1).toLowerCase()).join("")
+const toPascal = (words) => words.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase()).join("")
+const toSnake = (words) => words.map(word => word.toLowerCase()).join("_")
+const toKebab = (words) => words.map(word => word.toLowerCase()).join("-")
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         const text = command.text?.trim()
 
         if (text?.toLowerCase() === "help") {
             log.success("{user} viewed {cmd} help", command)
-
             await respond(getHelp())
             return
         }
 
         if (!text) {
             log.error("{user} used {cmd} with no text", command)
-
             await respond("❌ give me a case and some text")
             return
         }
@@ -68,7 +43,6 @@ module.exports = (app, meta) => {
 
         if (!mode || !sourceText || !words.length) {
             log.error("{user} used {cmd} with invalid input: {0}", command, text)
-
             await respond("❌ use `camel`, `pascal`, `snake`, or `kebab` followed by text")
             return
         }
@@ -97,7 +71,6 @@ module.exports = (app, meta) => {
 
         log.success("{user} converted text via {cmd} to {0}", command, mode.toLowerCase())
 
-        await respond(`🔤 ${mode.toLowerCase()}:
-\`${result}\``)
+        await respond(`🔤 ${mode.toLowerCase()}: \`${result}\``)
     })
 }

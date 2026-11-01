@@ -8,15 +8,10 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Bot + react + api",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
+            "skipFiles": ["<node_internals>/**"],
             "cwd": "${workspaceFolder}",
             "runtimeExecutable": "npm",
-            "runtimeArgs": [
-                "run",
-                "start"
-            ],
+            "runtimeArgs": ["run", "start"],
             "console": "externalTerminal"
         },
         {
@@ -25,37 +20,26 @@
             "name": "Launch Vite Dev Server (No API, No Bot)",
             "cwd": "${workspaceFolder}/server/client",
             "runtimeExecutable": "npm",
-            "runtimeArgs": [
-                "run",
-                "dev"
-            ],
+            "runtimeArgs": ["run", "dev"],
             "console": "externalTerminal"
         },
-
         {
             "type": "node",
             "request": "launch",
             "name": "Launch Bot",
             "cwd": "${workspaceFolder}",
             "runtimeExecutable": "npm",
-            "runtimeArgs": [
-                "run",
-                "bot"
-            ],
+            "runtimeArgs": ["run", "bot"],
             "console": "externalTerminal"
         },
-        
         {
             "type": "node",
             "request": "launch",
-            "name": "Build Client",
-            "cwd": "${workspaceFolder}/server/client",
+            "name": "Launch Server Only (No Bot)",
+            "cwd": "${workspaceFolder}",
             "runtimeExecutable": "npm",
-            "runtimeArgs": [
-                "run",
-                "build"
-            ],
-            "console": "integratedTerminal"
+            "runtimeArgs": ["run", "server"],
+            "console": "externalTerminal"
         }
     ]
 }

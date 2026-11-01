@@ -84,9 +84,7 @@ module.exports = (app, meta) => {
         const roll = parseRoll(expression)
 
         if (!roll) {
-            await respond({
-                text: 'invalid roll format. Use `/sz-roll help` for examples.'
-            })
+            await respond('invalid roll format. Use `/sz-roll help` for examples.')
 
             log.error(`invalid roll input: ${input}`)
             return
@@ -102,13 +100,11 @@ module.exports = (app, meta) => {
             ? ` ${roll.modifier > 0 ? '+' : ''}${roll.modifier}`
             : ''
 
-        await respond({
-            text: ( 
+        await respond(
             `🎲 rolled **${expression}**\n` +
             `Rolls: ${res.rolls.join(', ')}${modifierText}\n` +
             `Total: **${res.total}**`
-            )
-        })
+        )
 
         log.success(`Rolled ${expression}: ${res.total}`)
     })

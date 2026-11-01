@@ -65,25 +65,31 @@ Summary: Added a prototype view of the web dashboard for slackzilla, its hosted 
 
 
 ## [Devlog 8: Server Hosted Dashboard](./devlog8.md)
-Summary: Added a server hosted dashboard for slackzilla, it is hosted on the same server as the webhook and is connected to the bot, it shows the logs, status, and other information about the bot.
+Summary: Added a server hosted dashboard for slackzilla, it is hosted on the same server as the webhook and is connected to the bot, it shows the logs, status, and other information about the bot
 
 <div style="display: flex; align-items: center;">
   <img src="../attachments/d8/dashboard.png" alt="dashboard" width="400">
 </div>
-#
+
 ## [Devlog 9: React Dashboard](./devlog9.md)
-Summary: Migrated from the old EJS dashboard to a new React-based dashboard, added RAG modal for repository-aware AI assistance, implemented command execution API, and introduced telemetry with responsive graphs.
+Summary: Migrated from the old EJS dashboard to a new React-based dashboard, added RAG modal for repository-aware AI assistance, implemented command execution API, and introduced telemetry with responsive graphs. (v0.9.0-beta)
 
 <div style="display: flex; align-items: center;">
   <img src="../attachments/d9/dashboard-status.png" alt="Dashboard Status" width="400">
 </div>
 
 ## [Devlog 10: RAG Enhancements](./devlog10.md)
-Summary: Major RAG and dashboard improvements, including AST-powered repository indexing, persistent indexing, symbol and dependency analysis, 7 RAG tools, SSE streaming for AI activity and telemetry, live AI activity tracing, token/context/tool usage visibility, admin server events, telemetry separation, release history tracking, new CLI tools, and various dashboard QOL and bug fixes.
+Summary: Major RAG and dashboard improvements, including AST-powered repository in--- dexing, persistent indexing, symbol and dependency analysis, 7 RAG tools, SSE streaming for AI activity and telemetry, live AI activity tracing, token/context/tool usage visibility, admin server events, telemetry separation, release history tracking, new CLI tools, and various dashboard QOL and bug fixes. (v0.9.5-beta)
 
 <div style="display: flex; align-items: center;"> <img src="../attachments/d10/ai-chat-activity.png" alt="AI Chat Activity" width="400"> </div>
 
+## [Devlog 11: Admin enhancements + RAG improvements](./devlog11.md)
+Summary: Added 4 new endpoints, 7 new admin controls, 3 new admin pages, improved error visibility, log management, session information, route extraction, Markdown rendering, AI activity information, and documentation. (v0.9.6-beta)
 
+<div style="display: flex; align-items: center;"> 
+  <img src="../attachments/d11/admin-activity.png" alt="Slackzilla control panel admin dashboard screenshot">
+  <img src="../attachments/d11/ai-activity-view.png" alt="AI Activity View" width="400">
+</div>
 
 
 ---

@@ -8,6 +8,18 @@
         inset 0 0 35px rgba(0, 255, 120, 0.015);
 }
 
+.logs-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
+}
+
+.public-logs-panel {
+    height: calc(100vh - 112px);
+    max-height: 100vh;
+}
+
 .panel::before {
     content: "";
     position: absolute;
@@ -91,6 +103,11 @@
             rgba(0, 255, 120, 0.035),
             rgba(0, 255, 120, 0.015)
         );
+}
+
+.logs-panel .terminal {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .log-toolbar input {
@@ -240,6 +257,14 @@
 }
 
 @media (max-width: 700px) {
+    .logs-panel {
+        height: 100vh;
+    }
+
+    .public-logs-panel {
+        height: calc(100vh - 112px);
+    }
+
     .panel-header {
         align-items: flex-start;
         flex-direction: column;

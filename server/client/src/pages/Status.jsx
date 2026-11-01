@@ -45,8 +45,6 @@ function Status() {
                     </div>
 
                     <div className="telemetry-history">
-                        <div className="history-label">LAST 120 SAMPLES</div>
-
                         <TelemetryChart title="CPU and memory usage" samples={samples} series={[
                                 { key: "cpuPercent", label: "CPU", colour: "#00ff78"},
                                 { key: "memoryUsedPercent", label: "MEMORY", colour: "#58d8ff" },
@@ -77,8 +75,6 @@ function Status() {
                     </div>
 
                     <div className="telemetry-history">
-                        <div className="history-label">LAST 120 SAMPLES</div>
-
                         <TelemetryChart title="Network throughput" samples={samples} series={[
                                 { key: "networkRxRate", label: "INBOUND", colour: "#58d8ff" },
                                 { key: "networkTxRate", label: "OUTBOUND", colour: "#ffba5c" },

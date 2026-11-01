@@ -7,8 +7,15 @@ function sendText(res, statusCode, text, contentType = "text/plain; charset=utf-
 function sendJson(res, statusCode, payload) {
     res.statusCode = statusCode
     res.setHeader("Content-Type", "application/json; charset=utf-8")
-    res.end(JSON.stringify(payload, null, 2))
+
+    const json = JSON.stringify(payload, null, 2)
+        .replace(/\[\s*("(?:[^"\\]|\\.)*"(?:\s*,\s*"(?:[^"\\]|\\.)*")*|true(?:\s*,\s*(?:true|false|null|-?\d+(?:\.\d+)?))*|false(?:\s*,\s*(?:true|false|null|-?\d+(?:\.\d+)?))*|null(?:\s*,\s*(?:true|false|null|-?\d+(?:\.\d+)?))*|-?\d+(?:\.\d+)?(?:\s*,\s*(?:true|false|null|-?\d+(?:\.\d+)?))*)\s*\]/g, (match, contents) => {
+            return `[${contents.replace(/\s+/g, " ").trim()}]`
+        })
+
+    res.end(json)
 }
+
 
 function sendHtml(res, statusCode, html) {
     res.statusCode = statusCode

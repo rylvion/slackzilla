@@ -42,8 +42,8 @@ function AdminLogs() {
         return lines.filter(item => String(item.number).includes(value) || item.text.toLowerCase().includes(value))
     }, [lines, query])
 
-    return <PageShell title="Admin Logs" description="Authenticated log viewer" active="admin-login">
-        <section className="panel">
+    return <PageShell title="Admin Logs" description="Authenticated log viewer" active="logs">
+        <section className="panel logs-panel">
             <div className="panel-header"><div><h1>Logs</h1><p className="panel-description">Public log viewer. Administrative controls are on the Admin page.</p></div><span className="panel-subtitle">{connected ? "stream connected / 1s" : "stream reconnecting"}</span></div>
             <div className="log-toolbar"><input value={query} onChange={event => setQuery(event.target.value)} placeholder="filter output..." aria-label="Filter logs" /><a className="button" href="/api/logs/download">download snapshot</a></div>
             <div className="terminal" ref={containerRef} onScroll={() => { wasAtBottomRef.current = isAtBottom(containerRef.current) }}><div className="log-lines">{filteredLines.length ? filteredLines.map((item, index) => ansiLine({ ...item, highlightLine }, index)) : <div className="muted">$ waiting for log output...</div>}</div></div>

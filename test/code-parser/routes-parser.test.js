@@ -127,6 +127,23 @@ test("extracts HTTP methods from combined route conditions", () => {
     )
 })
 
+test("discovers exact routes guarded by a negative pathname and method check", () => {
+    const source = `
+        function handler(req, res, url) {
+            if (url.pathname !== "/api/admin/control" || req.method !== "POST") {
+                return false
+            }
+            return true
+        }
+    `
+
+    const route = parseJavaScript(source).routes.find(item => item.path === "/api/admin/control")
+
+    assert.ok(route)
+    assert.equal(route.matchType, "exact")
+    assert.deepEqual(route.methods, ["POST"])
+})
+
 test("infers methods from checks following a prefix route guard", () => {
     const source = `
         async function handler(req, res, url) {
@@ -194,4 +211,49 @@ test("does not apply methods from one route to a separate route", () => {
 
     assert.ok(prefixRoute.methods.includes("POST"))
     assert.ok(!prefixRoute.methods.includes("GET"))
+})
+
+test("indexes the session route with its accepted HTTP method", () => {
+    const { loadIndex } = require("../../server/lib/rag/rag")
+    const index = loadIndex()
+
+    const indexedRoutes = index.files.flatMap(file =>
+        (file.code?.routes || []).map(route => ({
+            ...route,
+            file: file.path
+        }))
+    )
+
+    const route = indexedRoutes.find(item =>
+        item.path === "/api/session" &&
+        item.matchType === "exact" &&
+        item.file.replace(/\\/g, "/").endsWith("server.js")
+    )
+
+    assert.ok(route, "Expected /api/session to be present in the codebase index")
+    assert.deepEqual(
+        route.methods,
+        ["GET"],
+        "Expected the indexed session route to report GET as its accepted method"
+    )
+})
+
+test("infers methods from negated method guards that return false", () => {
+    const source = `
+        async function handleApi(req, res, url) {
+            if (!url.pathname.startsWith("/api/session")) return false
+            if (req.method !== "GET") return false
+            return true
+        }
+    `
+
+    const { routes } = parseJavaScript(source)
+
+    const route = routes.find(item =>
+        item.path === "/api/session" &&
+        item.matchType === "prefix"
+    )
+
+    assert.ok(route, "Expected the session route to be detected")
+    assert.deepEqual(route.methods, ["GET"])
 })

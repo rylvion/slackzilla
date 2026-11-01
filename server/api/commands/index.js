@@ -1,4 +1,11 @@
 const { listCommands, getCommand, runCommand } = require("../../lib/command-runner")
+const { createRateLimiter } = require("../../lib/rate-limit")
+
+const commandRateLimiter = createRateLimiter({
+    windowMs: 45_000, 
+    maxRequests: 15,
+    cooldownMs: 500
+})
 
 function handleCommandsApi({ req, res, url, context }) {
     if (url.pathname === "/api/commands" && req.method === "GET") {
@@ -37,6 +44,19 @@ function handleCommandsApi({ req, res, url, context }) {
 
     if (req.method !== "POST") {
         context.sendError(res, 405, "METHOD_NOT_ALLOWED", `Method '${req.method}' is not supported for this endpoint. Use POST to execute the command.`)
+        return true
+    }
+
+    if (command.cmd === "/sz-ask") {
+        context.sendError(res, 403, "COMMAND_NOT_AVAILABLE", "The /sz-ask command cannot be executed through the dashboard command runner. Head to the <a href=\"/ai\">AI page to chat with the codebase assistant</a>, or use /sz-ask directly within Slack.")
+        return true
+    }
+
+    const rateLimit = commandRateLimiter.check(context.auth.getRequestIp(req))
+
+    if (!rateLimit.allowed) {
+        res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds))
+        context.sendError(res, 429, "RATE_LIMITED", `Command rate limit exceeded. Please wait ${rateLimit.retryAfterSeconds} seconds before executing another command.`, { retryAfter: rateLimit.retryAfterSeconds })
         return true
     }
 

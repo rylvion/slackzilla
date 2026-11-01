@@ -1,15 +1,15 @@
 # Slackzilla RAG Assistant
 
-**Last updated:** _09/10/2026_
+**Last updated:** _26/11/2026_
 
-This document describes Slackzilla's Retrieval-Augmented Generation (RAG) implementation, based on the supplied `server/lib/rag/rag.js`, RAG tool adapter, and `server/lib/code-parser.js` source. It covers repository indexing and retrieval, structural code analysis, context selection, model requests, live tools, streaming response parsing, diagnostics, and the relevant npm scripts.
+This document describes Slackzilla's Retrieval-Augmented Generation (RAG) implementation in `server/lib/rag/`. It covers repository indexing and retrieval, structural code analysis, context selection, model requests, live tools, streaming response parsing, diagnostics, and the relevant npm scripts.
 
-The main implementation is `server/lib/rag/rag.js`. Its public exports include `answerQuestion()`, `retrieve()`, `retrieveImages()`, `buildIndex()`, `loadIndex()`, `findSymbols()`, `findRoutes()`, `getDependencies()`, `getDependants()`, `findEnvironmentVariable()`, `getCodeContext()`, and `calculateScore()`. The JavaScript parser is implemented in `server/lib/code-parser.js`; live model tools are defined and executed by the RAG tool module imported by the service.
+The main implementation is `server/lib/rag/rag.js`. Its public exports include `answerQuestion()`, `buildAiFallback()`, `readAiResponse()`, `retrieve()`, `retrieveImages()`, `buildIndex()`, `loadIndex()`, `findSymbols()`, `findRoutes()`, `getDependencies()`, `getDependants()`, `findEnvironmentVariable()`, `getCodeContext()`, `calculateScore()`, and `estimateTokenCount()`. The JavaScript parser is implemented in `server/lib/rag/code-parser.js`; live model tools are defined in `server/lib/rag/rag-tools.js` and connected to runtime data by `server/lib/rag/rag-tool-context.js`.
 
 
 ## Architecture
 
-Slackzilla's RAG service combines lexical retrieval over repository text, filename-based image discovery, AST-derived code metadata, bounded repository-context packing, and optional OpenAI-compatible model generation. It can also receive a live-tools adapter so the model can query current runtime data or run a registered Slackzilla command. These are separate evidence paths: repository sources describe the checked-out code, whereas live tools query data exposed by the running application.
+Slackzilla's RAG service combines lexical retrieval over repository text, catalog/tag-based image discovery, AST-derived code metadata, bounded repository-context packing, and optional OpenAI-compatible model generation. It can also receive a live-tools adapter so the model can query current runtime data or run a registered Slackzilla command. These are separate evidence paths: repository sources describe the checked-out code, whereas live tools query data exposed by the running application.
 
 `answerQuestion()` coordinates the request. It validates that the question is non-empty, creates activity records, optionally runs a command, retrieves text and images, builds codebase context, and then either returns local retrieval results or calls the configured AI endpoint. When an activity callback is supplied, activity events are forwarded as they are created. When an `onToken` callback is supplied, the final accumulated answer is passed to it after model processing.
 
@@ -24,7 +24,6 @@ const allowedExtensions = new Set([
     ".mjs",
     ".json",
     ".md",
-    ".css",
     ".html",
     ".yml",
     ".service",
@@ -46,6 +45,7 @@ const ignoredDirectories = new Set([
     ".vscode",
     "priv",
     "prompts",
+    "test",
 ]);
 
 const ignoredFiles = new Set([
@@ -57,7 +57,7 @@ const ignoredFiles = new Set([
 
 Files ending in `.env` are also excluded. The `priv/` and `prompts/` directories are excluded from repository indexing, in addition to `.rag/`, which contains the generated index itself. The exclusion is based on directory and filename rules; it should not be treated as a complete content-based secret scanner.
 
-Images are collected separately by `collectImages()`. The image extensions are `.png`, `.jpg`, `.jpeg`, `.gif`, and `.webp`. Image files are not parsed as text, OCR-processed, embedded, or sent to the model as binary data. The model receives metadata describing matching image paths and public-relative URLs.
+`collectImages()` remains available for filesystem discovery, but `retrieveImages()` currently searches the static `IMAGE_CATALOG` in `rag.js`. Matching uses catalog paths, descriptions, tags, and category intents; an image must reach the minimum score of 12 and the default result limit is six. Image files are not parsed as text, OCR-processed, embedded, or sent to the model as binary data. The model receives metadata describing matching catalog paths and public-relative URLs.
 
 ## Text indexing and chunk creation
 
@@ -135,18 +135,15 @@ The scoring function in `calculateScore()` uses several independent signals:
 | Each question token found in the Markdown heading                                                 |              +15 |
 | Each question token occurring in the chunk text                                                   |               +5 |
 | Question contains `how does`, `how do`, or `how is`, and file type is Markdown                    |               +8 |
-| Question contains `where`, `which file`, or `implemented`, and file type is JavaScript or JSON    |               +8 |
-| Question concerns architecture/design/flow and path contains `architecture`, `arch`, or `diagram` |              +30 |
-| Question concerns security/CSRF/authentication and path contains `security` or `auth`             |              +30 |
-| Question concerns webhook/GitHub/deployment and path contains `webhook` or `deploy`               |              +30 |
+| Keyword intent matches the file type/path                                                         |       +8 to +35 |
 
 The per-token path, heading and chunk checks are independent, so a token can contribute to more than one signal for the same chunk. The query tokens are unique because `tokens()` returns a `Set`. Exact file references are normalised by trimming surrounding punctuation, replacing Windows path separators, removing a leading `./`, and lowercasing the path before comparison.
 
-After sorting, retrieval calculates a minimum score equal to 85% of the highest-ranked score, rounded up and never below one. It then keeps at most one chunk per file path and returns up to the requested limit. The default is eight source chunks. Each returned snippet is capped at 3,500 characters. The returned records contain `relativePath`, `start`, `end`, `type`, `heading`, `text`, and `score`; the public answer shape maps `relativePath` to `path`.
+After sorting, retrieval calculates a minimum score equal to 85% of the highest-ranked score, rounded up and never below 15. It then keeps at most one chunk per file path and returns up to the requested limit. The default is eight source chunks. Each returned snippet is capped at 3,500 characters. The returned records contain `relativePath`, `start`, `end`, `type`, `heading`, `text`, and `score`; the public answer shape maps `relativePath` to `path`.
 
 ```js
 const minimumScore = rankedDocuments.length
-    ? Math.max(1, Math.ceil(rankedDocuments[0].score * 0.85))
+    ? Math.max(15, Math.ceil(rankedDocuments[0].score * 0.85))
     : 0;
 ```
 
@@ -154,29 +151,13 @@ This high-level score threshold favours chunks close to the strongest match rath
 
 ## Image discovery
 
-`retrieveImages(question, limit = 6)` tokenises the question and compares those tokens with tokens in each image's repository-relative path. A direct token match adds 10 points. A matching alias adds 6 points. The current aliases include:
+`retrieveImages(question, limit = 6)` compares the query with the static image catalog. A token match in the path, description, or tags adds 3 points; a matching single-word tag adds 6, and a matching multi-word tag adds 12. Matching image-intent categories add 25 or 30 points and non-matching categories subtract 15. Results are filtered at score 12, sorted deterministically, and returned as `{ path, url, score }`.
 
-```js
-[
-    ["calculator", "calc"],
-    ["calculation", "calc"],
-    ["architecture", "arch"],
-    ["diagram", "arch"],
-    ["webhook", "hook"],
-    ["dashboard", "dash"],
-    ["github", "git"],
-    ["workflows", "workflow"],
-    ["workflow", "workflow"],
-    ["github", "g"],
-    ["actions", "act"],
-];
-```
-
-Images with a score above zero are sorted by descending score, limited to six by default, and returned as `{ path, url, score }`. The URL is formed as `/${relativePath}`. This is filename/path discovery, not visual understanding. No image contents are examined to decide whether an image depicts the subject in the question.
+The URL is formed as `/${relativePath}`. This is catalog/tag matching, not visual understanding. No image contents are examined to decide whether an image depicts the subject in the question.
 
 ## JavaScript parsing and structural indexing
 
-`server/lib/code-parser.js` uses Acorn and `acorn-walk` to parse JavaScript. It first attempts module parsing and falls back to script parsing if module parsing fails. For each successfully parsed file it records imports, exports, functions/classes, call expressions, environment-variable references and detected routes. Parsing failures are caught by the index builder, leaving that file's `code` metadata as `null` while allowing the rest of the repository to be indexed.
+`server/lib/rag/code-parser.js` uses Acorn and `acorn-walk` to parse JavaScript. It first attempts module parsing and falls back to script parsing if module parsing fails. For each successfully parsed file it records imports, exports, functions/classes, call expressions, environment-variable references and detected routes. Parsing failures are caught by the index builder, leaving that file's `code` metadata as `null` while allowing the rest of the repository to be indexed.
 
 The parser recognises ES module imports and static CommonJS `require()` calls assigned in variable declarations. It records function declarations and class declarations with line ranges. Export detection covers common `module.exports` and `exports` assignment forms. Call expressions are recorded with a call name, line and enclosing function name when available.
 
@@ -241,24 +222,25 @@ Command inference is separate from live tool calling. A command can be executed 
 
 When a tool adapter is supplied to `answerQuestion()`, the first AI request includes the tool definitions and uses `tool_choice: "auto"`. The tool definitions are declared in the RAG tools module and expose the following functions:
 
-| Tool             | Purpose                                                                                 |
-| ---------------- | --------------------------------------------------------------------------------------- |
-| `getStatus`      | Read current status/deployment data, omitting `telemetryHistory` in the context adapter |
-| `getCommands`    | List command IDs or filter command metadata                                             |
-| `getReleaseInfo` | Read version/release information, optionally for a version                              |
-| `runCommand`     | Execute a registered command using `commandId` and optional `text`                      |
-| `getLogs`        | Read up to the latest 10 log entries                                                    |
-| `getErrors`      | Read up to 10 structured errors, with stack traces optional                             |
-| `getMetrics`     | Read current bot metrics                                                                |
-| `getRoutes`      | List detected routes from the current repository index                                  |
+| Tool | Purpose |
+| --- | --- |
+| `getStatus` | Read current status/deployment data, omitting `telemetryHistory`. |
+| `runApiCommand` | Call an internal `GET` or `POST` `/api/` route; external URLs and credential headers are rejected. |
+| `runTerminalCommand` | Run a registered public terminal command, never an operating-system shell command. |
+| `getCommands` | List command IDs or filter command metadata. |
+| `getReleaseInfo` | Read version/release information, optionally for a version. |
+| `runCommand` | Execute a registered Slack command using `commandId` and optional text. |
+| `getLogs` | Read up to the latest 10 log entries. |
+| `getErrors` | Read up to 10 structured errors, with stack traces optional. |
+| `getRoutes` | List detected routes from the current repository index. |
 
 The tool schemas reject undeclared argument fields using `additionalProperties: false`. `getCommands` supports exact ID lookup and filtering by command name, description, category, usage hint or fuzzy text. The filters are combined. Without filters it returns only command IDs. Despite the label `fuzzy`, the implementation uses a case-insensitive substring match across the metadata fields, not edit-distance or semantic fuzzy matching.
 
-`runCommand` accepts a command ID and text up to 500 characters. The tool layer explicitly blocks the command ID `ask` to prevent recursive use of `/sz-ask`. Other registered commands are available unless separately blocked by the command runner. The tool schema instructs the model to call `runCommand` when execution is requested and to use command output as evidence for the final answer.
+`runCommand` accepts a command ID and text up to 500 characters. The tool layer explicitly blocks the command ID `ask` to prevent recursive use of `/sz-ask`. `runTerminalCommand` accepts at most eight arguments, each truncated to 2,048 characters, and the context adapter permits only terminal commands registered with `permission: "public"`. Other registered Slack commands are available unless separately blocked by the command runner. `getMetrics` is currently not exposed: its definition is commented out, although the adapter still contains an injected handler slot.
 
 ### Tool execution limits and sanitisation
 
-Each tool execution is wrapped in a five-second timeout. Tool output is sanitised and limited to 32 KiB after JSON serialisation. Sanitisation redacts values whose object keys match patterns such as authorization, cookie, password, secret, token, API key, private key, environment or env. It also redacts bearer credentials and simple inline key/secret/password assignments in strings, omits `telemetryHistory`, and limits recursive object traversal depth.
+Each tool execution is wrapped in a five-second timeout. Tool output is sanitised and limited to 32 KiB after JSON serialisation. Sanitisation redacts values whose object keys match patterns such as authorization, cookie, password, secret, token, API key, private key, environment or env. It also redacts bearer credentials and simple inline key/secret/password assignments in strings, omits `telemetryHistory`, and limits recursive object traversal depth. API tools return `{ success, endpoint, status, data }`; command tools return bounded `data` plus endpoint/status metadata.
 
 ```js
 const TOOL_TIMEOUT_MS = 5000;
@@ -324,7 +306,9 @@ The retrieval activity metadata contains matched source paths, line ranges, type
 
 ## HTTP and Slack integration
 
-The service function `answerQuestion()` is shared by its callers. The HTTP endpoint and Slack `/sz-ask` handler are responsible for adapting the shared result to their respective interfaces. The previous documentation describes `POST /api/ask` as an SSE endpoint and `/sz-ask` as the Slack interface, but the complete endpoint and handler source was not included in the files supplied for this revision. Consult those files before relying on precise HTTP status, SSE event names, authentication behaviour or Slack response formatting.
+`GET /api/ask` returns the request shape. `POST /api/ask` applies rate limiting (10 requests per five minutes for unauthenticated clients; 50 per ten minutes for authenticated sessions), then streams Server-Sent Events. Events are `activity`, `token`, `complete`, or `error`; a disconnected client aborts the in-flight request. The POST body may contain `question`, `commandId`, `commandText`, and identity fields. The endpoint wires `createRagTools(createRagToolContext(context))` into `answerQuestion()`.
+
+The Slack `/sz-ask` handler calls the same service without the HTTP tool adapter, responds with a thinking message, then posts the final answer with token-usage information and an accuracy disclaimer. Explicit `run`/`execute` requests can pass a recognised slash command and its text to `answerQuestion()`.
 
 ## Diagnostics and npm scripts
 
@@ -337,22 +321,24 @@ Add or retain the following npm scripts in `package.json`:
 }
 ```
 
-`npm run rag` invokes `scripts/debug-rag.js`. `npm run rag:use-tool` invokes `scripts/rag-use-tool.js`. The RAG tool module's help output shows the latter command with a tool name, for example:
+`npm run rag` invokes `scripts/debug-rag.js`; pass `--ai` to contact the configured provider. `npm run rag:use-tool` invokes `scripts/rag-use-tool.js`. The direct tool CLI supports the current tool names, with examples:
 
 ```bash
 npm run rag:use-tool -- --getStatus
 npm run rag:use-tool -- --getCommands --help
+npm run rag:use-tool -- --runApiCommand --method GET --path /api/status
+npm run rag:use-tool -- --runTerminalCommand --command status
 ```
 
-The precise CLI flags and output formats are implemented in `scripts/rag-use-tool.js`, which was not included in the supplied source files. The script name alone does not establish its full behaviour.
+The CLI also supports `--version` for `getReleaseInfo`, `--commandId` and `--text` for `runCommand`, `--limit` for `getLogs`, `--includeStack` for `getErrors`, comma-separated `--args` for `runTerminalCommand`, and JSON `--body` for `runApiCommand`. `--help` prints the generated tool-specific options.
 
 For a full project validation run:
 
 ```bash
-npm run test:all
+npm run test
 ```
 
-The exact checks performed by `test:all` depend on the current `package.json` and test scripts. This document does not assume a specific test count.
+The project test command is `npm run test`; focused RAG tool coverage is in `test/rag/rag-tools.test.js` and currently covers public terminal execution, terminal failures, and internal API requests with credential-header rejection.
 
 ## Security boundaries and operational considerations
 
@@ -410,7 +396,7 @@ npm run rag:use-tool -- --getStatus
 Run the project test suite:
 
 ```bash
-npm run test:all
+npm run test
 ```
 
 Use the results from the actual scripts and current test configuration when updating this document. Do not retain hard-coded test counts or claims about provider behaviour unless they match the current implementation.

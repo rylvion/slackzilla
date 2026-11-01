@@ -4,19 +4,14 @@ function handleFeedbackApi({ req, res, url, context }) {
     if (url.pathname === "/api/admin/feedback" && req.method === "GET") {
         const session = context.auth.requireSession(req, res)
         if (!session) return true
-
-        const feedback = context.store.listFeedback({
-            query: url.searchParams.get("q") || "",
-            status: url.searchParams.get("status") || "all"
-        })
-
+        
+        const feedback = context.store.listFeedback({ query: url.searchParams.get("q") || "", status: url.searchParams.get("status") || "all" })
         context.sendOk(res, { feedback })
+        
         return true
     }
 
-    if (!url.pathname.startsWith("/api/admin/feedback/")) {
-        return false
-    }
+    if (!url.pathname.startsWith("/api/admin/feedback/")) return false
 
     const session = context.auth.requireSession(req, res)
     if (!session) return true
@@ -152,9 +147,7 @@ function handleFeedbackApi({ req, res, url, context }) {
                     })
 
                     context.broadcast(context.adminClients, "summary", context.buildAdminSummary())
-                    context.sendError(res, 502, "FEEDBACK_DM_FAILED", `The feedback response was saved, but Slack failed to deliver the DM. Check the Slack API error and verify the bot's permissions and the recipient's availability.`, {
-                        data: { feedback: updated }
-                    })
+                    context.sendError(res, 502, "FEEDBACK_DM_FAILED", `The feedback response was saved, but Slack failed to deliver the DM. Check the Slack API error and verify the bot's permissions and the recipient's availability. (Commonly caused by the user being either an API user or RAG user)`, {data: { feedback: updated }})
                     return true
                 }
             }

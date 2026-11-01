@@ -7,19 +7,21 @@
         { id: "status", label: "Uptime", to: "/status", description: "Host and process telemetry", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Status"))},
         { id: "commands", label: "Commands", to: "/commands", description: "view available Slack commands", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Commands"))},
         { id: "logs", label: "Logs", to: "/logs", description: "ANSI-aware live output viewer", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Logs"))},
+        { id: "terminal", label: "Terminal", to: "/terminal", description: "Local Slackzilla terminal", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Terminal"))},
         { id: "api", label: "API", to: "/api", description: "Endpoint reference", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Api"))},
         { id: "ai", label: "AI Assistant", to: "/ai", description: "Ask questions about Slackzilla", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Ai"))},
-        { id: "docs", label: "Docs", to: "/docs", description: "Operations and extension guide", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Docs"))},
+        { id: "docs-search", label: "Docs Search", to: "/docs/search", description: "Search Slackzilla documentation", danger: false, api: false, hidden: true, admin: false, component: lazy(() => import("../../pages/DocsSearch"))},
+        { id: "docs", label: "Docs", to: "/docs", path: "/docs/*", description: "Operations and extension guide", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Docs"))},
         { id: "sitemap", label: "Sitemap", to: "/sitemap", description: "Routes and machine surfaces", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Sitemap"))},
     
         // admin pages
-        { id: "admin", label: "Admin Dashboard", to: "/admin", description: "Manage, view, control administrative controls", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/Admin"))},
-        { id: "admin-events", label: "Server Events", to: "/admin/events", description: "Full authenticated server event history", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/admin/ServerEvents"))},
-        { id: "admin-errors", label: "Server Errors", to: "/admin/errors", description: "Full authenticated server error debugger", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/admin/AdminErrors"))},
-        { id: "admin-logs", label: "Admin Logs", to: "/admin/logs", description: "Authenticated log controls and viewer", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/admin/AdminLogs"))},
         { id: "admin-login", label: "Admin", to: "/admin/login", description: "Login to the admin panel", danger: true, api: false, hidden: false, admin: true, component: lazy(() => import("../../pages/admin/Login"))},
+        { id: "admin", label: "Admin Dashboard", to: "/admin", description: "Manage, view, control administrative controls", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/Admin"))},
+        { id: "admin-events", label: "Server Events", to: "/admin/events", description: "Full authenticated server event history", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/ServerEvents"))},
+        { id: "admin-errors", label: "Server Errors", to: "/admin/errors", description: "Full authenticated server error debugger", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/AdminErrors"))},
+        { id: "admin-logs", label: "Admin Logs", to: "/admin/logs", description: "Authenticated log controls and viewer", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/admin/AdminLogs"))},
     
-        // API 
+        // APIs
         {id: "api-status", label: "Public status JSON", to: "/api/status", description: "Use this for integrations and monitoring.", danger: false, api: true, hidden: true, admin: false, component: null},
         {id: "webhook", label: "GitHub webhook", to: "/webhook", description: "POST only, HMAC signature required.", danger: true, api: true, hidden: true, admin: false, component: null},
         {id: "api-commands", label: "Commands API", to: "/api/commands", description: "POST only, HMAC signature required.", danger: false, api: true, hidden: true, admin: false, component: null},
@@ -34,4 +36,5 @@
     // api: true means the link is for API endpoints, and may be used for integrations or programmatic access
     // component: the React component that will be rendered when the link is accessed (if api then leave as null or undefined)
     // admin: true means the link will be shown in the main sidebar if the cookie or session indicates the user is an admin, otherwise it will be hidden
+    // adminOnly: true means a hidden link is shown in the main sidebar only while an admin session is authenticated
     export default routes

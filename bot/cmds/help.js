@@ -22,7 +22,7 @@ module.exports = (app, meta) => {
             other: "📦 other"
         }
 
-        let msg = "yo chat, here's everything i can do:\n"
+        let msg = "here's everything i can do:\n"
 
         for (const [category, list] of Object.entries(groups)) {
             const count = list.length

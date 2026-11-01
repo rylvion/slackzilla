@@ -74,6 +74,8 @@
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.08em;
+    cursor: move;
+    user-select: none;
 }
 
 .error-boundary__brand {
@@ -94,7 +96,10 @@
 }
 
 .error-boundary__header-status { color: #4b805b; }
-.error-boundary__body { padding: 2rem; }
+.error-boundary__body {
+    position: relative;
+    padding: 2rem;
+}
 
 .error-boundary__code {
     margin-bottom: 0.75rem;
@@ -297,6 +302,46 @@
 
 .error-boundary__error::-webkit-scrollbar-thumb:hover {
     background: #236b39;
+}
+
+.error-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(0, 4, 2, 0.72);
+    backdrop-filter: blur(2px);
+}
+
+.error-overlay__content {
+    width: min(560px, 100%);
+    max-height: min(720px, calc(100vh - 48px));
+    overflow: auto;
+}
+
+.error-overlay__details {
+    margin: 18px 0;
+    padding: 10px;
+    overflow-wrap: anywhere;
+    border: 1px solid #174d2c;
+    background: #06110a;
+    color: #8fa99a;
+    font: 0.72rem var(--font-mono);
+}
+
+.error-overlay__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.error-overlay__actions .error-boundary__copy {
+    padding: 0.55rem 0.8rem;
+    color: #a3b8aa;
 }
 
 @media (max-width: 600px) {

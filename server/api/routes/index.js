@@ -1,10 +1,7 @@
 const { loadIndex } = require("../../lib/rag/rag")
 
 function listRoutes() {
-    return loadIndex().files.flatMap(file => (file.code?.routes || []).map(route => ({
-        ...route,
-        file: file.path
-    })))
+    return loadIndex().files.flatMap(file => (file.code?.routes || []).map(route => ({...route, file: file.path}) ))
 }
 
 function handleRoutesApi({ req, res, url, context }) {

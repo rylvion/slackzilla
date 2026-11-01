@@ -4,17 +4,17 @@ const crypto = require("crypto")
 const {parseJavaScript, createChunks, getFileType} = require("./code-parser")
 const { listCommands, getCommand, runCommand } = require("../command-runner")
 
-const projectRoot = path.join(__dirname, "..", "..")
+const projectRoot = path.join(__dirname, "..", "..", "..")
 const ragDirectory = path.join(projectRoot, ".rag")
 const indexPath = path.join(ragDirectory, "index.json")
 
-const ignoredDirectories = new Set([".git", ".rag", "node_modules", "dist", "logs", "archive", ".vscode", "priv", "prompts"])
+const ignoredDirectories = new Set([".git", ".rag", "node_modules", "dist", "logs", "archive", ".vscode", "priv", "prompts", "test"])
 const ignoredFiles = new Set(["package-lock.json", "feedback.json", "metrics.json"])
-const allowedExtensions = new Set([".js", ".jsx", ".mjs", ".json", ".md", ".css", ".html", ".yml", ".service", ".conf", ".example" ])
-
+const allowedExtensions = new Set([".js", ".jsx", ".mjs", ".json", ".md", ".html", ".yml", ".service", ".conf", ".example" ])
 const imageExtensions = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp" ])
 
 const model = process.env.AI_MODEL || "openai/gpt-6-luna"
+const VERSION = 5
 
 const MAX_SOURCE_LENGTH = 3500
 const MAX_CONTEXT_TOKENS = 4000
@@ -26,10 +26,244 @@ const MAX_TOOL_ROUNDS = 3
 
 const PROMPTS_DIR = path.join(__dirname, "prompts")
 
-const SYSTEM_PROMPT = fs.readFileSync(path.join(PROMPTS_DIR, "SYSTEM_PROMPT.md"), "utf8")
-const TOOL_CALL_LIMIT = fs.readFileSync(path.join(PROMPTS_DIR, "TOOL-CALL-LIMIT_PROMPT.md"), "utf8")
+const SYSTEM_PROMPT = fs.readFileSync(path.join(PROMPTS_DIR, "SYSTEM_PROMPT.md"), "utf8").trim()
+const TOOL_CALL_LIMIT = fs.readFileSync(path.join(PROMPTS_DIR, "TOOL-CALL-LIMIT_PROMPT.md"), "utf8").trim()
 
-SYSTEM_PROMPT.trim()
+
+const keywordBoosts = [
+    {
+        keywords: ["how does", "how do", "how is", "how does the", "how does this"],
+        condition: document => document.type === "markdown",
+        score: 8
+    },
+    {
+        keywords: ["where is", "where are", "which file", "what file", "implemented in", "defined in", "located in"],
+        condition: document => ["javascript", "json"].includes(document.type),
+        score: 12
+    },
+    {
+        keywords: ["architecture", "system design", "component structure", "how components connect"],
+        condition: (_, filePath) => ["architecture", "arch", "diagram"].some(keyword => filePath.includes(keyword)),
+        score: 35
+    },
+    {
+        keywords: ["flowchart", "execution flow", "request flow", "data flow", "control flow"],
+        condition: (_, filePath) => ["flow", "diagram", "sequence", "architecture"].some(keyword => filePath.includes(keyword)),
+        score: 30
+    },
+    {
+        keywords: ["security", "csrf", "authentication", "authorisation", "authorization", "login security", "session security"],
+        condition: (_, filePath) => ["security", "auth", "csrf", "session", "login"].some(keyword => filePath.includes(keyword)),
+        score: 35
+    },
+    {
+        keywords: ["webhook", "github webhook", "slack webhook"],
+        condition: (_, filePath) => filePath.includes("webhook"),
+        score: 35
+    },
+    {
+        keywords: ["github actions", "github workflow", "deployment pipeline", "ci cd", "continuous integration", "continuous deployment"],
+        condition: (_, filePath) => ["workflow", "action", "deploy", "ci-cd", "pipeline"].some(keyword => filePath.includes(keyword)),
+        score: 35
+    },
+    {
+        keywords: ["deployment", "deploy", "hosting", "production server"],
+        condition: (_, filePath) => ["deploy", "deployment", "hosting", "production"].some(keyword => filePath.includes(keyword)),
+        score: 25
+    },
+    {
+        keywords: ["database", "sql", "schema", "database query", "data storage"],
+        condition: (_, filePath) => ["database", "db", "sql", "schema", "storage"].some(keyword => filePath.includes(keyword)),
+        score: 30
+    },
+    {
+        keywords: ["api endpoint", "http route", "api route", "endpoint implementation", "request handler"],
+        condition: (_, filePath) => ["route", "api", "endpoint", "handler"].some(keyword => filePath.includes(keyword)),
+        score: 25
+    },
+    {
+        keywords: ["rate limiting", "rate limiter", "request limits", "request throttling"],
+        condition: (_, filePath) => ["rate-limit", "rate_limit", "limiter", "throttle"].some(keyword => filePath.includes(keyword)),
+        score: 35
+    },
+    {
+        keywords: ["error handling", "error logging", "server errors", "debugging"],
+        condition: (_, filePath) => ["error", "log", "debug"].some(keyword => filePath.includes(keyword)),
+        score: 25
+    },
+    {
+        keywords: ["terminal", "command line", "cli command", "terminal command"],
+        condition: (_, filePath) => ["terminal", "cli", "command"].some(keyword => filePath.includes(keyword)),
+        score: 30
+    },
+    {
+        keywords: ["rag", "retrieval augmented generation", "document retrieval", "semantic search", "chunking"],
+        condition: (_, filePath) => ["rag", "retriev", "embedding", "chunk", "index", "search"].some(keyword => filePath.includes(keyword)),
+        score: 35
+    },
+    {
+        keywords: ["ai inference", "ai chat", "llm", "language model", "ai integration"],
+        condition: (_, filePath) => ["ai", "llm", "inference", "model", "prompt"].some(keyword => filePath.includes(keyword)),
+        score: 30
+    },
+    {
+        keywords: ["configuration", "config file", "environment variables", "environment configuration"],
+        condition: (_, filePath) => ["config", ".env", "environment"].some(keyword => filePath.includes(keyword)),
+        score: 20
+    },
+    {
+        keywords: ["tests", "unit tests", "integration tests", "test coverage"],
+        condition: (_, filePath) => ["test", "spec", "coverage"].some(keyword => filePath.includes(keyword)),
+        score: 30
+    }
+]
+
+
+const IMAGE_CATALOG = [
+    {
+        path: "assets/attachments/d10/ai-chat-activity.png",
+        tags: ["ai", "chat", "activity", "ai chat", "assistant", "conversation"],
+        description: "AI chat activity",
+        category: "ai"
+    },
+    {
+        path: "assets/attachments/d11/admin-activity.png",
+        tags: ["admin", "activity", "administration", "admin events"],
+        description: "Administrative activity",
+        category: "admin"
+    },
+    {
+        path: "assets/attachments/d11/ai-activity-view.png",
+        tags: ["ai", "activity", "ai activity", "inference", "ai requests"],
+        description: "AI activity view",
+        category: "ai"
+    },
+    {
+        path: "assets/attachments/d2/htop-output.png",
+        tags: ["htop", "processes", "cpu", "memory", "system resources", "performance"],
+        description: "System process and resource usage",
+        category: "system"
+    },
+    {
+        path: "assets/attachments/d2/logs.png",
+        tags: ["logs", "logging", "server logs", "debugging", "errors"],
+        description: "Application logs",
+        category: "logs"
+    },
+    {
+        path: "assets/attachments/d3/g-act-arch.png",
+        tags: ["github actions", "architecture", "workflow architecture", "automation", "ci cd", "deployment pipeline"],
+        description: "GitHub Actions architecture",
+        category: "architecture"
+    },
+    {
+        path: "assets/attachments/d4/calc-behind-the-scenes.png",
+        tags: ["calculator", "calculation", "math", "calculator implementation"],
+        description: "Calculator implementation",
+        category: "calculator"
+    },
+    {
+        path: "assets/attachments/d5/manifest-workflow-flowchart.png",
+        tags: ["manifest", "workflow", "flowchart", "github actions", "automation", "configuration"],
+        description: "Manifest workflow flowchart",
+        category: "workflow"
+    },
+    {
+        path: "assets/attachments/d5/workflows.png",
+        tags: ["workflows", "workflow", "github actions", "automation", "ci cd"],
+        description: "Workflow configuration",
+        category: "workflow"
+    },
+    {
+        path: "assets/attachments/d6/terminal-output.png",
+        tags: ["terminal", "console", "command line", "cli", "output", "commands"],
+        description: "Terminal command output",
+        category: "terminal"
+    },
+    {
+        path: "assets/attachments/d7/logs.png",
+        tags: ["logs", "logging", "server logs", "debugging", "errors"],
+        description: "Application logs",
+        category: "logs"
+    },
+    {
+        path: "assets/attachments/d8/dashboard.png",
+        tags: ["dashboard", "ui", "interface", "admin panel", "web interface"],
+        description: "Dashboard interface",
+        category: "dashboard"
+    },
+    {
+        path: "assets/attachments/d9/dashboard-status.png",
+        tags: ["dashboard", "status", "health", "server status", "bot status", "monitoring"],
+        description: "Dashboard status monitoring",
+        category: "dashboard"
+    },
+    {
+        path: "assets/docs/nest-domain.config.png",
+        tags: ["domain", "dns", "configuration", "nest", "domain config"],
+        description: "Domain configuration",
+        category: "configuration"
+    }
+]
+
+const IMAGE_INTENTS = [
+    {
+        keywords: ["architecture", "system design", "component structure", "how components connect"],
+        categories: ["architecture"],
+        score: 25
+    },
+    {
+        keywords: ["workflow", "workflows", "flowchart", "pipeline", "github actions", "ci cd"],
+        categories: ["workflow", "architecture"],
+        score: 25
+    },
+    {
+        keywords: ["calculator", "calculation", "math"],
+        categories: ["calculator"],
+        score: 30
+    },
+    {
+        keywords: ["dashboard", "interface", "ui", "admin panel", "page", "web interface"],
+        categories: ["dashboard"],
+        score: 25
+    },
+    {
+        keywords: ["terminal", "console", "command line", "cli"],
+        categories: ["terminal"],
+        score: 25
+    },
+    {
+        keywords: ["logs", "logging", "errors", "debugging"],
+        categories: ["logs"],
+        score: 25
+    },
+    {
+        keywords: ["ai", "assistant", "inference", "ai chat", "capabilities"],
+        categories: ["ai"],
+        score: 25
+    },
+    {
+        keywords: ["admin activity", "admin events", "administration"],
+        categories: ["admin"],
+        score: 25
+    },
+    {
+        keywords: ["cpu", "memory usage", "processes", "htop", "system resources"],
+        categories: ["system"],
+        score: 25
+    },
+    {
+        keywords: ["slack", "slack bot", "slack integration"],
+        categories: ["slack"],
+        score: 25
+    },
+    {
+        keywords: ["domain", "dns", "domain configuration"],
+        categories: ["configuration"],
+        score: 25
+    }
+]
+
 
 function emitActivity(onActivity, event) {
     if (typeof onActivity === "function") {
@@ -55,7 +289,6 @@ function collectFiles(directory, files = []) {
 
     return files
 }
-
 
 function collectImages(directory, images = []) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -101,10 +334,7 @@ function normalisePath(value) {
 }
 
 function extractFileReferences(question) {
-    const matches = String(question).match(
-        /(?:[\w.-]+\/)*[\w.-]+\.(?:js|jsx|mjs|json|md|css|html|yml|service|conf|example)/gi
-    ) || []
-
+    const matches = String(question).match(/(?:[\w.-]+\/)*[\w.-]+\.(?:js|jsx|mjs|json|md|css|html|yml|service|conf|example)/gi) || []
     return [...new Set(matches.map(normalisePath))]
 }
 
@@ -160,19 +390,14 @@ function getDependencies(filePath, index = loadIndex()) {
 
     const pathDependencies = file.code.pathReferences || []
 
-    return [
-        ...new Set([
-            ...importDependencies,
-            ...pathDependencies
-        ])
-    ]
+    return [...new Set([...importDependencies, ...pathDependencies])]
 }
 
 function buildIndex() {
     const files = collectFiles(projectRoot)
 
     const index = {
-        version: 5,
+        version: VERSION,
         generatedAt: new Date().toISOString(),
         files: []
     }
@@ -187,25 +412,44 @@ function buildIndex() {
             let code = null
 
             if (type === "javascript") {
-                try {
-                    code = parseJavaScript(content, {
-                        filePath: metadata.path,
-                        projectRoot
-                    })
-                }
+                try { code = parseJavaScript(content, { filePath: metadata.path, projectRoot })}
                 catch { code = null}
             }
 
-            index.files.push({
-                ...metadata,
-                type,
-                tokens: [...tokens(`${metadata.path} ${content}`)],
-                chunks,
-                code
-            })
-
+            index.files.push({...metadata, type, tokens: [...tokens(`${metadata.path} ${content}`)], chunks, code})
         } catch {
             continue
+        }
+    }
+
+    for (const file of index.files) {
+        if (!file.code) continue
+
+        const imports = file.code.imports || []
+        const calls = file.code.calls || []
+        const routes = file.code.routes || []
+
+        for (const imported of imports) {
+            if (!imported.importedAs) continue
+
+            const dependencyPath = resolveImport(file.path, imported.source)
+
+            if (!dependencyPath) continue
+            const dependency = index.files.find( item => item.path === dependencyPath )
+            if (!dependency?.code) continue
+
+            const importedName = imported.importedName || imported.importedAs
+            const handler = dependency.code.functions.find(fn => fn.name === importedName)
+
+            if (!handler?.methods?.length) continue
+            const matchingCalls = calls.filter(call => call.name === imported.importedAs && call.line != null)
+
+            for (const call of matchingCalls) {
+                const route = routes.find(item => item.line === call.line)
+
+                if (!route) continue
+                route.methods = [...new Set( [...(route.methods || []), ...handler.methods])]
+            }
         }
     }
 
@@ -219,7 +463,7 @@ function buildIndex() {
 
 function isIndexCurrent(index) {
     if (!index?.files || !Array.isArray(index.files)) return false
-    if (index.version !== 5) return false
+    if (index.version !== VERSION) return false
 
     const currentFiles = collectFiles(projectRoot)
     if (currentFiles.length !== index.files.length) { return false }
@@ -234,13 +478,7 @@ function isIndexCurrent(index) {
             const indexed = indexedFiles.get(metadata.path)
 
             if (!indexed) return false
-
-            if (
-                indexed.size !== metadata.size ||
-                indexed.modified !== metadata.modified
-            ) {
-                return false
-            }
+            if ( indexed.size !== metadata.size || indexed.modified !== metadata.modified) return false
         } catch {
             return false
         }
@@ -274,13 +512,7 @@ function findSymbols(question, index = loadIndex()) {
             const exactMatch = questionText.includes(symbolName) ? 100 : 0
             const score = exactMatch + [...queryTokens].reduce((total, token) => total + (symbolTokens.has(token) ? 20 : 0), 0)
 
-            if (score > 0) {
-                results.push({
-                    file: file.path,
-                    ...symbol,
-                    score
-                })
-            }
+            if (score > 0) results.push({file: file.path,...symbol,score})
         }
     }
 
@@ -292,16 +524,8 @@ function getDependants(filePath, index = loadIndex()) {
 
     for (const file of index.files) {
         if (!file.code) continue
-
-        const dependencies = (file.code.imports || [])
-            .map(item =>
-                resolveImport(file.path, item.source)
-            )
-            .filter(Boolean)
-
-        if (dependencies.includes(filePath)) {
-            dependants.push(file.path)
-        }
+        const dependencies = (file.code.imports || []).map(item => resolveImport(file.path, item.source)).filter(Boolean)
+        if (dependencies.includes(filePath)) dependants.push(file.path)
     }
 
     return dependants
@@ -314,25 +538,13 @@ function findEnvironmentVariable(name, index = loadIndex()) {
         if (!file.code) continue
 
         for (const variable of file.code.environmentVariables || []) {
-            if (
-                variable.name.toLowerCase() ===
-                name.toLowerCase()
-            ) {
-                results.push({
-                    file: file.path,
-                    line: variable.line,
-                    name: variable.name
-                })
-            }
+            if (variable.name.toLowerCase() === name.toLowerCase()) results.push({file: file.path, line: variable.line, name: variable.name})
         }
     }
-
     return results
 }
 
-function extractEnvironmentVariables(question) {
-    return String(question).match(/\b[A-Z][A-Z0-9_]{2,}\b/g) || []
-}
+const extractEnvironmentVariables = question => String(question).match(/\b[A-Z][A-Z0-9_]{2,}\b/g) || []
 
 function findRoutes(question, index = loadIndex()) {
     const queryTokens = tokens(question)
@@ -342,31 +554,17 @@ function findRoutes(question, index = loadIndex()) {
         if (!file.code) continue
 
         for (const route of file.code.routes || []) {
-            const routeTokens = tokens(
-                `${route.method} ${route.path}`
-            )
+            const routeTokens = tokens(`${route.method} ${route.path}`)
 
             const exactMatch = String(question).toLowerCase().includes(route.path.toLowerCase()) ? 100 : 0
-            const score = exactMatch + [...queryTokens].reduce(
-                (total, token) =>
-                    total +
-                    (routeTokens.has(token) ? 20 : 0),
-                0
-            )
+            const score = exactMatch + [...queryTokens].reduce((total, token) => total + (routeTokens.has(token) ? 20 : 0), 0)
 
-            if (score > 0) {
-                results.push({
-                    file: file.path,
-                    ...route,
-                    score
-                })
-            }
+            if (score > 0) results.push({file: file.path, ...route, score })
         }
     }
 
-    return results.sort(
-        (left, right) => right.score - left.score
-    )
+
+    return results.sort((left, right) => right.score - left.score )
 }
 
 function getCodeContext(file, symbol = null) {
@@ -374,17 +572,9 @@ function getCodeContext(file, symbol = null) {
 
     const sections = []
 
-    if (file.code.imports?.length) {
-        sections.push(`IMPORTS:\n${file.code.imports.map(item => `- ${item.source}`).join("\n")}`)
-    }
-
-    if (file.code.functions?.length) {
-        sections.push(`FUNCTIONS:\n${file.code.functions.map(item =>`- ${item.name} (${item.line}-${item.endLine})`).join("\n")}`)
-    }
-
-    if (file.code.routes?.length) {
-        sections.push(`ROUTES:\n${file.code.routes.map(item => `- ${item.method} ${item.path} (${item.line})`).join("\n")}`)
-    }
+    if (file.code.imports?.length) sections.push(`IMPORTS:\n${file.code.imports.map(item => `- ${item.source}`).join("\n")}`)
+    if (file.code.functions?.length) sections.push(`FUNCTIONS:\n${file.code.functions.map(item =>`- ${item.name} (${item.line}-${item.endLine})`).join("\n")}`)
+    if (file.code.routes?.length) sections.push(`ROUTES:\n${file.code.routes.map(item => `- ${item.method} ${item.path} (${item.line})`).join("\n")}`)
 
     if (symbol && file.chunks?.length) {
         const startLine = symbol.line
@@ -392,21 +582,14 @@ function getCodeContext(file, symbol = null) {
 
         const relevantChunks = file.chunks.filter(chunk =>  chunk.start <= endLine && chunk.end >= startLine )
 
-        if (relevantChunks.length) {
-            sections.push(`SOURCE (${startLine}-${endLine}):\n${relevantChunks.map(chunk => chunk.text).join("\n")}` )
-        }
+        if (relevantChunks.length) sections.push(`SOURCE (${startLine}-${endLine}):\n${relevantChunks.map(chunk => chunk.text).join("\n")}` )
     }
 
     return sections.join("\n\n")
 }
 
-function calculateScore({
-    question,
-    queryTokens,
-    document,
-    chunk,
-    requestedFiles
-}) {
+
+function calculateScore({ question, queryTokens, document, chunk, requestedFiles }) {
     const filePath = document.path.toLowerCase()
     const chunkText = chunk.text.toLowerCase()
     const fileTokens = tokens(document.path)
@@ -414,92 +597,22 @@ function calculateScore({
 
     let score = 0
 
-    const exactFileMatch = requestedFiles.some(
-        requested => requested === filePath
-    )
+    const exactFileMatch = requestedFiles.some(requested => requested === filePath)
 
-    if (exactFileMatch) {
-        score += 1000
-    }
-
-    if (filePath.startsWith("docs/")) {
-        score += DOCS_PATH_SCORE_BOOST
-    }
+    if (exactFileMatch) score += 1000
+    if (filePath.startsWith("docs/")) score += DOCS_PATH_SCORE_BOOST
 
     for (const token of queryTokens) {
-        if (fileTokens.has(token)) {
-            score += 20
-        }
-
-        if (headingTokens.has(token)) {
-            score += 15
-        }
-
-        if (chunkText.includes(token)) {
-            score += 5
-        }
+        if (fileTokens.has(token)) score += 20
+        if (headingTokens.has(token)) score += 15
+        if (chunkText.includes(token)) score += 5
     }
 
     const questionLower = question.toLowerCase()
 
-    if (
-        questionLower.includes("how does") ||
-        questionLower.includes("how do") ||
-        questionLower.includes("how is")
-    ) {
-        if (document.type === "markdown") {
-            score += 8
-        }
-    }
-
-    if (
-        questionLower.includes("where") ||
-        questionLower.includes("which file") ||
-        questionLower.includes("implemented")
-    ) {
-        if (
-            document.type === "javascript" ||
-            document.type === "json"
-        ) {
-            score += 8
-        }
-    }
-
-    if (
-        questionLower.includes("architecture") ||
-        questionLower.includes("design") ||
-        questionLower.includes("flow")
-    ) {
-        if (
-            filePath.includes("architecture") ||
-            filePath.includes("arch") ||
-            filePath.includes("diagram")
-        ) {
-            score += 30
-        }
-    }
-
-    if (
-        questionLower.includes("security") ||
-        questionLower.includes("csrf") ||
-        questionLower.includes("authentication") ||
-        questionLower.includes("auth")
-    ) {
-        if (filePath.includes("security") || filePath.includes("auth")) {
-            score += 30
-        }
-    }
-
-    if (
-        questionLower.includes("webhook") ||
-        questionLower.includes("github") ||
-        questionLower.includes("deploy")
-    ) {
-        if (
-            filePath.includes("webhook") ||
-            filePath.includes("deploy")
-        ) {
-            score += 30
+    for (const rule of keywordBoosts) {
+        if (rule.keywords.some(keyword => questionLower.includes(keyword))) {
+            if (rule.condition(document, filePath)) score += rule.score
         }
     }
 
@@ -515,40 +628,20 @@ function retrieve(question, limit = 8) {
 
     for (const document of index.files) {
         for (const chunk of document.chunks) {
-            const score = calculateScore({
-                question: cleanQuestion,
-                queryTokens,
-                document,
-                chunk,
-                requestedFiles
-            })
+            const score = calculateScore({question: cleanQuestion, queryTokens, document, chunk, requestedFiles})
 
             if (score <= 0) continue
 
-            documents.push({
-                relativePath: document.path,
-                start: chunk.start,
-                end: chunk.end,
-                type: chunk.type,
-                heading: chunk.heading,
-                text: chunk.text,
-                score
-            })
+            documents.push({relativePath: document.path, start: chunk.start, end: chunk.end, type: chunk.type, heading: chunk.heading, text: chunk.text, score})
         }
     }
 
-    const rankedDocuments = documents
-        .sort((left, right) => {
-            if (right.score !== left.score) {
-                return right.score - left.score
-            }
+    const rankedDocuments = documents.sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score
+        return left.relativePath.localeCompare(right.relativePath)
+    })
 
-            return left.relativePath.localeCompare(right.relativePath)
-        })
-
-    const minimumScore = rankedDocuments.length
-        ? Math.max(1, Math.ceil(rankedDocuments[0].score * 0.85))
-        : 0
+    const minimumScore = rankedDocuments.length? Math.max(15, Math.ceil(rankedDocuments[0].score * 0.85)) : 0
     const selectedPaths = new Set()
 
     return rankedDocuments
@@ -557,87 +650,45 @@ function retrieve(question, limit = 8) {
             selectedPaths.add(document.relativePath)
             return true
         })
-        .slice(0, limit)
-        .map(document => ({
-            ...document,
-            text: document.text.slice(0, MAX_SOURCE_LENGTH)
-        }))
+        .slice(0, limit).map(document => ({...document, text: document.text.slice(0, MAX_SOURCE_LENGTH)}))
 }
 
 function retrieveImages(question, limit = 6) {
-    const queryTokens = tokens(question)
+    const query = String(question || "").toLowerCase().trim()
 
-    return collectImages(projectRoot)
-        .map(filePath => {
-            const relative = relativePath(filePath)
-            const imageTokens = tokens(relative)
+    if (!query) return []
 
-            const aliases = [
-                ["calculator", "calc"],
-                ["calculation", "calc"],
-                ["architecture", "arch"],
-                ["diagram", "arch"],
-                ["webhook", "hook"],
-                ["dashboard", "dash"],
-                ["github", "git"],
-                ["workflows", "workflow"],
-                ["workflow", "workflow"],
-                ["github", "g"],
-                ["actions", "act"]
-            ]
+    const queryTokens = tokens(query)
+    const intents = IMAGE_INTENTS.filter(intent =>
+        intent.keywords.some(keyword => query.includes(keyword))
+    )
 
-            const score = [...queryTokens].reduce((total, token) => {
-                if (imageTokens.has(token)) {
-                    return total + 10
-                }
+    return IMAGE_CATALOG
+        .map(image => {
+            const imageTokens = tokens(`${image.path} ${image.description} ${image.tags.join(" ")}`)
+            let score = 0
 
-                if (
-                    aliases.some(
-                        ([query, image]) =>
-                            token === query && imageTokens.has(image)
-                    )
-                ) {
-                    return total + 6
-                }
+            for (const token of queryTokens) {if (imageTokens.has(token)) score += 3}
+            for (const tag of image.tags) { if (query.includes(tag)) score += tag.includes(" ") ? 12 : 6 }
 
-                return total
-            }, 0)
-
-            return {
-                relativePath: relative,
-                score
+            for (const intent of intents) {
+                if (intent.categories.includes(image.category)) score += intent.score
+                else score -= 15
             }
-        })
-        .filter(image => image.score > 0)
-        .sort((left, right) => right.score - left.score)
+
+            return { relativePath: image.path, score }
+        }).filter(image => image.score >= 12)
+        .sort((left, right) => right.score - left.score || left.relativePath.localeCompare(right.relativePath))
         .slice(0, limit)
-        .map(image => ({
-            path: image.relativePath,
-            url: `/${image.relativePath}`,
-            score: image.score
-        }))
+        .map(image => ({ path: image.relativePath, url: `/${image.relativePath}`, score: image.score}))
 }
 
 function formatResponses(responses) {
     return responses
         .map(response => {
             if (typeof response === "string") return response
-
-            if (response?.text) {
-                return response.text
-            }
-
-            if (response?.blocks) {
-                return response.blocks
-                    .map(
-                        block =>
-                            block.text?.text ||
-                            block.alt_text ||
-                            ""
-                    )
-                    .filter(Boolean)
-                    .join("\n")
-            }
+            if (response?.text) return response.text
+            if (response?.blocks) return response.blocks.map(block => block.text?.text || block.alt_text || "" ).filter(Boolean).join("\n")
 
             return JSON.stringify(response)
         })
@@ -646,23 +697,15 @@ function formatResponses(responses) {
 
 function inferCommandInvocation(question) {
     const match = String(question).match(/(\/sz-[a-z0-9-]+)/i)
-
     if (!match) return null
 
-    const command = listCommands().find(
-        item =>
-            item.cmd.toLowerCase() === match[1].toLowerCase()
-    )
-
+    const command = listCommands().find(item => item.cmd.toLowerCase() === match[1].toLowerCase())
     if (!command) return null
 
-    const hashRequest = String(question).match(
-        /(?:password|passphrase)\s+["']?([^,"'\s]+)["']?.*?(\d{2,})\s+iterations/i
-    )
+    const hashRequest = String(question).match(/(?:password|passphrase)\s+["']?([^,"'\s]+)["']?.*?(\d{2,})\s+iterations/i)
 
     if (command.id === "hash" && hashRequest) {
         const algorithm = /pbkdf2/i.test(question)? "pbkdf2" : "sha256"
-
         const digest = question.match(/\b(sha(?:1|224|256|384|512)|md5)\b/i)?.[1] || "sha512"
 
         return {
@@ -671,15 +714,9 @@ function inferCommandInvocation(question) {
         }
     }
 
-    const remainder = String(question)
-        .slice(match.index + match[1].length)
-        .replace(/^\s*command\b/i, "")
-        .trim()
+    const remainder = String(question).slice(match.index + match[1].length).replace(/^\s*command\b/i, "").trim()
 
-    return {
-        id: command.id,
-        text: remainder
-    }
+    return {id: command.id, text: remainder}
 }
 
 
@@ -716,32 +753,23 @@ function buildCodebaseContext(question, index, retrievedSources = []) {
     const questionText = String(question).toLowerCase()
     const contextCandidates = index.files
         .filter(file => file.type === "javascript")
-        .map(file => ({
-            file,
-            score: [...queryTokens].reduce((score, token) => {
-                if (tokens(file.path).has(token)) return score + 30
-                if (file.tokens?.includes(token)) return score + 2
-                return score
-            }, 0) + (questionText.includes(file.path.toLowerCase()) ? 150 : 0)
+        .map(file => ({ file,score: [...queryTokens].reduce((score, token) => {
+            if (tokens(file.path).has(token)) return score + 30
+            if (file.tokens?.includes(token)) return score + 2
+            return score
+        }, 0) + (questionText.includes(file.path.toLowerCase()) ? 150 : 0)
         }))
         .filter(candidate => candidate.score > 0)
         .sort((left, right) => right.score - left.score)
         .slice(0, 12)
 
-    for (const candidate of contextCandidates) {
-        addFileScore(candidate.file.path, candidate.score, "direct")
-    }
+    for (const candidate of contextCandidates) addFileScore(candidate.file.path, candidate.score, "direct")
 
     context.symbols = findSymbols(question, index)
     context.routes = findRoutes(question, index)
 
-    for (const symbol of context.symbols) {
-        addFileScore(symbol.file, 500 + symbol.score, "direct")
-    }
-
-    for (const route of context.routes) {
-        addFileScore(route.file, 500 + route.score, "direct")
-    }
+    for (const symbol of context.symbols) addFileScore(symbol.file, 500 + symbol.score, "direct")
+    for (const route of context.routes) addFileScore(route.file, 500 + route.score, "direct")
 
     const relationshipRoots = [...context.directFiles]
         .sort((left, right) => (context.fileScores.get(right) || 0) - (context.fileScores.get(left) || 0))
@@ -761,11 +789,8 @@ function buildCodebaseContext(question, index, retrievedSources = []) {
         }
     }
 
-    for (const variable of environmentVariables) { context.environmentVariables.push( ...findEnvironmentVariable(variable, index) ) }
-
-    const contextEnvironmentVariables = new Set(
-        context.environmentVariables.map(variable => `${variable.name}:${variable.file}:${variable.line}`)
-    )
+    for (const variable of environmentVariables) { context.environmentVariables.push( ...findEnvironmentVariable(variable, index))}
+    const contextEnvironmentVariables = new Set(context.environmentVariables.map(variable => `${variable.name}:${variable.file}:${variable.line}`))
 
     for (const filePath of context.files) {
         const file = index.files.find(item => item.path === filePath)
@@ -775,16 +800,11 @@ function buildCodebaseContext(question, index, retrievedSources = []) {
             if (contextEnvironmentVariables.has(key)) continue
 
             contextEnvironmentVariables.add(key)
-            context.environmentVariables.push({
-                name: variable.name,
-                file: filePath,
-                line: variable.line
-            })
+            context.environmentVariables.push({name: variable.name, file: filePath, line: variable.line})
         }
     }
 
-    const orderedFiles = [...context.files]
-        .sort((left, right) => (context.fileScores.get(right) || 0) - (context.fileScores.get(left) || 0))
+    const orderedFiles = [...context.files].sort((left, right) => (context.fileScores.get(right) || 0) - (context.fileScores.get(left) || 0))
 
     for (const filePath of orderedFiles) {
         const file = index.files.find(item => item.path === filePath)
@@ -805,14 +825,7 @@ function buildCodebaseContext(question, index, retrievedSources = []) {
             }
         } else {
             const codeContext = getCodeContext(file)
-            if (codeContext) {
-                context.codeEntries.push({
-                    file: filePath,
-                    text: codeContext,
-                    score: context.fileScores.get(filePath) || 0,
-                    category: context.relatedFiles.has(filePath) ? "related" : "direct"
-                })
-            }
+            if (codeContext) context.codeEntries.push({file: filePath, text: codeContext, score: context.fileScores.get(filePath) || 0, category: context.relatedFiles.has(filePath) ? "related" : "direct"})
         }
     }
 
@@ -827,44 +840,16 @@ function buildCodebaseContext(question, index, retrievedSources = []) {
 function formatCodebaseContext(context) {
     const sections = []
 
-    if (context.symbols.length) {
-        sections.push(
-            `RELEVANT SYMBOLS:\n${context.symbols
-                .slice(0, 20)
-                .map(symbol => `- ${symbol.name} in ${symbol.file}:${symbol.line}-${symbol.endLine}`)
-                .join("\n")}`
-        )
-    }
-
-    if (context.routes.length) {
-        sections.push(
-            `RELEVANT ROUTES:\n${context.routes.slice(0, 20)
-                .map(route =>`- ${route.method} ${route.path} in ${route.file}:${route.line}`)
-                .join("\n")}`
-        )
-    }
-
-    if (context.dependencies.size) {
-        sections.push( `DEPENDENCIES:\n${[...context.dependencies].map(file => `- ${file}`).join("\n")}` )
-    }
-
-    if (context.dependants.size) {
-        sections.push(`DEPENDANTS:\n${[...context.dependants].map(file => `- ${file}`).join("\n")}`)
-    }
-
-    if (context.code.length) {
-        sections.push(`CODE STRUCTURE:\n${context.code.join("\n\n")}`)
-    }
-
+    if (context.symbols.length)     sections.push(`RELEVANT SYMBOLS:\n${context.symbols.slice(0, 20).map(symbol => `- ${symbol.name} in ${symbol.file}:${symbol.line}-${symbol.endLine}`).join("\n")}`)
+    if (context.routes.length)      sections.push(`RELEVANT ROUTES:\n${context.routes.slice(0, 20).map(route =>`- ${route.method} ${route.path} in ${route.file}:${route.line}`).join("\n")}`)
+    if (context.dependencies.size)  sections.push( `DEPENDENCIES:\n${[...context.dependencies].map(file => `- ${file}`).join("\n")}` )
+    if (context.dependants.size)    sections.push(`DEPENDANTS:\n${[...context.dependants].map(file => `- ${file}`).join("\n")}`)
+    if (context.code.length)        sections.push(`CODE STRUCTURE:\n${context.code.join("\n\n")}`)
     return sections.join("\n\n")
 }
 
 function getChunkPriority(chunk) {
-    const kindBonus = {
-        code: 250,
-        structure: 100,
-        source: 0
-    }
+    const kindBonus = {code: 250, structure: 100, source: 0}
 
     const tokens = estimateTokenCount(chunk.text)
     const sizePenalty = Math.min(tokens / 20, 100)
@@ -877,10 +862,7 @@ function packContextChunks(chunks, budget = MAX_CONTEXT_TOKENS) {
     const selectedKeys = new Set()
     let usedTokens = 0
 
-    const ranked = [...chunks].sort(
-    (left, right) =>
-        getChunkPriority(right) - getChunkPriority(left)
-)
+    const ranked = [...chunks].sort((left, right) => getChunkPriority(right) - getChunkPriority(left))
 
     for (const chunk of ranked) {
         if (selectedKeys.has(chunk.key)) continue
@@ -942,10 +924,11 @@ function packRepositoryContext(sources, context, budget = MAX_CONTEXT_TOKENS) {
     }
 }
 
-async function answerQuestion({ question, commandId, commandText, identity, tools, onActivity, onToken} = {}, withAi = true) {
+async function answerQuestion({ question, commandId, commandText, identity, tools, onActivity, onToken, signal } = {}, withAi = true) {
     const cleanQuestion = String(question || "").trim()
-
     if (!cleanQuestion) throw new Error("question is required")
+
+    const throwIfAborted = () => {if (signal?.aborted) throw new DOMException("The operation was aborted", "AbortError")}
 
     const activities = []
 
@@ -1108,22 +1091,27 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
         }
     ]
 
-    const requestAi = includeTools => fetch(endpoint, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${process.env.AI_API_KEY}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            model,
-            stream: true,
-            stream_options: { include_usage: true },
-            messages,
-            ...(includeTools && tools?.definitions?.length
-                ? { tools: tools.definitions, tool_choice: "auto" }
-                : {})
+    const requestAi = includeTools => {
+        throwIfAborted()
+
+        return fetch(endpoint, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${process.env.AI_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model,
+                stream: true,
+                stream_options: { include_usage: true },
+                messages,
+                ...(includeTools && tools?.definitions?.length
+                    ? { tools: tools.definitions, tool_choice: "auto" }
+                    : {})
+            }),
+            signal
         })
-    })
+    }
 
     let response = await requestAi(true)
 
@@ -1156,7 +1144,7 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
         tokenUsage.total += Number(usage?.total || 0)
     }
 
-    let result = await readAiResponse(response, responseState)
+    let result = await readAiResponse(response, responseState, signal)
 
     addUsage(result.usage)
 
@@ -1186,7 +1174,7 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
             catch { args = {} }
 
             const toolStartedAt = process.hrtime.bigint()
-            const toolResult = await tools.execute(toolCall.function?.name, args, emit)
+            const toolResult = await tools.execute(toolCall.function?.name, args, emit, signal)
             const toolDurationMs = Number(process.hrtime.bigint() - toolStartedAt) / 1e6
             const responseCapturedAt = process.hrtime.bigint()
             toolResults.push({
@@ -1282,17 +1270,11 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
 }
 
 function buildAiFallback(responseState = {}, toolResults = []) {
-    const reasoning = (responseState.rounds || [])
-        .map(round => String(round.text || "").trim())
-        .filter(Boolean)
+    const reasoning = (responseState.rounds || []).map(round => String(round.text || "").trim()).filter(Boolean)
 
-    const resultText = toolResults.map(item =>
-        `### ${item.toolName}\nArguments:\n\`\`\`json\n${JSON.stringify(item.arguments || {}, null, 2)}\n\`\`\`\nResponse:\n\`\`\`json\n${JSON.stringify(item.result, null, 2)}\n\`\`\``
-    )
+    const resultText = toolResults.map(item =>`### ${item.toolName}\nArguments:\n\`\`\`json\n${JSON.stringify(item.arguments || {}, null, 2)}\n\`\`\`\nResponse:\n\`\`\`json\n${JSON.stringify(item.result, null, 2)}\n\`\`\``)
 
-    if (!reasoning.length && !resultText.length) {
-        return "The AI did not return a final response."
-    }
+    if (!reasoning.length && !resultText.length) return "The AI did not return a final response."
 
     return [
         "The AI did not return a final response, but the available execution results are:",
@@ -1301,7 +1283,7 @@ function buildAiFallback(responseState = {}, toolResults = []) {
     ].join("").trim()
 }
 
-async function readAiResponse(response, responseState = { rounds: [], accumulatedText: "" }) {
+async function readAiResponse(response, responseState = { rounds: [], accumulatedText: "" }, signal) {
     let answer = ""
     const toolCalls = {}
     let usage = { input: 0, output: 0, total: 0 }
@@ -1334,9 +1316,7 @@ async function readAiResponse(response, responseState = { rounds: [], accumulate
             const choice = payload.choices?.[0]
             const token = choice?.delta?.content
 
-            if (token) {
-                answer += token
-            }
+            if (token) answer += token
 
             for (const toolCall of choice?.delta?.tool_calls || []) {
                 const current = toolCalls[toolCall.index] || {
@@ -1383,11 +1363,7 @@ async function readAiResponse(response, responseState = { rounds: [], accumulate
         const id = `markup-tool-${index}`
 
         if (!Object.values(toolCalls).some(toolCall => toolCall.function?.name === name)) {
-            toolCalls[id] = {
-                id,
-                type: "function",
-                function: { name, arguments: "{}" }
-            }
+            toolCalls[id] = {id, type: "function", function: { name, arguments: "{}" }}
         }
     }
 
@@ -1420,9 +1396,7 @@ function normaliseUsage(rawUsage, previous = { input: 0, output: 0, total: 0 }) 
     }
 }
 
-function estimateTokenCount(value) {
-    return Math.max(1, Math.ceil(String(value || "").length / 4))
-}
+const estimateTokenCount = value => Math.max(1, Math.ceil(String(value || "").length / 4))
 
 
 module.exports = {
@@ -1441,5 +1415,6 @@ module.exports = {
     findEnvironmentVariable,
     findRoutes,
     getCodeContext,
-    calculateScore
+    calculateScore,
+    estimateTokenCount,
 }

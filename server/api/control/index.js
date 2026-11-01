@@ -6,7 +6,7 @@ function handleControlApi({ req, res, url, context }) {
     const session = context.auth.requireSession(req, res)
     if (!session) return true
 
-    return context.parseBody(req)
+    return (req.body !== undefined ? Promise.resolve(req.body) : context.parseBody(req))
         .then(async body => {
             req.body = body
 
@@ -18,7 +18,9 @@ function handleControlApi({ req, res, url, context }) {
             const action = String(body.action || "").toLowerCase()
             const dangerousActions = [
                 "start", "stop", "restart", "redeploy", "delete-log", "delete-lines",
-                "delete-last", "delete-line", "reset-telemetry", "rotate-logs", "restore-log", "delete-log-archive"
+                "delete-last", "delete-line", "reset-telemetry", "rotate-logs", "restore-log", "delete-log-archive",
+                "delete-event", "delete-error", "delete-event-group", "delete-error-group",
+                "delete-events", "delete-errors", "logout"
             ]
 
             if (dangerousActions.includes(action) && body.confirmed !== true) {
@@ -35,6 +37,42 @@ function handleControlApi({ req, res, url, context }) {
             }
 
             try {
+                if (action === "logout") {
+                    context.auth.logout(req, res)
+                    context.sendOk(res, { action, authenticated: false })
+                    return true
+                }
+
+                if (["delete-event", "delete-error", "delete-event-group", "delete-error-group", "delete-events", "delete-errors"].includes(action)) {
+                    const id = typeof body.id === "string" ? body.id.trim() : ""
+                    const ids = Array.isArray(body.ids) ? body.ids : []
+                    const uuid = value => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim())
+                    const groupId = typeof body.groupId === "string" ? body.groupId.trim() : ""
+                    const isGroupAction = action.endsWith("-group")
+                    const isBulkAction = action === "delete-events" || action === "delete-errors"
+                    if ((!isGroupAction && !isBulkAction && !uuid(id)) || (isBulkAction && (!ids.length || ids.some(item => !uuid(item)))) || (isGroupAction && !/^(event|error)-[0-9a-f]{64}$/.test(groupId))) {
+                        context.sendError(res, 400, "INVALID_IDENTIFIER", "A valid event or error id is required.")
+                        return true
+                    }
+                    const result = action === "delete-event"
+                        ? { deleted: context.store.deleteServerEvent(id) ? 1 : 0 }
+                        : action === "delete-error"
+                            ? { deleted: context.store.deleteServerError(id) ? 1 : 0 }
+                            : action === "delete-event-group"
+                                ? context.store.deleteServerEventGroup(groupId)
+                                : action === "delete-error-group"
+                                    ? context.store.deleteServerErrorGroup(groupId)
+                                    : action === "delete-events"
+                                        ? context.store.deleteServerEvents(ids)
+                                        : context.store.deleteServerErrors(ids)
+                    if (!result.deleted) {
+                        context.sendError(res, 404, "NOT_FOUND", `The ${action === "delete-event" ? "event" : "error"} could not be found.`)
+                        return true
+                    }
+                    context.sendOk(res, { action, deleted: result.deleted })
+                    return true
+                }
+
                 if (action === "delete-log") {
                     context.store.deleteLogFile()
                     context.refreshAndBroadcastLogs()

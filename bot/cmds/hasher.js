@@ -114,8 +114,6 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         const text = command.text?.trim()
 
         if (text?.toLowerCase() === "help") {
@@ -138,7 +136,7 @@ module.exports = (app, meta) => {
             const size = parseInt(value)
             const buf = crypto.randomBytes(size)
             const hex = buf.toString("hex")
-            await respond(`🔑 rand-${size}:\n\`${hex}\``)
+            await respond(`rand-${size}:\n\`${hex}\``)
             return
         }
 
@@ -154,7 +152,7 @@ module.exports = (app, meta) => {
                     return
                 }
                 const hex = derivedKey.toString("hex")
-                respond(`🔑 pbkdf2$${pbkdf2Algo}$${pbkdf2Iterations}$${pbkdf2Salt}$${hex}`)
+                respond(`pbkdf2$${pbkdf2Algo}$${pbkdf2Iterations}$${pbkdf2Salt}$${hex}`)
             })
             return
         }
@@ -166,7 +164,7 @@ module.exports = (app, meta) => {
             }
 
             const encoded = Buffer.from(value).toString("base64")
-            await respond(`🔑 base64:\n\`${encoded}\``)
+            await respond(encoded)
             return
         }
 
@@ -177,7 +175,7 @@ module.exports = (app, meta) => {
             }
 
             const encoded = Buffer.from(value).toString("hex")
-            await respond(`🔑 hex:\n\`${encoded}\``)
+            await respond(encoded)
             return
         }
 
@@ -194,9 +192,7 @@ module.exports = (app, meta) => {
         }
 
         const digest = crypto.createHash(algorithm).update(value).digest("hex")
-
         log.success("{user} hashed text via {cmd} using {0}", command, algorithm)
-
-            await respond(`🔑 ${algorithm}:\n\`${digest}\``)
+        await respond(digest)
     })
 }
