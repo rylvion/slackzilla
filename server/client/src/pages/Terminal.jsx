@@ -1,6 +1,6 @@
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal as XTerm } from "@xterm/xterm"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import PageShell from "../components/PageShell"
 import { packageInfo } from "../components/utils/package"
 import { getCsrfToken, getJson, refreshSession, useSession } from "../components/utils/api"
@@ -224,6 +224,7 @@ function privilegedCommandKey(command) {
 
 function Terminal() {
     const containerRef = useRef(null)
+    const [mobile, setMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 700px)").matches)
     const { authenticated } = useSession()
     const identity = authenticated ? "hecker" : "noob"
     const identityRef = useRef(identity)
@@ -234,6 +235,16 @@ function Terminal() {
     }, [identity, authenticated])
 
     useEffect(() => {
+        const mobileQuery = window.matchMedia("(max-width: 700px)")
+        const handleViewportChange = event => setMobile(event.matches)
+
+        mobileQuery.addEventListener("change", handleViewportChange)
+        return () => mobileQuery.removeEventListener("change", handleViewportChange)
+    }, [])
+
+    useEffect(() => {
+        if (mobile) return undefined
+
         const container = containerRef.current
         if (!container) return undefined
 
@@ -1362,15 +1373,21 @@ function Terminal() {
             terminal.dispose()
         }
     // The xterm instance must keep one listener while session identity changes.
-    }, [])
+    }, [mobile])
 
     return (
         <PageShell title="Terminal" description="Local Slackzilla terminal" shellClassName="terminal-shell">
-            <section className="panel terminal-panel">
+            <section className={`panel terminal-panel${mobile ? " terminal-panel--mobile-disabled" : ""}`}>
                 <div className="panel-header">
                     <h1>Terminal</h1>
                 </div>
-                <div className="terminal-container" ref={containerRef} />
+                {mobile
+                    ? <div className="terminal-mobile-disabled">
+                        <strong>Terminal unavailable on mobile</strong>
+                        <p>Open Slackzilla on a larger screen to use the interactive terminal.</p>
+                    </div>
+                    : <div className="terminal-container" ref={containerRef} />
+                }
             </section>
         </PageShell>
     )

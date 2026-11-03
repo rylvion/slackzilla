@@ -91,6 +91,29 @@
     width: 100% !important;
 }
 
+.terminal-mobile-disabled {
+    display: grid;
+    min-height: 220px;
+    place-content: center;
+    gap: 10px;
+    padding: 24px;
+    color: #d5e8d9;
+    text-align: center;
+}
+
+.terminal-mobile-disabled strong {
+    color: #50fa7b;
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.terminal-mobile-disabled p {
+    margin: 0;
+    color: #52705a;
+    font-size: 0.75rem;
+}
+
 @media (max-width: 700px) {
     .terminal-shell-content {
         padding: 8px;

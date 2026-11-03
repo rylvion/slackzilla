@@ -145,6 +145,10 @@ body::after {
 }
 
 .sidebar-toggle {
+    display: none;
+}
+
+.sidebar-desktop-toggle {
     position: absolute;
     top: 10px;
     right: 10px;
@@ -157,8 +161,8 @@ body::after {
     cursor: pointer;
 }
 
-.sidebar-toggle:hover,
-.sidebar-toggle:focus-visible {
+.sidebar-desktop-toggle:hover,
+.sidebar-desktop-toggle:focus-visible {
     border-color: var(--border-bright);
     background: var(--green-faint);
 }
@@ -595,12 +599,58 @@ a:focus-visible {
 
         width: 100%;
         height: auto;
+        min-height: 48px;
+        padding: 10px 14px;
 
         border-right: 0;
         border-bottom: 1px solid var(--border);
     }
 
-    .sidebar-footer {
+    .sidebar-toggle {
+        display: block;
+        position: static;
+        width: 100%;
+        height: 28px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        background: rgba(0, 255, 102, 0.04);
+        color: var(--green);
+        font: 600 12px var(--font-mono);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        letter-spacing: 1px;
+        cursor: pointer;
+    }
+
+    .sidebar-desktop-toggle {
+        display: none;
+    }
+
+    .sidebar-resize-handle {
+        display: none;
+    }
+
+    .sidebar:not(.sidebar--mobile-open) .sidebar-title,
+    .sidebar:not(.sidebar--mobile-open) nav,
+    .sidebar:not(.sidebar--mobile-open) .sidebar-footer {
+        display: none;
+    }
+
+    .sidebar--mobile-open .sidebar-title {
+        margin-top: 14px;
+    }
+
+    .sidebar nav {
+        gap: 1px;
+    }
+
+    .sidebar nav a {
+        padding-top: 7px;
+        padding-bottom: 7px;
+    }
+
+    .sidebar--mobile-open .sidebar-footer {
         position: static;
         margin-top: 20px;
     }
@@ -631,15 +681,21 @@ a:focus-visible {
         white-space: nowrap;
     }
 
+    .panel--interactive,
     .panel--has-interactions {
         width: 100% !important;
         min-width: 0;
         resize: none;
         transform: none !important;
+        touch-action: auto;
     }
 
     .panel-resize-handle {
         display: none;
+    }
+
+    .panel--interactive * {
+        touch-action: auto;
     }
 }
 

@@ -1,6 +1,6 @@
 import { Fragment } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import routes from "./utils/routes"
 import { useSession } from "./utils/api"
 
@@ -30,6 +30,7 @@ function MainSidebar({ active, state, collapsed = false, width = 220, onToggle, 
     const { authenticated } = useSession()
     const pathname = location.pathname
     const resizingRef = useRef(false)
+    const [mobileOpen, setMobileOpen] = useState(false)
 
     useEffect(() => {
         function handlePointerMove(event) {
@@ -61,11 +62,22 @@ function MainSidebar({ active, state, collapsed = false, width = 220, onToggle, 
     const isOnline = (state?.botOnline ?? state?.summary?.botOnline) === true
 
     return (
-        <aside className={`sidebar${collapsed ? " sidebar--collapsed" : ""}`} style={{ "--sidebar-width": `${collapsed ? 52 : width}px` }}>
-            <button className="sidebar-toggle" type="button" onClick={onToggle} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>{collapsed ? ">" : "<"}</button>
+        <aside className={`sidebar${collapsed ? " sidebar--collapsed" : ""}${mobileOpen ? " sidebar--mobile-open" : ""}`} style={{ "--sidebar-width": `${collapsed ? 52 : width}px` }}>
+            <button
+                className="sidebar-toggle"
+                type="button"
+                onClick={() => setMobileOpen(open => !open)}
+                aria-expanded={mobileOpen}
+                aria-controls="main-navigation"
+                aria-label={mobileOpen ? "Hide navigation" : "Show navigation"}
+            >
+                <span>{mobileOpen ? "CLOSE MENU" : "MENU"}</span>
+                <span aria-hidden="true">{mobileOpen ? "^" : ">"}</span>
+            </button>
+            <button className="sidebar-desktop-toggle" type="button" onClick={onToggle} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>{collapsed ? ">" : "<"}</button>
             <div className="sidebar-title">NAVIGATION</div>
 
-            <nav><RouteLinks active={active} pathname={pathname} authenticated={authenticated} /></nav>
+            <nav id="main-navigation"><RouteLinks active={active} pathname={pathname} authenticated={authenticated} /></nav>
 
             <div className="sidebar-footer">
                 <div className="footer-title">STATUS</div>
