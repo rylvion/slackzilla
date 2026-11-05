@@ -427,8 +427,8 @@ async function executeSlackCommand(args, context, session) {
             throw error
         }
         const result = await runCommand(command.id, args.slice(2).join(" "), {
-            userId: session?.userId,
-            username: session?.username,
+            userId: "terminal-user",
+            username: "Terminal User",
             channelId: "terminal",
             teamId: "slackzilla"
         })

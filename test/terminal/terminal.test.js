@@ -329,6 +329,7 @@ test("rejects unknown commands and invalid csrf", async () => {
         const result = await executeCommand("command", ["execute", "ping"], contextFor({}))
         assert.equal(result.command, "/sz-ping")
         assert.match(result.responses[0], /pong/)
+        assert.match(result.responses[0], /user: <@terminal-user>/)
     })
     assert.equal(unknownResponse.statusCode, 404)
     assert.equal(unknownResponse.payload.code, "COMMAND_NOT_FOUND")

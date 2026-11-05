@@ -44,7 +44,7 @@ Local commands are interpreted in the browser:
 | `rag search <text>`                | Searches indexed source chunks.                                           | `rag search terminal`                             |
 | `command list`                     | Lists Slack command metadata.                                             | `command list`                                    |
 | `command inspect <id>`             | Shows one Slack command definition.                                       | `command inspect ping`                            |
-| `command execute <id> [arguments]` | Executes a registered Slack command through the shared adapter.           | `command execute ping`                            |
+| `command execute <id> [arguments]` | Executes a registered Slack command as `@terminal-user` (Terminal User) through the shared adapter. | `command execute ping`                            |
 | `sudo controls`                    | Lists approved administrative controls.                                   | `sudo controls`                                   |
 | `sudo status`                      | Shows a filtered administrative status summary.                           | `sudo status`                                     |
 | `sudo inspect <id>`                | Shows one administrative control definition.                              | `sudo inspect stop`                               |
