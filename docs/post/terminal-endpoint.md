@@ -80,7 +80,7 @@ These commands do not require an administrator session:
 | `logs`    | Read bounded, redacted log entries or follow the log stream through the browser terminal.                           |
 | `api`     | List or inspect indexed API route metadata.                                                                         |
 | `docs`    | List and search Markdown documentation.                                                                             |
-| `rag`     | Read RAG status, list filtered sources, or search indexed content.                                                  |
+| `rag`     | Read RAG status, list filtered sources, search indexed content, list/inspect tools, or execute a registered RAG tool. |
 | `command` | List, inspect, or execute registered Slack command adapters. Unsupported commands such as `/sz-ask` remain blocked. |
 
 Examples:
@@ -88,6 +88,7 @@ Examples:
 ```json
 {"command":"version","args":["v0.9.6-beta","--verbose"]}
 {"command":"rag","args":["sources","--type","jsx,json","--search","terminal","--limit","20"]}
+{"command":"rag","args":["execute","getCommands","{\"fuzzy\":\"terminal\"}"]}
 {"command":"command","args":["list"]}
 ```
 

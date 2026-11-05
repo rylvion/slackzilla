@@ -20,12 +20,6 @@
         { id: "admin-events", label: "Server Events", to: "/admin/events", description: "Full authenticated server event history", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/ServerEvents"))},
         { id: "admin-errors", label: "Server Errors", to: "/admin/errors", description: "Full authenticated server error debugger", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/AdminErrors"))},
         { id: "admin-logs", label: "Admin Logs", to: "/admin/logs", description: "Authenticated log controls and viewer", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/admin/AdminLogs"))},
-    
-        // APIs
-        {id: "api-status", label: "Public status JSON", to: "/api/status", description: "Use this for integrations and monitoring.", danger: false, api: true, hidden: true, admin: false, component: null},
-        {id: "webhook", label: "GitHub webhook", to: "/webhook", description: "POST only, HMAC signature required.", danger: true, api: true, hidden: true, admin: false, component: null},
-        {id: "api-commands", label: "Commands API", to: "/api/commands", description: "POST only, HMAC signature required.", danger: false, api: true, hidden: true, admin: false, component: null},
-        {id: "api-ask", label: "AI assistant API", to: "/api/ask", description: "Repository-aware question answering.", danger: false, api: true, hidden: true, admin: false, component: null},
 
         // special pages
         {id: "not-found", label: "Not Found", to: "*", description: "404 page not found", danger: false, api: false, hidden: true, component: lazy(() => import("../../pages/NotFound"))}, // this is the catch-all route for 404 pages, it should always be last in the array

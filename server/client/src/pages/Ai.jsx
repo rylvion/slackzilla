@@ -15,11 +15,26 @@ function getUsage(result, activities) {
     return {
         input: completedActivity?.metadata?.inputTokens,
         output: completedActivity?.metadata?.outputTokens,
-        total: completedActivity?.metadata?.totalTokens
+        total: completedActivity?.metadata?.totalTokens,
+        inputBreakdown: completedActivity?.metadata?.inputBreakdown,
+        requests: completedActivity?.metadata?.requests
     }
 }
 
 const displayTokenCount = value => Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "—"
+const inputBreakdownLabels = {
+    systemPrompt: "system prompt",
+    codebaseContext: "codebase context",
+    toolDefinitions: "tool definitions",
+    userInput: "user input",
+    dependencies: "dependencies / tool data",
+    activities: "activities"
+}
+const outputBreakdownLabels = {
+    toolCalls: "tool calls",
+    reasoning: "reasoning",
+    response: "response"
+}
 
 function formatDuration(value) {
     const milliseconds = Number(value)
@@ -83,6 +98,7 @@ function getThinkingEntries(entries) {
 function Ai() {
     const [savedSession] = useState(readSavedSession)
     const [question, setQuestion] = useState(() => savedSession?.question || "")
+    const [includeCodebaseContext, setIncludeCodebaseContext] = useState(() => savedSession?.includeCodebaseContext ?? true)
     const [result, setResult] = useState(() => savedSession?.result || null)
     const [answer, setAnswer] = useState(() => savedSession?.answer || savedSession?.result?.answer || "")
     const [error, setError] = useState("")
@@ -95,6 +111,7 @@ function Ai() {
     const [copiedTarget, setCopiedTarget] = useState("")
     const [stopped, setStopped] = useState(false)
     const [activityLogOpen, setActivityLogOpen] = useState(readActivityOpen)
+    const [usageDetail, setUsageDetail] = useState("")
 
     const activityLogRef = useRef(null)
     const requestStartedAtRef = useRef(null)
@@ -128,6 +145,7 @@ function Ai() {
         const saved = readSavedSession()
 
         setQuestion(saved?.question || "")
+        setIncludeCodebaseContext(saved?.includeCodebaseContext ?? true)
         setResult(saved?.result || null)
         setAnswer(saved?.answer || saved?.result?.answer || "")
         setActivities(saved?.activities || [])
@@ -136,6 +154,19 @@ function Ai() {
 
         activitiesRef.current = saved?.activities || []
         answerRef.current = saved?.answer || saved?.result?.answer || ""
+    }
+
+    function persistCodebaseContext(value) {
+        setIncludeCodebaseContext(value)
+        try {
+            const saved = readSavedSession() || {}
+            localStorage.setItem(AI_SESSION_STORAGE_KEY, JSON.stringify({
+                ...saved,
+                includeCodebaseContext: value
+            }))
+        } catch {
+            // The checkbox remains usable when storage is unavailable.
+        }
     }
 
     async function ask(event) {
@@ -175,7 +206,7 @@ function Ai() {
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question: submittedQuestion }),
+                    body: JSON.stringify({ question: submittedQuestion, includeCodebaseContext }),
                     signal: controller.signal
                 },
                 (eventName, payload) => {
@@ -200,6 +231,7 @@ function Ai() {
 
                         const completedSession = {
                             question: submittedQuestion,
+                            includeCodebaseContext,
                             answer: completedAnswer,
                             result: payload,
                             activities: completedActivities,
@@ -313,6 +345,10 @@ function Ai() {
                             required
                         />
                         <div className="ai-command-footer">
+                            <label className="ai-context-toggle">
+                                <input type="checkbox" checked={includeCodebaseContext} onChange={event => persistCodebaseContext(event.target.checked)} disabled={busy} />
+                                <span>include codebase context</span>
+                            </label>
                             <span>ctrl + enter to run</span>
                             {busy
                                 ? <button className="button ai-stop" type="button" onClick={stopAsk}>stop</button>
@@ -400,10 +436,43 @@ function Ai() {
                                 {busy && <span className="ai-cursor" />}
                             </div>
                             <div className="ai-token-stats" aria-label="Token usage">
-                                <div><span>input tokens</span><strong>{displayTokenCount(tokenUsage.input)}</strong></div>
-                                <div><span>output tokens</span><strong>{displayTokenCount(tokenUsage.output)}</strong></div>
-                                <div><span>total tokens</span><strong>{displayTokenCount(tokenUsage.total)}</strong></div>
+                                {[
+                                    ["input", "input tokens", tokenUsage.input],
+                                    ["output", "output tokens", tokenUsage.output],
+                                    ["total", "total tokens", tokenUsage.total]
+                                ].map(([key, label, value]) => <button
+                                    className={usageDetail === key ? "is-selected" : ""}
+                                    type="button"
+                                    key={key}
+                                    onClick={() => setUsageDetail(current => current === key ? "" : key)}
+                                    aria-expanded={usageDetail === key}
+                                >
+                                    <span>{label}</span>
+                                    <strong>{displayTokenCount(value)}</strong>
+                                </button>)}
                             </div>
+                            {usageDetail && tokenUsage.requests?.length > 0 && <div className="ai-input-breakdown" aria-label={`${usageDetail} token breakdown`}>
+                                <span className="ai-input-breakdown-title">{usageDetail} tokens by request</span>
+                                {tokenUsage.requests.map((request, index) => {
+                                    const breakdown = usageDetail === "input"
+                                        ? request.inputBreakdown
+                                        : usageDetail === "output"
+                                            ? request.outputBreakdown
+                                            : { ...request.inputBreakdown, ...Object.fromEntries(Object.entries(request.outputBreakdown || {}).map(([key, value]) => [`output${key[0].toUpperCase()}${key.slice(1)}`, value])) }
+                                    const labels = usageDetail === "input"
+                                        ? inputBreakdownLabels
+                                        : usageDetail === "output"
+                                            ? outputBreakdownLabels
+                                            : { ...inputBreakdownLabels, outputToolCalls: "output: tool calls", outputReasoning: "output: reasoning", outputResponse: "output: response" }
+                                    return <div className="ai-token-request" key={index}>
+                                        <strong>request {index + 1}</strong>
+                                        <span>input {displayTokenCount(request.input)}</span>
+                                        <span>output {displayTokenCount(request.output)}</span>
+                                        <span>total {displayTokenCount(request.total)}</span>
+                                        {Object.entries(labels).map(([key, label]) => <span key={key}>{label} {displayTokenCount(breakdown[key])}</span>)}
+                                    </div>
+                                })}
+                            </div>}
                             {result?.sources?.length > 0 && <div className="ai-sources">
                                 <h3>sources</h3>
                                 {result.sources.map(source => <div className="ai-source" key={`${source.path}-${source.start}`}><code>{source.path}:{source.start}</code><span>{source.score}</span></div>)}

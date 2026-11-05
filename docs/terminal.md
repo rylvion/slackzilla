@@ -38,6 +38,9 @@ Local commands are interpreted in the browser:
 | `docs search <text>`               | Searches documentation excerpts.                                          | `docs search webhook`                             |
 | `rag status`                       | Shows the local RAG index status.                                         | `rag status`                                      |
 | `rag sources`                      | Lists indexed source files with optional type, search, and limit filters. | `rag sources --type jsx --limit 20`               |
+| `rag tools`                        | Lists registered RAG tools and their parameter schemas.          | `rag tools`                                        |
+| `rag inspect <tool>`               | Displays one RAG tool definition and schema.                     | `rag inspect getStatus`                            |
+| `rag execute <tool> [JSON | flags]` | Executes a registered RAG tool with JSON or schema-based flags. | `rag execute getCommands --fuzzy terminal`        |
 | `rag search <text>`                | Searches indexed source chunks.                                           | `rag search terminal`                             |
 | `command list`                     | Lists Slack command metadata.                                             | `command list`                                    |
 | `command inspect <id>`             | Shows one Slack command definition.                                       | `command inspect ping`                            |
@@ -66,6 +69,7 @@ The terminal provides a virtual Windows-style directory model; it does not acces
 - In `command/execute>`, `dir` is derived from the Slack command registry. Argument-taking commands are `<DIR>` entries; direct commands are `<CMD>` entries. `cd hash` enters `command/execute/hash>` and arguments can be entered directly there.
 - `cd api` enters `api>`. Its `dir` contains `.`, `..`, `get`, `post`, `list`, and `inspect`; `cd get` and `cd post` enter request-specific contexts, while `cd inspect` enters `api/inspect>`.
 - `cd logs` enters `logs>`; its `dir` contains `.`, `..`, `head`, `tail`, and `follow`.
+- `cd rag` enters `rag>`. Its `dir` contains status, sources, search, tools, inspect, and execute. `cd inspect` and `cd execute` expose the registered RAG tool names; `rag execute TOOL [JSON]` passes a JSON object to the shared RAG tool handler.
 - `cd storage` enters `storage>`; its `dir` contains `.`, `..`, `session`, and `local`. Storage prompts retain the full context path, such as `storage/session>`.
 - `cd ..`, `cd..`, and `exit` move to the parent context. Idle `Ctrl+C` also moves up one context; at the root it only clears the current input.
 
@@ -196,6 +200,8 @@ The `api` context supports same-origin `api get PATH` and `api post PATH --heade
 The RAG can use the `runApiCommand` tool for internal GET/POST routes. It cannot provide credential headers or reach external URLs; endpoint-level protections remain active.
 
 `rag sources` accepts `--type`, `--search`, and `--limit`, for example `rag sources --type jsx`, `rag sources --type json,jsx --search terminal --limit 20`, or `rag sources --limit 50`. Search matches source paths case-insensitively. Type matching supports common extensions including JavaScript, JSX, JSON, Markdown, HTML, YAML, and explicit extensions.
+
+`rag tools` derives its output from the same RAG tool definitions used by `/api/ask` and `npm run rag:use-tool`. `rag inspect TOOL` returns the tool's description and JSON schema. `rag execute TOOL` invokes the shared tool implementation. Arguments may be one JSON object, for example `rag execute getCommands '{"fuzzy":"terminal"}'`, or schema-based flags such as `rag execute getCommands --command /sz- --description algorithm --fuzzy haash`. Flag names map from kebab-case to the schema's property names, and object/array values must still be valid JSON. Existing tool restrictions remain active, including blocked credential headers, internal-route-only API access, and the public-only boundary for `runTerminalCommand`.
 
 `version` accepts an optional release identifier and `--verbose`, in either order. `version --help` prints `version [--verbose] [VERSION]` and `version --help` before the available release list. Historical release notes are limited to 15 entries by default; `--verbose` returns the complete notes for the selected release.
 

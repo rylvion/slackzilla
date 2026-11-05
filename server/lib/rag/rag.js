@@ -208,7 +208,7 @@ const IMAGE_CATALOG = [
 
 const IMAGE_INTENTS = [
     {
-        keywords: ["architecture", "system design", "component structure", "how components connect"],
+        keywords: ["architecture", "system design", "component structure", "how components connect", "deep dive"],
         categories: ["architecture"],
         score: 25
     },
@@ -924,7 +924,7 @@ function packRepositoryContext(sources, context, budget = MAX_CONTEXT_TOKENS) {
     }
 }
 
-async function answerQuestion({ question, commandId, commandText, identity, tools, onActivity, onToken, signal } = {}, withAi = true) {
+async function answerQuestion({ question, commandId, commandText, identity, tools, onActivity, onToken, signal, includeCodebaseContext = true } = {}, withAi = true) {
     const cleanQuestion = String(question || "").trim()
     if (!cleanQuestion) throw new Error("question is required")
 
@@ -995,12 +995,12 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
         type: "context",
         activityId: "codebase",
         status: "started",
-        message: "Building codebase context..."
+        message: includeCodebaseContext ? "Building codebase context..." : "Codebase context disabled"
     })
 
     const index = loadIndex()
     const isCommandRequest = /\b(run|execute|use|call|invoke)\b[\s\S]{0,100}\b(command|\/sz-[a-z0-9-]+)\b/i.test(cleanQuestion)
-    const codebaseContext = isCommandRequest
+    const codebaseContext = !includeCodebaseContext || isCommandRequest
         ? {
             symbols: [],
             routes: [],
@@ -1011,13 +1011,21 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
             code: []
         }
         : buildCodebaseContext(cleanQuestion, index, sources)
-    const contextPack = packRepositoryContext(sources, codebaseContext)
+    const contextPack = includeCodebaseContext
+        ? packRepositoryContext(sources, codebaseContext)
+        : {
+            text: "",
+            contextTokens: 0,
+            contextBudget: MAX_CONTEXT_TOKENS,
+            selectedFiles: [],
+            selectedCodeContexts: 0
+        }
 
     emit({
         type: "context",
         activityId: "codebase",
         status: "completed",
-        message: "Built codebase context",
+        message: includeCodebaseContext ? "Built codebase context" : "Skipped codebase context",
         metadata: {
             symbols: codebaseContext.symbols.map(symbol => ({
                 name: symbol.name,
@@ -1093,6 +1101,7 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
 
     const requestAi = includeTools => {
         throwIfAborted()
+        currentRequestInputBreakdown = recordInputBreakdown(includeTools)
 
         return fetch(endpoint, {
             method: "POST",
@@ -1112,6 +1121,31 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
             signal
         })
     }
+
+    const tokenUsage = { input: 0, output: 0, total: 0 }
+    const responseState = { rounds: [], accumulatedText: "" }
+    const toolResults = []
+    const requests = []
+    const addUsage = usage => {
+        tokenUsage.input += Number(usage?.input || 0)
+        tokenUsage.output += Number(usage?.output || 0)
+        tokenUsage.total += Number(usage?.total || 0)
+    }
+    const recordInputBreakdown = includeTools => ({
+        systemPrompt: estimateTokenCount(SYSTEM_PROMPT),
+        codebaseContext: estimateTokenCount(contextPack.text),
+        toolDefinitions: includeTools
+            ? estimateTokenCount(JSON.stringify(tools?.definitions || []))
+            : 0,
+        userInput: estimateTokenCount(
+            `Question:\n${cleanQuestion}\n\nVisual assets:\n${imageText || "No matching visual assets."}${commandTextResult}`
+        ),
+        dependencies: estimateTokenCount(
+            JSON.stringify(messages.filter(message => message.role === "assistant" || message.role === "tool"))
+        ),
+        activities: estimateTokenCount(JSON.stringify(activities))
+    })
+    let currentRequestInputBreakdown = null
 
     let response = await requestAi(true)
 
@@ -1135,18 +1169,20 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
         )
     }
 
-    const tokenUsage = { input: 0, output: 0, total: 0 }
-    const responseState = { rounds: [], accumulatedText: "" }
-    const toolResults = []
-    const addUsage = usage => {
-        tokenUsage.input += Number(usage?.input || 0)
-        tokenUsage.output += Number(usage?.output || 0)
-        tokenUsage.total += Number(usage?.total || 0)
-    }
-
-    let result = await readAiResponse(response, responseState, signal)
+    let result = await readAiResponse(response, responseState, signal, onToken)
 
     addUsage(result.usage)
+    requests.push({
+        input: result.usage.input,
+        output: result.usage.output,
+        total: result.usage.total,
+        inputBreakdown: scaleTokenBreakdown(currentRequestInputBreakdown, result.usage.input),
+        outputBreakdown: scaleTokenBreakdown({
+            toolCalls: result.toolCalls.length ? estimateTokenCount(JSON.stringify(result.toolCalls)) : 0,
+            reasoning: result.toolCalls.length ? estimateOptionalTokenCount(result.answer) : 0,
+            response: result.toolCalls.length ? 0 : estimateOptionalTokenCount(result.answer)
+        }, result.usage.output)
+    })
 
     let toolRound = 0
 
@@ -1213,8 +1249,19 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
 
         if (!response.ok) { throw new Error(`AI request failed with ${response.status}`) }
 
-        result = await readAiResponse(response, responseState)
+        result = await readAiResponse(response, responseState, signal, onToken)
         addUsage(result.usage)
+        requests.push({
+            input: result.usage.input,
+            output: result.usage.output,
+            total: result.usage.total,
+            inputBreakdown: scaleTokenBreakdown(currentRequestInputBreakdown, result.usage.input),
+            outputBreakdown: scaleTokenBreakdown({
+                toolCalls: result.toolCalls.length ? estimateTokenCount(JSON.stringify(result.toolCalls)) : 0,
+                reasoning: result.toolCalls.length ? estimateOptionalTokenCount(result.answer) : 0,
+                response: result.toolCalls.length ? 0 : estimateOptionalTokenCount(result.answer)
+            }, result.usage.output)
+        })
     }
 
     if (result.toolCalls.length) {
@@ -1226,17 +1273,37 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
 
         if (!response.ok) { throw new Error(`AI final response failed with ${response.status}`) }
 
-        result = await readAiResponse(response, responseState)
+        result = await readAiResponse(response, responseState, signal, onToken)
         addUsage(result.usage)
+        requests.push({
+            input: result.usage.input,
+            output: result.usage.output,
+            total: result.usage.total,
+            inputBreakdown: scaleTokenBreakdown(currentRequestInputBreakdown, result.usage.input),
+            outputBreakdown: scaleTokenBreakdown({
+                toolCalls: result.toolCalls.length ? estimateTokenCount(JSON.stringify(result.toolCalls)) : 0,
+                reasoning: 0,
+                response: estimateOptionalTokenCount(result.answer)
+            }, result.usage.output)
+        })
     }
 
     const answer = String(result.answer || "").trim() || buildAiFallback(responseState, toolResults)
 
-    if (typeof onToken === "function") onToken(answer)
-
+    requests.forEach(request => {
+        if (!request.input) request.input = Object.values(request.inputBreakdown || {}).reduce((sum, value) => sum + value, 0)
+        if (!request.output) request.output = Object.values(request.outputBreakdown || {}).reduce((sum, value) => sum + value, 0)
+        if (!request.total) request.total = request.input + request.output
+    })
     if (!tokenUsage.input) tokenUsage.input = estimateTokenCount(JSON.stringify(messages))
     if (!tokenUsage.output) tokenUsage.output = estimateTokenCount(answer)
     if (!tokenUsage.total) tokenUsage.total = tokenUsage.input + tokenUsage.output
+    const inputBreakdown = requests.reduce((breakdown, request) => {
+        Object.entries(request.inputBreakdown || {}).forEach(([key, value]) => {
+            breakdown[key] = (breakdown[key] || 0) + value
+        })
+        return breakdown
+    }, { systemPrompt: 0, codebaseContext: 0, toolDefinitions: 0, userInput: 0, dependencies: 0, activities: 0 })
 
     emit({
         type: "ai",
@@ -1246,7 +1313,9 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
         metadata: {
             inputTokens: tokenUsage.input,
             outputTokens: tokenUsage.output,
-            totalTokens: tokenUsage.total
+            totalTokens: tokenUsage.total,
+            inputBreakdown,
+            requests
         }
     })
 
@@ -1265,7 +1334,11 @@ async function answerQuestion({ question, commandId, commandText, identity, tool
         command: commandResult,
         activities,
         trace: activities.map(activity => ({ ...activity })),
-        usage: tokenUsage
+        usage: {
+            ...tokenUsage,
+            inputBreakdown,
+            requests
+        }
     }
 }
 
@@ -1283,7 +1356,7 @@ function buildAiFallback(responseState = {}, toolResults = []) {
     ].join("").trim()
 }
 
-async function readAiResponse(response, responseState = { rounds: [], accumulatedText: "" }, signal) {
+async function readAiResponse(response, responseState = { rounds: [], accumulatedText: "" }, signal, onToken) {
     let answer = ""
     const toolCalls = {}
     let usage = { input: 0, output: 0, total: 0 }
@@ -1316,7 +1389,10 @@ async function readAiResponse(response, responseState = { rounds: [], accumulate
             const choice = payload.choices?.[0]
             const token = choice?.delta?.content
 
-            if (token) answer += token
+            if (token) {
+                answer += token
+                if (typeof onToken === "function") onToken(token)
+            }
 
             for (const toolCall of choice?.delta?.tool_calls || []) {
                 const current = toolCalls[toolCall.index] || {
@@ -1349,6 +1425,7 @@ async function readAiResponse(response, responseState = { rounds: [], accumulate
         usage = normaliseUsage(responseBody.usage, usage)
         const message = responseBody.choices?.[0]?.message || {}
         answer = message.content || ""
+        if (answer && typeof onToken === "function") onToken(answer)
 
         for (const toolCall of message.tool_calls || []) {
             toolCalls[toolCall.id] = toolCall
@@ -1397,6 +1474,29 @@ function normaliseUsage(rawUsage, previous = { input: 0, output: 0, total: 0 }) 
 }
 
 const estimateTokenCount = value => Math.max(1, Math.ceil(String(value || "").length / 4))
+const estimateOptionalTokenCount = value => String(value || "").length ? estimateTokenCount(value) : 0
+
+function scaleTokenBreakdown(breakdown, total) {
+    const entries = Object.entries(breakdown)
+    const estimatedTotal = entries.reduce((sum, [, value]) => sum + value, 0)
+    if (!estimatedTotal || !Number.isFinite(total) || total <= 0) return breakdown
+
+    const scale = total / estimatedTotal
+    const scaled = {}
+    let assigned = 0
+
+    entries.forEach(([key, value], index) => {
+        if (index === entries.length - 1) {
+            scaled[key] = Math.max(0, total - assigned)
+            return
+        }
+
+        scaled[key] = Math.round(value * scale)
+        assigned += scaled[key]
+    })
+
+    return scaled
+}
 
 
 module.exports = {
@@ -1417,4 +1517,5 @@ module.exports = {
     getCodeContext,
     calculateScore,
     estimateTokenCount,
+    scaleTokenBreakdown,
 }

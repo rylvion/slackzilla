@@ -1,12 +1,37 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Control response data",
-  "type": "object",
-  "additionalProperties": true,
-  "properties": {
-    "action": { "type": "string" },
-    "status": { "type": "object" },
-    "state": { "type": "object" },
-    "size": { "type": "number" }
-  }
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["action"],
+    "properties": {
+        "action": {
+            "type": "string",
+            "enum": [
+                "refresh", "refresh-status", "refresh-logs",
+                "start", "stop", "restart", "redeploy", "logout",
+                "delete-log", "delete-lines", "delete-line", "delete-last",
+                "rotate-logs", "restore-log", "delete-log-archive",
+                "reset-telemetry", "delete-event", "delete-error",
+                "delete-event-group", "delete-error-group",
+                "delete-events", "delete-errors"
+            ]
+        },
+        "confirmed": { "type": "boolean" },
+        "csrf": { "type": "string" },
+        "start": { "type": "integer", "minimum": 1 },
+        "end": { "type": "integer", "minimum": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "count": { "type": "integer", "minimum": 1 },
+        "archive": { "type": "string" },
+        "saveCurrent": { "type": "boolean" },
+        "id": { "type": "string", "format": "uuid" },
+        "groupId": {
+            "type": "string",
+            "pattern": "^(event|error)-[0-9a-f]{64}$"
+        },
+        "ids": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" },
+            "minItems": 1
+        }
+    }
 }

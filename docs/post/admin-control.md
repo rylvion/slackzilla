@@ -199,132 +199,180 @@ X-CSRF-Token: your-csrf-token
 
 ### `refresh`
 
-Recalculates the current runtime status and admin dashboard summary, then broadcasts the updated information to connected clients. Returns the rendered status summary, including the current status data. The broadcast status snapshot excludes `telemetryHistory`.
+Refreshes the current runtime status and broadcasts the updated status and admin summary to connected clients. Returns the rendered status summary.
+
+```json
+{"action": "refresh"}
+````
 
 ### `refresh-status`
 
-Refreshes the current runtime status and broadcasts the updated status and admin summary to connected clients. Returns the rendered status summary. Unlike `refresh`, this action is intended specifically for refreshing status rather than explicitly refreshing the broader dashboard data.
+Refreshes and broadcasts the current runtime status to connected clients. Returns the rendered status summary.
+
+```json
+{"action": "refresh-status"}
+```
 
 ### `refresh-logs`
 
-Reloads the current log snapshot and broadcasts the updated logs to connected clients. Log clients receive the complete snapshot, while admin clients receive the last 50 lines. The admin summary is also updated. Returns the total log file size in bytes.
+Refreshes the current log snapshot and broadcasts the updated logs to connected clients. Returns the total log file size in bytes.
+
+```json
+{"action": "refresh-logs"}
+```
 
 ### `logout`
 
-Invalidates the authenticated administrator session server-side and clears the `slackzilla_admin_session` cookie. The request still requires the existing session and valid CSRF token. When called from the terminal, the terminal first performs operation-bound master-password re-authentication, waits for the terminal request limiter cooldown, then sends the confirmed control request. A successful response is `{ "action": "logout", "authenticated": false }`.
+Invalidates the current administrator session server-side and clears the `slackzilla_admin_session` cookie. The request still requires an authenticated session, a valid CSRF token and explicit confirmation.
 
-The terminal refreshes `/api/session` after success so its identity and prompt immediately change from `hecker` to `noob`. A later `sudo` command enters the normal login flow without requiring a page reload.
+```json
+{"action": "logout", "confirmed": true}
+```
 
 ### `start`
 
-Starts the configured bot systemd service. After the command completes successfully, the endpoint refreshes and broadcasts the runtime status. Returns the executed action.
+Starts the configured bot systemd service. After successful execution, the endpoint refreshes and broadcasts the runtime status.
+
+```json
+{"action": "start", "confirmed": true}
+```
 
 ### `stop`
 
-Stops the configured bot systemd service. After the command completes successfully, the endpoint refreshes and broadcasts the runtime status. Returns the executed action.
+Stops the configured bot systemd service. After successful execution, the endpoint refreshes and broadcasts the runtime status.
+
+```json
+{"action": "stop", "confirmed": true}
+```
 
 ### `restart`
 
-Restarts the configured bot systemd service. After the command completes successfully, the endpoint refreshes and broadcasts the runtime status. Returns the executed action.
+Restarts the configured bot systemd service. After successful execution, the endpoint refreshes and broadcasts the runtime status.
+
+```json
+{"action": "restart", "confirmed": true}
+```
 
 ### `redeploy`
 
-Runs the configured deployment script and captures its standard output and standard error in the application log. Saves the resulting deployment state, refreshes the runtime status, and broadcasts deployment and admin summary updates. Returns the saved deployment state. A deployment is considered successful when the script exits with code `0`.
+Runs the configured deployment script and captures its output in the application log. Saves the resulting deployment state, refreshes runtime status and broadcasts deployment and admin summary updates. Returns the saved deployment state.
 
 ```json
-{
-    "action": "redeploy",
-    "confirmed": true
-}
+{"action": "redeploy", "confirmed": true}
 ```
 
 ### `delete-log`
 
-Clears the contents of the current log file without removing the file itself. The resulting file remains present with a size of 0 bytes. The endpoint refreshes and broadcasts the updated log information, then returns the executed action and a confirmation message.
+Clears the contents of the current log file without removing the file itself. Refreshes and broadcasts the updated log information.
 
 ```json
-{
-    "action": "delete-log",
-    "confirmed": true
-}
+{"action": "delete-log", "confirmed": true}
 ```
 
 ### `delete-lines`
 
-Deletes an inclusive range of lines from the current log, starting at `start` and ending at `end`. Both values must be positive integers, and `start` must not exceed `end`. The endpoint refreshes and broadcasts the updated log information, then returns the executed action and updated log file size.
+Deletes a range of lines from the current log using the supplied `start` and `end` values. Both values must be positive integers. Refreshes and broadcasts the updated log information.
 
 ```json
-{
-    "action": "delete-lines",
-    "start": 10,
-    "end": 20, // it will delete line 20 as well since the range is inclusive
-    "confirmed": true
-}
+{"action": "delete-lines", "start": 10, "end": 20, "confirmed": true}
 ```
 
 ### `delete-line`
 
-Deletes one specified line from the current log. The `line` value must be a positive integer. The endpoint removes the line, refreshes and broadcasts the updated log information, and returns the executed action and updated log file size.
+Deletes one specified line from the current log. The `line` value must be a positive integer. Refreshes and broadcasts the updated log information.
 
 ```json
-{
-    "action": "delete-line",
-    "line": 15, // delete line 15
-    "confirmed": true
-}
+{"action": "delete-line", "line": 15, "confirmed": true}
 ```
 
 ### `delete-last`
 
-Removes a specified number of lines from the end of the current log. If `count` is omitted or falsy, it defaults to 100 lines. If the requested count exceeds the number of available lines, the entire log is cleared. The endpoint refreshes and broadcasts the updated log information, then returns the executed action and updated log file size.
+Deletes the specified number of lines from the end of the current log. The `count` value must be a positive integer. Refreshes and broadcasts the updated log information.
 
 ```json
-{
-    "action": "delete-last",
-    "count": 50, // delete the last 50 lines
-    "confirmed": true
-}
+{"action": "delete-last", "count": 50, "confirmed": true}
 ```
 
 ### `rotate-logs`
 
-Archives the current log and rotates it using the log storage system. The endpoint refreshes and broadcasts the updated log information, then returns details of the newly created archive.
+Archives the current log and rotates it using the log storage system. Refreshes and broadcasts the updated log information. Returns the identifier of the created archive.
+
+```json
+{"action": "rotate-logs", "confirmed": true}
+```
 
 ### `restore-log`
 
-Restores the current log from the specified archive. If `saveCurrent` is `true`, the existing log is saved before the restoration takes place. The endpoint then refreshes and broadcasts the updated log information and returns the restoration result.
+Restores the current log from the specified archive. The optional `saveCurrent` property can be set to `true` to save the existing log before restoration. Refreshes and broadcasts the updated log information.
+
+```json
+{"action": "restore-log", "archive": "archive-filename", "saveCurrent": true, "confirmed": true}
+```
 
 ### `delete-log-archive`
 
-Permanently deletes the specified stored log archive. The endpoint refreshes and broadcasts the updated log information, then returns the archive deletion result.
+Permanently deletes the specified stored log archive.
+
+```json
+{"action": "delete-log-archive", "archive": "archive-filename", "confirmed": true}
+```
 
 ### `reset-telemetry`
 
-Clears the runtime telemetry history, refreshes the runtime status, and broadcasts the updated status to connected clients. Returns the resulting action status.
+Clears the runtime telemetry history, refreshes runtime status and broadcasts the updated status to connected clients.
+
+
+```json
+{"action": "reset-telemetry", "confirmed": true}
+```
 
 ### `delete-event`
 
-Deletes one server event occurrence identified by its UUID. Other occurrences, including those belonging to the same event group, remain untouched. The deletion is persisted to `metrics.json`, and subsequent grouped event responses reflect the updated occurrence count and group data.
+Deletes one server event occurrence identified by its UUID. Other occurrences belonging to the same event group remain untouched. The updated event history is persisted to `metrics.json`.
+
+```json
+{"action": "delete-event", "id": "7bdf4991cc73964bb82399f858acfff31502ee24cf5ed2e320776b868de53ada", "confirmed": true}
+```
 
 ### `delete-error`
 
-Deletes one server error occurrence identified by its UUID. Other error occurrences, including those sharing the same error fingerprint, remain untouched. The deletion is persisted to `server-errors.json`, and subsequent grouped error responses reflect the updated occurrence count and timestamps.
+Deletes one server error occurrence identified by its UUID. Other occurrences sharing the same error fingerprint remain untouched. The updated error history is persisted to `server-errors.json`.
+
+```json
+{"action": "delete-error", "id": "4b903737-9fc7-45b1-9066-4867f85a5d64", "confirmed": true}
+```
 
 ### `delete-event-group`
 
-Deletes every occurrence belonging to the specified server event group fingerprint. The `groupId` must identify the relevant event group. The updated event history is persisted to `metrics.json`, and the response reports the number of occurrences deleted. Unrelated event groups remain unchanged.
+Deletes every occurrence belonging to the specified server event group. The `groupId` must use the `event-` prefix followed by 64 lowercase hexadecimal characters. The updated event history is persisted to `metrics.json`.
+
+```json
+{"action": "delete-event-group", "groupId": "event-74841258f702e52fce550d31012937b2459a59cebb4786689f5761d590fcc5d1", "confirmed": true}
+```
 
 ### `delete-error-group`
 
-Deletes every occurrence belonging to the specified server error fingerprint. The `groupId` must identify the relevant error group. The updated error history is persisted to `server-errors.json`, and the response reports the number of occurrences deleted. Unrelated error groups remain unchanged.
+Deletes every occurrence belonging to the specified server error group. The `groupId` must use the `error-` prefix followed by 64 lowercase hexadecimal characters. The updated error history is persisted to `server-errors.json`.
+
+```json
+{"action": "delete-error-group", "groupId": "error-b6c3c9d6ef889ad91265e063c1077925f58fdf9b585514f6fc43fe632d687e99", "confirmed": true}
+```
 
 ### `delete-events`
 
-Deletes the server event occurrences identified by the supplied, non-empty `ids` array. Each identifier must be a valid UUID. The filtered event history is persisted to `metrics.json`, and the response reports the number of records deleted. Records not selected for deletion remain available.
+Deletes the server event occurrences identified by the supplied non-empty `ids` array. Each entry must be a valid UUID. Other event occurrences remain available.
+
+```json
+{"action": "delete-events", "ids": ["39580ef4-8ab1-4955-b1e6-322d3633a58f", "481e1774-2952-42c7-97c7-a9da3fb07746"], "confirmed": true}
+```
 
 ### `delete-errors`
 
-Deletes the server error occurrences identified by the supplied, non-empty `ids` array. Each identifier must be a valid UUID. The filtered error history is persisted to `server-errors.json`, and the response reports the number of records deleted. Records not selected for deletion remain available.
+Deletes the server error occurrences identified by the supplied non-empty `ids` array. Each entry must be a valid UUID. Other error occurrences remain available.
+
+```json
+{"action": "delete-errors", "ids": ["4b903737-9fc7-45b1-9066-4867f85a5d64", "5c014848-afda-46c2-a177-5978096b6e75"], "confirmed": true}
+```
 
 ## Implementation
 

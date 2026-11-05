@@ -185,9 +185,90 @@ function executeDocs(args) {
     throw error
 }
 
-function executeRag(args) {
+function normaliseRagToolName(name) {
+    const aliases = { getCommand: "getCommands" }
+    return aliases[String(name || "")] || String(name || "")
+}
+
+function parseRagToolArguments(values, definition) {
+    const args = values.filter(value => value !== "--")
+    if (!args.length) return {}
+
+    if (args.length === 1 && !args[0].startsWith("--")) {
+        try {
+            const parsed = JSON.parse(args[0])
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed
+        } catch {
+            // ignore json parse errors
+        }
+    }
+
+    const properties = definition.parameters?.properties || {}
+    const result = {}
+    for (let index = 0; index < args.length; index += 1) {
+        const flag = args[index]
+        if (!flag.startsWith("--")) throw new Error("RAG tool arguments must be JSON or --flag value pairs")
+
+        const propertyName = flag.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
+        const property = properties[propertyName]
+        if (!property) throw new Error(`unknown RAG tool argument '${flag}'`)
+        const next = args[index + 1]
+
+        if (property.type === "boolean" && (!next || next.startsWith("--"))) {
+            result[propertyName] = true
+            continue
+        }
+
+        if (!next || next.startsWith("--")) throw new Error(`${flag} requires a value`)
+        index += 1
+
+        if (property.type === "integer") {
+            const value = Number(next)
+            if (!Number.isInteger(value)) throw new Error(`${flag} requires an integer`)
+            result[propertyName] = value
+
+        } else if (["object", "array"].includes(property.type)) {
+            try { result[propertyName] = JSON.parse(next)}
+            catch { throw new Error(`${flag} requires valid JSON`)}
+        
+        } else {
+            result[propertyName] = next
+        }
+    }
+    return result
+}
+
+async function executeRag(args, context) {
     const action = String(args[0] || "status").toLowerCase()
     const index = loadIndex()
+    if (["tools", "inspect", "execute"].includes(action)) {
+        const { createRagTools } = require("../rag/rag-tools")
+        const { createRagToolContext } = require("../rag/rag-tool-context")
+        const tools = createRagTools(createRagToolContext(context))
+        const definitions = tools.definitions.map(definition => definition.function)
+
+        if (action === "tools") return { tools: definitions }
+
+        const requestedToolName = requireArgument(args, 1, "RAG tool name")
+        const toolName = normaliseRagToolName(requestedToolName)
+        const definition = definitions.find(tool => tool.name === toolName)
+        if (!definition) {
+            const error = new Error(`unknown RAG tool '${requestedToolName}'`)
+            error.code = "RAG_TOOL_NOT_FOUND"
+            error.statusCode = 404
+            throw error
+        }
+        if (action === "inspect") return { tool: definition }
+
+        try {
+            const toolArguments = parseRagToolArguments(args.slice(2), definition)
+            return { tool: toolName, result: await tools.execute(toolName, toolArguments) }
+        } catch (error) {
+            error.code = error.code || "RAG_TOOL_ARGUMENTS_INVALID"
+            error.statusCode = error.statusCode || 400
+            throw error
+        }
+    }
     if (action === "status") return { version: index.version, generatedAt: index.generatedAt, files: index.files.length }
     if (action === "sources") {
         let limit = 100
@@ -238,7 +319,7 @@ function executeRag(args) {
             }))
         }
     }
-    const error = new Error("rag supports: status, sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N], search <text>")
+    const error = new Error("rag supports: status, sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N], search <text>, tools, inspect <tool>, execute <tool> [JSON | --flag value...]")
     error.code = "USAGE_ERROR"
     error.statusCode = 400
     throw error
@@ -429,9 +510,9 @@ const commands = {
     },
     rag: {
         description: "inspect and search the local RAG index",
-        usage: "rag status | rag sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N] | rag search <text>",
+        usage: "rag status | sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N] | search <text> | tools | inspect <tool> | execute <tool> [JSON | --flag value...]",
         permission: PERMISSIONS.PUBLIC,
-        execute: ({ args }) => executeRag(args)
+        execute: ({ args, context }) => executeRag(args, context)
     },
     command: {
         description: "list and inspect Slack command metadata",

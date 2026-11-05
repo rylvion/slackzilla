@@ -14,9 +14,17 @@ export function activityToMarkdown(activity) {
     const timestamp = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
     const type = String(source.type || "activity").toUpperCase()
     const status = source.status ? ` **${source.status}**` : ""
+    const hasTokenUsage = String(source.type || "").toLowerCase() === "ai" &&
+        source.metadata &&
+        ("inputTokens" in source.metadata || "outputTokens" in source.metadata || "totalTokens" in source.metadata)
+    const tokenUsageMetadata = hasTokenUsage
+        ? Object.fromEntries(Object.entries(source.metadata).filter(([key]) => key !== "inputBreakdown"))
+        : null
+    const tokenRequests = hasTokenUsage && Array.isArray(source.metadata.requests) ? source.metadata.requests : []
     const metadata = source.metadata
         ? `\n\n${Object.entries(source.metadata)
             .map(([key, value]) => {
+                if (key === "inputBreakdown" || key === "requests" || hasTokenUsage) return ""
                 if (value === null || value === undefined) {
                     return `- ${key}=null`
                 }
@@ -33,7 +41,12 @@ export function activityToMarkdown(activity) {
                     const columns = [...new Set(value.flatMap(item => Object.keys(item)))]
                     const header = `| ${columns.join(" | ")} |`
                     const separator = `| ${columns.map(() => "---").join(" | ")} |`
-                    const rows = value.map(item => `| ${columns.map(column => item[column] ?? "").join(" | ")} |`)
+                    const formatCell = cell => {
+                        if (cell === null || cell === undefined) return ""
+                        if (typeof cell === "object") return `\`${JSON.stringify(cell)}\``
+                        return String(cell)
+                    }
+                    const rows = value.map(item => `| ${columns.map(column => formatCell(item[column])).join(" | ")} |`)
                     return `### ${key}\n${[header, separator, ...rows].join("\n")}`
                 }
 
@@ -41,7 +54,16 @@ export function activityToMarkdown(activity) {
 
                 return `### ${key}\n${items}`
             })
-            .join("\n")}`
+            .join("\n")}${hasTokenUsage ? `\n\n### token usage\n${["inputTokens", "outputTokens", "totalTokens"]
+                .filter(key => key in source.metadata)
+                .map(key => `- ${key}=${source.metadata[key]}`)
+                .join("\n")}\n\n### requests\n${tokenRequests.length
+                ? [
+                    "| request | input | output | total | input breakdown | output breakdown |",
+                    "| --- | ---: | ---: | ---: | --- | --- |",
+                    ...tokenRequests.map((request, index) => `| ${index + 1} | ${request.input ?? 0} | ${request.output ?? 0} | ${request.total ?? 0} | \`${JSON.stringify(request.inputBreakdown || {})}\` | \`${JSON.stringify(request.outputBreakdown || {})}\` |`)
+                ].join("\n")
+                : "- none"}\n\nToken usage JSON:\n\`\`\`json\n${JSON.stringify(tokenUsageMetadata, null, 2)}\n\`\`\`` : ""}`
         : ""
 
     return `**${timestamp}** \`${type}\`${status} - ${source.message || "RAG activity updated"}${metadata}`

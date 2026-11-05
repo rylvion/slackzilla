@@ -63,7 +63,7 @@ const serverUsage = {
     logs: ["logs", "logs --head N", "logs --tail N", "logs --start N --end N", "logs follow"],
     storage: ["storage", "cd storage", "storage/ session | local: dir | view KEY | delete KEY"],
     docs: ["docs list", "docs search TEXT [--sources N] [--no-verbose]"],
-    rag: ["rag status", "rag sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N]", "rag search TEXT"],
+    rag: ["rag status", "rag sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N]", "rag search TEXT", "rag tools", "rag inspect TOOL", "rag execute TOOL [JSON | --flag value... ]"],
     command: ["command list", "command inspect ID", "command execute ID [arguments]"],
     sudo: ["sudo status", "sudo controls", "sudo inspect ID", "sudo execute refresh", "sudo logout"]
 }
@@ -428,9 +428,9 @@ function Terminal() {
         function rootDirectory() {
             const entries = [
                 ...localCommands.map(command => ({ name: command.aliases[0], entry: "<CMD>", description: command.description })),
-                ...[...serverCommands.keys()].map(name => ({ name, entry: ["api", "command", "logs", "storage"].includes(name) ? "<DIR>" : "<CMD>", description: serverCommands.get(name) }))
+                ...[...serverCommands.keys()].map(name => ({ name, entry: ["api", "command", "logs", "rag", "storage"].includes(name) ? "<DIR>" : "<CMD>", description: serverCommands.get(name) }))
             ]
-            for (const name of ["api", "logs", "storage"]) {
+            for (const name of ["api", "logs", "rag", "storage"]) {
                 if (!entries.some(item => item.name === name)) entries.push({ name, entry: "<DIR>", description: serverCommands.get(name) || `open the ${name} context` })
             }
             return entries
@@ -454,6 +454,32 @@ function Terminal() {
                 { name: "list", entry: "<CMD>", description: "list indexed API routes" },
                 { name: "inspect", entry: "<DIR>", description: "inspect an indexed API route" }
             ]
+        }
+
+        function ragDirectory() {
+            return [
+                { name: ".", entry: "<DIR>" },
+                { name: "..", entry: "<DIR>" },
+                { name: "status", entry: "<CMD>", description: "show RAG index status" },
+                { name: "sources", entry: "<CMD>", description: "list indexed source files" },
+                { name: "search", entry: "<CMD>", description: "search indexed source content" },
+                { name: "tools", entry: "<DIR>", description: "list executable RAG tools" },
+                { name: "inspect", entry: "<DIR>", description: "inspect a RAG tool definition" },
+                { name: "execute", entry: "<DIR>", description: "execute a RAG tool with JSON arguments" }
+            ]
+        }
+
+        async function ragToolDirectory() {
+            const result = await getJson("/api/terminal", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ command: "rag", args: ["tools"] })
+            })
+            return (result.data.tools || []).map(tool => ({
+                name: tool.name,
+                entry: "<CMD>",
+                description: tool.description
+            }))
         }
 
         function setInput(value) {
@@ -611,6 +637,15 @@ function Terminal() {
                     }
                     throw new Error(`'${tokens[1]}' is not a directory in the current context`)
                 }
+                if (context.family === "rag" && lowerCommand === "cd" && tokens[1]) {
+                    const targetName = tokens[1].toLowerCase()
+                    if (["tools", "inspect", "execute"].includes(targetName)) {
+                        contextStack.push({ family: "rag", action: targetName, label: targetName, usage: targetName === "tools" ? "dir | exit" : `${targetName} TOOL${targetName === "execute" ? " [JSON]" : ""} | exit` })
+                        writePrompt()
+                        return
+                    }
+                    throw new Error(`'${tokens[1]}' is not a directory in the current context`)
+                }
                 if (context.family === "storage" && lowerCommand === "cd" && tokens[1]) {
                     const parts = tokens[1].split("/").filter(Boolean)
                     const currentContext = contextStack.at(-1)
@@ -667,6 +702,18 @@ function Terminal() {
                         writeDirectory(apiDirectory())
                         return
                     }
+                    if (context.family === "rag" && !context.action) {
+                        writeDirectory(ragDirectory())
+                        return
+                    }
+                    if (context.family === "rag" && context.action === "tools") {
+                        writeDirectory(await ragToolDirectory())
+                        return
+                    }
+                    if (context.family === "rag" && ["inspect", "execute"].includes(context.action)) {
+                        writeDirectory(await ragToolDirectory())
+                        return
+                    }
                     if (context.family === "storage") {
                         writeDirectory(storageDirectory(context.kind))
                         return
@@ -681,6 +728,10 @@ function Terminal() {
                     tokens = context.action
                         ? ["api", context.action, ...(lowerCommand === context.action ? tokens.slice(1) : tokens)]
                         : ["api", ...tokens]
+                } else if (context.family === "rag") {
+                    tokens = context.action
+                        ? ["rag", context.action, ...(lowerCommand === context.action ? tokens.slice(1) : tokens)]
+                        : ["rag", ...tokens]
                 } else if (context.family === "command") {
                     if (!context.action && commandName.toLowerCase() === "execute" && tokens.length === 1) {
                         contextStack.push({
@@ -742,11 +793,11 @@ function Terminal() {
                     return
                 }
                 const targetName = args[0]?.toLowerCase()
-                if (["api", "command", "logs", "storage"].includes(targetName)) {
+                if (["api", "command", "logs", "rag", "storage"].includes(targetName)) {
                     contextStack.push({
                         family: targetName,
                         label: targetName,
-                        usage: targetName === "api" ? "dir | cd get | cd post | list | inspect <path> | help | exit" : targetName === "command" ? "dir | cd NAME | list | inspect [id] | execute | help | exit" : targetName === "logs" ? "dir | head N | tail N | follow | exit" : "dir | cd session | cd local | exit"
+                        usage: targetName === "api" ? "dir | cd get | cd post | list | inspect <path> | help | exit" : targetName === "command" ? "dir | cd NAME | list | inspect [id] | execute | help | exit" : targetName === "logs" ? "dir | head N | tail N | follow | exit" : targetName === "rag" ? "dir | status | sources | search | tools | inspect TOOL | execute TOOL [JSON | --flag value...] | exit" : "dir | cd session | cd local | exit"
                     })
                     writePrompt()
                     return
@@ -759,12 +810,12 @@ function Terminal() {
                 return
             }
 
-            if (!contextStack.length && ["api", "command"].includes(commandName.toLowerCase()) && !args.length) {
+            if (!contextStack.length && ["api", "command", "rag"].includes(commandName.toLowerCase()) && !args.length) {
                 const family = commandName.toLowerCase()
                 contextStack.push({
                     family,
                     label: family,
-                    usage: family === "api" ? "list | inspect <path> | help | exit" : "dir | cd NAME | list | inspect [id] | execute | help | exit"
+                    usage: family === "api" ? "dir | cd get | cd post | list | inspect <path> | help | exit" : family === "rag" ? "dir | status | sources | search | tools | inspect TOOL | execute TOOL [JSON | --flag value...] | exit" : "dir | cd NAME | list | inspect [id] | execute | help | exit"
                 })
                 writePrompt()
                 return
@@ -1051,6 +1102,12 @@ function Terminal() {
             if (Array.isArray(data.documents))                  return data.documents.map(document => `  ${colour(document, "white")}`).join("\r\n") || colour("no documents found", "muted")
             if (Array.isArray(data.controls))                   return [colour("ADMIN CONTROLS", "purple"), "", ...data.controls.map(control => `  ${colour(control.id, "cyan")} ${colour(control.mutating ? "[mutating]" : "[read-only]", control.mutating ? "yellow" : "green")} ${colour(control.description || "unavailable", "muted")}`)].join("\r\n")
             if (data.status && typeof data.status === "object") return [colour("ADMIN STATUS", "purple"), ...Object.entries(data.status).map(([key, value]) => `  ${colour(key, "muted")}  ${colour(typeof value === "object" ? JSON.stringify(value) : String(value ?? "unavailable"), "white")}`)].join("\r\n")
+            if (Array.isArray(data.tools)) return [colour("RAG TOOLS", "purple"), "", ...data.tools.map(tool => `  ${colour(tool.name || "unknown", "cyan")}  ${colour(tool.description || "unavailable", "muted")}`)].join("\r\n")
+            if (data.result && typeof data.tool === "string") return [
+                colour(`RAG TOOL ${data.tool}`, "purple"),
+                colour(JSON.stringify(data.result, null, 2), "white")
+            ].join("\r\n")
+            if (data.tool && typeof data.tool === "object") return colour(JSON.stringify(data.tool, null, 2), "white")
             
                 if (Array.isArray(data.results)) return data.results.map(result => {
                 const source = result.source || result.path || "result"

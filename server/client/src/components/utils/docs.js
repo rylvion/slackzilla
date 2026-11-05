@@ -181,7 +181,7 @@ export function rewriteMarkdownLinks(markdown, source) {
 
     rewritten = rewritten.replace(/(!?\[[^\]]*\]\()([^\s)]+)([^)]*\))/g, (match, prefix, target, suffix) => `${prefix}${rewriteTarget(target, source)}${suffix}`)
     rewritten = rewritten.replace(/(\bhref\s*=\s*["'])([^"']+)(["'])/gi, (match, prefix, target, suffix) => `${prefix}${rewriteTarget(target, source)}${suffix}`)
-    rewritten = rewritten.replace(/(\bsrc\s*=\s*["'])([^"']+)(["'])/gi, (match, prefix, target, suffix) => `${prefix}${target}${suffix}`)
+    rewritten = rewritten.replace(/(\bsrc\s*=\s*["'])([^"']+)(["'])/gi, (match, prefix, target, suffix) => `${prefix}${rewriteTarget(target, source)}${suffix}`)
     
     rewritten = rewritten.replace(/(\bsrcset\s*=\s*["'])([^"']+)(["'])/gi, (match, prefix, value, suffix) => {
         const rewrittenValue = value.split(",").map(candidate => {

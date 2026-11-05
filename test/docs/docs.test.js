@@ -155,7 +155,14 @@ test("rewrites HTML href attributes", () => {
 
 test("rewrites HTML src attributes", () => {
     const result = rewriteMarkdownLinks('<img src="../images/example.png">', "docs/guides/setup.md")
-    assert.equal(result, '<img src="../images/example.png">')
+    assert.equal(result, '<img src="/docs/images/example.png">')
+})
+
+test("rewrites devlog HTML image paths to public asset paths", () => {
+    const markdown = '<img src="../attachments/d1/slack.jpg"><picture><source srcset="../attachments/d1/slack.jpg 1x, ../attachments/d1/slack@2x.jpg 2x"></picture>'
+    const result = rewriteMarkdownLinks(markdown, "assets/devlogs/devlog1.md")
+
+    assert.equal(result, '<img src="/assets/attachments/d1/slack.jpg"><picture><source srcset="/assets/attachments/d1/slack.jpg 1x, /assets/attachments/d1/slack@2x.jpg 2x"></picture>')
 })
 
 test("groups documents in the expected navigation sections", () => {

@@ -121,6 +121,30 @@ test("filters RAG sources by path search", async () => {
     assert.equal(result.search, "terminal")
 })
 
+test("lists and inspects the registered RAG tools", async () => {
+    const listed = await executeCommand("rag", ["tools"], contextFor({}))
+    assert.ok(listed.tools.some(tool => tool.name === "runApiCommand"))
+    assert.ok(listed.tools.some(tool => tool.name === "runTerminalCommand"))
+    assert.ok(listed.tools.every(tool => tool.parameters))
+
+    const inspected = await executeCommand("rag", ["inspect", "runApiCommand"], contextFor({}))
+    assert.equal(inspected.tool.name, "runApiCommand")
+    assert.deepEqual(inspected.tool.parameters.required, ["method", "path"])
+})
+
+test("executes a registered RAG tool through the terminal", async () => {
+    const result = await executeCommand("rag", ["execute", "getReleaseInfo", "{}"], contextFor({}))
+    assert.equal(result.tool, "getReleaseInfo")
+    assert.equal(result.result.success, true)
+    assert.ok(result.result.data.currentVersion)
+
+    const flagged = await executeCommand("rag", ["execute", "getCommand", "--command", "/sz-", "--description", "algorithm", "--fuzzy", "haash"], contextFor({}))
+    assert.equal(flagged.tool, "getCommands")
+    assert.equal(flagged.result.success, true)
+    assert.ok(Array.isArray(flagged.result.data))
+    await assert.rejects(() => executeCommand("rag", ["inspect", "not-a-tool"], contextFor({})), /unknown RAG tool/)
+})
+
 test("lists Slack command metadata and derives virtual directory entries", async () => {
     const list = await executeCommand("command", ["list"], contextFor({}))
     assert.ok(list.commands.length > 0)

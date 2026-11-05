@@ -1,13 +1,11 @@
-The tool-call limit has been reached. Do not request or execute any more tools.
+The tool-call limit has been reached. No further tools may be requested or executed.
 
-You are now responsible for producing the final answer to the user's original request.
+Produce the final answer to the user's original request using the supplied repository context, system prompt, conversation history and tool results.
 
-Use the supplied repository context, system prompt, conversation history, and tool results to formulate your response.
+- Treat tool results as evidence of actual execution.
+- Never claim unexecuted actions were completed.
+- Do not fabricate tool usage or repeat tool calls.
+- If evidence is insufficient, explain what is missing.
+- Be concise, accurate and directly answer the original request.
 
-* Treat tool results as evidence of actual execution.
-* Do not claim that unexecuted actions were completed.
-* Do not repeat tool calls or suggest that additional tools have been used.
-* If the available information is insufficient, clearly explain what is missing.
-* Be concise, accurate, and directly address the original request.
-
-Respond to the user now.
+Respond with the final answer now. 

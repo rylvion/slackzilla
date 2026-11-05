@@ -7,7 +7,7 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getStatus",
-            description: "Read the current Slackzilla status and deployment state.",
+            description: "Get current bot, runtime and deployment status.",
             parameters: { type: "object", properties: {}, additionalProperties: false }
         }
     },
@@ -15,14 +15,14 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "runApiCommand",
-            description: "Call an internal same-origin Slackzilla API route from the RAG. Use GET or POST with an /api/ path only. Existing endpoint authentication, CSRF, confirmation, rate limits, and method checks still apply; no external URLs or credential headers are accepted.",
+            description: "Call an internal same-origin /api/ route using GET or POST. Existing authentication, CSRF, confirmation, rate limits and method checks apply. No external URLs or credential headers.",
             parameters: {
                 type: "object",
                 properties: {
                     method: { type: "string", enum: ["GET", "POST"] },
-                    path: { type: "string", description: "Internal route beginning with /api/." },
-                    body: { type: "object", description: "Optional JSON request body for POST." },
-                    headers: { type: "object", description: "Optional non-credential request headers." }
+                    path: { type: "string", description: "Internal /api/ route." },
+                    body: { type: "object", description: "Optional POST JSON body." },
+                    headers: { type: "object", description: "Optional non-credential headers." }
                 },
                 required: ["method", "path"],
                 additionalProperties: false
@@ -33,12 +33,12 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "runTerminalCommand",
-            description: "Run a registered public Slackzilla terminal command. This uses the terminal command registry, not an operating-system shell. Administrative commands, arbitrary API requests, and unregistered commands are not available to the RAG.",
+            description: "Run a registered public terminal command, not an OS shell command. Admin, arbitrary API and unregistered commands are unavailable.",
             parameters: {
                 type: "object",
                 properties: {
-                    command: { type: "string", description: "Registered terminal command name, such as status, uptime, logs, docs, rag, api, or command, use help to see all available commands." },
-                    args: { type: "array", items: { type: "string" }, description: "Arguments for the registered terminal command." }
+                    command: { type: "string", description: "Command name. Use help to list commands." },
+                    args: { type: "array", items: { type: "string" }, description: "Command arguments." }
                 },
                 required: ["command"],
                 additionalProperties: false
@@ -49,34 +49,16 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getCommands",
-            description: "Search and inspect registered Slackzilla commands. With no filters, return only the command IDs. Use filters to find commands by id, command, description, category, or usage hint. Multiple filters are combined. Use fuzzy to search text across command metadata. Use an exact id when you need the full details of one command. This tool only provides command metadata; use runCommand to execute a command.",
+            description: "Search command metadata or inspect a command by exact ID. No filters returns command IDs. Multiple filters are combined. Does not execute commands.",
             parameters: {
                 type: "object",
                 properties: {
-                    id: {
-                        type: "string",
-                        description: "Exact command ID to inspect."
-                    },
-                    command: {
-                        type: "string",
-                        description: "Filter by the Slack command name, such as /sz-calc."
-                    },
-                    description: {
-                        type: "string",
-                        description: "Filter or search command descriptions."
-                    },
-                    category: {
-                        type: "string",
-                        description: "Filter by command category, such as utility or entertainment."
-                    },
-                    usageHint: {
-                        type: "string",
-                        description: "Filter by command usage syntax."
-                    },
-                    fuzzy: {
-                        type: "string",
-                        description: "Fuzzy text search across command ID, command name, description, category, and usage hint."
-                    }
+                    id: { type: "string", description: "Exact command ID." },
+                    command: { type: "string", description: "Slack command name, e.g. /sz-calc." },
+                    description: { type: "string", description: "Description filter." },
+                    category: { type: "string", description: "Category filter." },
+                    usageHint: { type: "string", description: "Usage syntax filter." },
+                    fuzzy: { type: "string", description: "Search all command metadata." }
                 },
                 additionalProperties: false
             }
@@ -86,10 +68,12 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getReleaseInfo",
-            description: "Read the current Slackzilla version and versioned release notes from package.json and release-history.json. Use this for questions about the latest version or what changed in a release. It also identifies bot/cmds/release.js as the implementation of /sz-release.",
+            description: "Get the current version and release notes from package.json and release-history.json. Use for version and release questions.",
             parameters: {
                 type: "object",
-                properties: { version: { type: "string" } },
+                properties: {
+                    version: { type: "string", description: "Optional version to inspect." }
+                },
                 additionalProperties: false
             }
         }
@@ -98,14 +82,14 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "runCommand",
-            description: "Run a registered Slackzilla command and return its output. All registered commands are available by default except commands explicitly blocked from AI tool execution. The /sz-ask command is blocked because it would recursively invoke the AI assistant. When the user asks to run or execute a command, call this tool instead of getCommands or inferring the output. Use commandId for the command to run and text only for the content that should be passed to that command. Do not include surrounding instructions about using the command unless the user explicitly asks for them to be included. If the user asks you to format, rewrite, summarise, or otherwise transform content before passing it to the command, apply that transformation first. Keep command arguments focused on the requested action and content, then use the command's output as evidence when generating the final answer. For example, 'run the info command' uses commandId 'info'. Do not attempt to run a blocked command.",
+            description: "Execute a registered Slackzilla command. Use when asked to run a command, not getCommands. Excludes /sz-ask to prevent recursive AI calls. Pass only the requested command content in text, transforming it first if requested. Never run blocked commands.",
             parameters: {
                 type: "object",
                 properties: {
-                    commandId: { type: "string" },
+                    commandId: { type: "string", description: "Registered command ID." },
                     text: {
                         type: "string",
-                        description: "Content to pass to the command. Exclude instructions about how to use the command unless explicitly requested.",
+                        description: "Content to pass to the command, without surrounding instructions.",
                         maximum: 500
                     }
                 },
@@ -118,10 +102,12 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getLogs",
-            description: "Read up to the latest 10 entries from the Slackzilla log for diagnosing current failures.",
+            description: "Get recent Slackzilla log entries for diagnosing failures. Maximum 10.",
             parameters: {
                 type: "object",
-                properties: { limit: { type: "integer", minimum: 1, default: 10, maximum: 10 } },
+                properties: {
+                    limit: { type: "integer", minimum: 1, default: 10, maximum: 10 }
+                },
                 additionalProperties: false
             }
         }
@@ -130,11 +116,11 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getErrors",
-            description: "Read the latest 10 structured server errors from /api/admin/errors. Timestamps, source, name and message are included by default; request stack traces only when explicitly needed.",
+            description: "Get recent structured server errors. Stack traces are excluded unless requested.",
             parameters: {
                 type: "object",
                 properties: {
-                    includeStack: { type: "boolean", description: "Include stack traces in the response." }
+                    includeStack: { type: "boolean", description: "Include stack traces when true." }
                 },
                 additionalProperties: false
             }
@@ -152,7 +138,7 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getRoutes",
-            description: "List known Slackzilla HTTP routes from the current repository index.",
+            description: "List known HTTP API routes from the repository index.",
             parameters: { type: "object", properties: {}, additionalProperties: false }
         }
     }

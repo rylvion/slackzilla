@@ -24,6 +24,7 @@ function handleAskApi({ req, res, url, context }) {
             path: "/api/ask",
             body: {
                 question: "Your question",
+                includeCodebaseContext: true,
                 commandId: "optional command ID",
                 commandText: "optional command arguments",
                 identity: {
@@ -78,6 +79,7 @@ function handleAskApi({ req, res, url, context }) {
 
             const result = await answerQuestion({
                 question: body.question,
+                includeCodebaseContext: body.includeCodebaseContext !== false,
                 commandId: body.commandId,
                 commandText: body.commandText,
                 identity: {

@@ -26,29 +26,25 @@ test("gives docs files a higher retrieval score", () => {
         requestedFiles: []
     }
 
-    const docsScore = calculateScore({
-        ...base,
-        document: { path: "docs/guide.md", type: "markdown" }
-    })
-    const otherScore = calculateScore({
-        ...base,
-        document: { path: "README.md", type: "markdown" }
-    })
+    const docsScore = calculateScore({...base, document: { path: "docs/guide.md", type: "markdown" }})
+    const otherScore = calculateScore({...base, document: { path: "README.md", type: "markdown" } })
 
     assert.equal(docsScore - otherScore, 25)
 })
 
 test("keeps response text and tool calls across streamed rounds", async () => {
     const state = { rounds: [], accumulatedText: "" }
+    const streamedTokens = []
     const first = await readAiResponse(streamResponse([
         { choices: [{ delta: { content: "Checking status", tool_calls: [{ index: 0, id: "call-1", type: "function", function: { name: "getStatus", arguments: "{}" } }] } }] }
-    ]), state)
+    ]), state, undefined, token => streamedTokens.push(token))
     const second = await readAiResponse(streamResponse([
         { choices: [{ delta: { content: "Status is ready." } }] }
-    ]), state)
+    ]), state, undefined, token => streamedTokens.push(token))
 
     assert.equal(first.toolCalls[0].function.name, "getStatus")
     assert.equal(second.answer, "Status is ready.")
+    assert.deepEqual(streamedTokens, ["Checking status", "Status is ready."])
     assert.equal(state.rounds.length, 2)
     assert.equal(state.accumulatedText, "Checking statusStatus is ready.")
 })
@@ -85,6 +81,8 @@ test("answerQuestion returns tool evidence when a later model round is empty", a
         assert.equal(requests.length, 2)
         assert.match(result.answer, /getStatus/)
         assert.match(result.answer, /ready/)
+        assert.equal(result.usage.requests.length, 2)
+        assert.ok(result.usage.requests.every(request => request.inputBreakdown && request.outputBreakdown))
     } finally {
         global.fetch = originalFetch
         if (originalKey === undefined) delete process.env.AI_API_KEY
