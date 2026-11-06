@@ -1,6 +1,6 @@
 {
     "$schema": "../../schemas/command.schema.json",
-    
+
     "ping": {
         "cmd": "/sz-ping",
         "description": "idk js pongs ig",
@@ -80,7 +80,7 @@
         "file": "calc.js",
         "usage_hint": "<expression>"
     },
-    
+
     "roll": {
         "cmd": "/sz-roll",
         "description": "rolls a dice",
@@ -166,7 +166,7 @@
         "description": "generates a hash of a string, default: sha256",
         "category": "utility",
         "file": "hasher.js",
-        "usage_hint": "<algorithm> <iter?> <salt?> <string>"
+        "usage_hint": "<algorithm> <encrypt?> <iters?> <salt?> <string>"
     },
 
     "decode": {

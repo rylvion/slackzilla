@@ -72,6 +72,11 @@ npm start
 
 ### Slack Commands
 
+![Slack Commands](https://img.shields.io/badge/Slack%20Commands-25-blueviolet)
+![Core](https://img.shields.io/badge/Core-4-blue)
+![Entertainment](https://img.shields.io/badge/Entertainment-7-orange)
+![Utility](https://img.shields.io/badge/Utility-14-green)
+
 | Command        | Usage                                             | Description                                                                                                                                                                                            | Category      |
 | -------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
 | `/sz-ping`     | (none)                                            | Checks if the bot is responsive                                                                                                                                                                        | Core          |
@@ -84,7 +89,7 @@ npm start
 | `/sz-meme`     | (none)                                            | Shows a random meme                                                                                                                                                                                    | Entertainment |
 | `/sz-echo`     | `<message>`                                       | Echoes the message you sent                                                                                                                                                                            | Core          |
 | `/sz-calc`     | `<expression>`                                    | Calculates a mathematical expression                                                                                                                                                                   | Utility       |
-| `/sz-roll`     | `<side> <n> <rolls> + <modifier>`                 | Rolls a dice                                                                                                                                                                                           | Utility       |
+| `/sz-roll`     | `<side><n><rolls>+<modifier>`                     | Rolls a dice                                                                                                                                                                                           | Utility       |
 | `/sz-base64`   | `<string>`                                        | Generates a Base64-encoded string                                                                                                                                                                      | Utility       |
 | `/sz-8ball`    | `<question>`                                      | Asks the magic 8-ball a question                                                                                                                                                                       | Entertainment |
 | `/sz-rps`      | `<rock\|1 /paper\|2 /scissors\|3>`                | Plays rock paper scissors with the bot                                                                                                                                                                 | Entertainment |
