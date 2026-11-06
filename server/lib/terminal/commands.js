@@ -352,6 +352,8 @@ function executeSudo(args, context) {
             botOnline: status.botOnline,
             uptimeText: status.uptimeText,
             deploymentStatus: status.deploymentStatus,
+            deploymentBannerStatus: status.deploymentBannerStatus,
+            deploymentBannerError: status.deploymentBannerError,
             platform: status.platform,
             nodeVersion: status.nodeVersion,
             branch: summary.runtimeConfig?.deployBranch

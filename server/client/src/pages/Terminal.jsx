@@ -71,10 +71,44 @@ const serverUsage = {
 const colour = (text, colourName) => `${ANSI[colourName]}${text}${ANSI.reset}`
 
 function highlightCommand(command) {
-    const first = command.match(/^\S+/)?.[0]
-    if (!first) return command
+    const match = command.match(/^(\s*)(\S+)/)
+    if (!match) return command
 
-    return `${colour(first, "orange")}${command.slice(first.length).replace(/(^|\s)(--?\S*)/g, (_, prefix, match) => `${prefix}${colour(match, "muted")}`)}`
+    let result = match[1] + colour(match[2], "orange")
+    let quote = null, buffer = "", token = ""
+    const rest = command.slice(match[0].length)
+
+    const flush = () => {
+        if (token) result += /^-(?:-|[^\s])/.test(token) ? colour(token, "muted") : token
+        token = ""
+    }
+
+    for (let i = 0; i < rest.length; i++) {
+        const char = rest[i]
+
+        if (quote) {
+            buffer += char
+            if (char === "\\" && i + 1 < rest.length) buffer += rest[++i]
+            else if (char === quote) {
+                result += colour(buffer, "green")
+                buffer = ""
+                quote = null
+            }
+        } else if (char === '"' || char === "'") {
+            flush()
+            let slashes = 0
+            for (let j = i - 1; j >= 0 && rest[j] === "\\"; j--) slashes++
+
+            if (slashes % 2) token += char
+            else quote = char, buffer = char
+        } else if (/\s/.test(char)) {
+            flush()
+            result += char
+        } else token += char
+    }
+
+    flush()
+    return result + (buffer ? colour(buffer, "green") : "")
 }
 
 function promptText(identity = "noob", contexts = []) {
@@ -601,7 +635,7 @@ function Terminal() {
                     return
                 }
                 const context = contextStack.at(-1)
-                if (context.family === "command" && lowerCommand === "cd" && tokens[1]) {
+                if (context.family === "command" && context.action !== "slack" && lowerCommand === "cd" && tokens[1]) {
                     const targetName = tokens[1].toLowerCase()
                     if (!context.action && ["inspect", "execute"].includes(targetName)) {
                         contextStack.push({
@@ -719,7 +753,7 @@ function Terminal() {
                         return
                     }
                 }
-                if (commandName.toLowerCase() === "help") {
+                if (context.action !== "slack" && commandName.toLowerCase() === "help") {
                     terminal.write(`${colour(context.family.toUpperCase(), "purple")}\r\n${colour(context.usage, "cyan")}\r\n`)
                     writePrompt()
                     return
@@ -1064,7 +1098,11 @@ function Terminal() {
                     `  ${colour("bot", "muted")}  ${colour(data.botOnline ? "online" : "offline", data.botOnline ? "green" : "red")}`,
                     `  ${colour("server", "muted")}  ${colour(data.platform || "unknown", "cyan")}`,
                     `  ${colour("node", "muted")}  ${colour(data.nodeVersion || "unknown", "white")}`,
-                    `  ${colour("uptime", "muted")}  ${colour(data.uptimeText || "unknown", "green")}`
+                    `  ${colour("uptime", "muted")}  ${colour(data.uptimeText || "unknown", "green")}`,
+                    `  ${colour("deployment", "muted")}  ${colour(data.deploymentStatus || "unknown", data.deploymentStatus === "failed" ? "red" : "green")}`,
+                    ...(data.deploymentBannerError
+                        ? [colour("DEPLOYMENT ERROR", "red"), colour(data.deploymentBannerError, "red")]
+                        : [])
                 ].join("\r\n")
             }
 
@@ -1101,7 +1139,10 @@ function Terminal() {
             if (Array.isArray(data.routes))                     return data.routes.map(route => `  ${colour(String(route.methods?.join(", ") || route.method || "GET").padEnd(10), "cyan")} ${colour(route.path || "unknown", "white")}`).join("\r\n") || colour("no routes found", "muted")
             if (Array.isArray(data.documents))                  return data.documents.map(document => `  ${colour(document, "white")}`).join("\r\n") || colour("no documents found", "muted")
             if (Array.isArray(data.controls))                   return [colour("ADMIN CONTROLS", "purple"), "", ...data.controls.map(control => `  ${colour(control.id, "cyan")} ${colour(control.mutating ? "[mutating]" : "[read-only]", control.mutating ? "yellow" : "green")} ${colour(control.description || "unavailable", "muted")}`)].join("\r\n")
-            if (data.status && typeof data.status === "object") return [colour("ADMIN STATUS", "purple"), ...Object.entries(data.status).map(([key, value]) => `  ${colour(key, "muted")}  ${colour(typeof value === "object" ? JSON.stringify(value) : String(value ?? "unavailable"), "white")}`)].join("\r\n")
+            if (data.status && typeof data.status === "object") return [
+                colour("ADMIN STATUS", "purple"),
+                ...Object.entries(data.status).map(([key, value]) => `  ${colour(key, "muted")}  ${colour(typeof value === "object" ? JSON.stringify(value) : String(value ?? "unavailable"), "white")}`)
+            ].join("\r\n")
             if (Array.isArray(data.tools)) return [colour("RAG TOOLS", "purple"), "", ...data.tools.map(tool => `  ${colour(tool.name || "unknown", "cyan")}  ${colour(tool.description || "unavailable", "muted")}`)].join("\r\n")
             if (data.result && typeof data.tool === "string") return [
                 colour(`RAG TOOL ${data.tool}`, "purple"),
@@ -1134,65 +1175,42 @@ function Terminal() {
             if (pendingPrompt) {
                 const prompt = pendingPrompt
 
-                if (data === "\u0003" || data === "\u001b") {
+                if (data === "\u0003" || data === "\u001b") { // ctrl+c or escape
                     pendingPrompt = null
                     terminal.write("^C\r\n")
                     prompt.resolve(null)
                     return
                 }
 
-                if (data === "\r") {
-                    finishPrompt(prompt.value)
-                    return
-                }
+                if (data === "\r") return finishPrompt(prompt.value)
 
-                if (data === "\u0017" || data === "\b") {
+                if (data === "\u0017" || data === "\b") { // ctrl+w or backspace
                     prompt.value = ""
                     prompt.cursor = 0
                     redrawPrompt()
                     return
                 }
 
-                if (data === "\u001b[1;5D") {
-                    prompt.cursor = 0
+                if (data === "\u001b[1;5D" || data === "\u001b[1;5C") { // ctrl+left arrow / ctrl+right arrow
+                    prompt.cursor = data.endsWith("D") ? 0 : prompt.value.length
                     redrawPrompt()
                     return
                 }
 
-                if (data === "\u001b[1;5C") {
-                    prompt.cursor = prompt.value.length
-                    redrawPrompt()
-                    return
-                }
-
-                if (data === "\u001b[D") {
-                    if (prompt.cursor > 0) {
-                        prompt.cursor--
-                        terminal.write("\u001b[D")
+                if (data === "\u001b[D" || data === "\u001b[C") { // left arrow / right arrow
+                    const direction = data.endsWith("D") ? -1 : 1
+                    if (prompt.cursor + direction >= 0 && prompt.cursor + direction <= prompt.value.length) {
+                        prompt.cursor += direction
+                        terminal.write(data)
                     }
                     return
                 }
 
-                if (data === "\u001b[C") {
-                    if (prompt.cursor < prompt.value.length) {
-                        prompt.cursor++
-                        terminal.write("\u001b[C")
-                    }
-                    return
-                }
-
-                if (data === "\u007f") {
-                    if (prompt.cursor > 0) {
-                        prompt.value = prompt.value.slice(0, prompt.cursor - 1) + prompt.value.slice(prompt.cursor)
-                        prompt.cursor--
-                        redrawPrompt()
-                    }
-                    return
-                }
-
-                if (data === "\u001b[3~") {
-                    if (prompt.cursor < prompt.value.length) {
-                        prompt.value = prompt.value.slice(0, prompt.cursor) + prompt.value.slice(prompt.cursor + 1)
+                if (data === "\u007f" || data === "\u001b[3~") { // backspace or delete
+                    const backspace = data === "\u007f"
+                    if (backspace ? prompt.cursor > 0 : prompt.cursor < prompt.value.length) {
+                        prompt.value = prompt.value.slice(0, prompt.cursor - (backspace ? 1 : 0)) + prompt.value.slice(prompt.cursor + (backspace ? 0 : 1))
+                        if (backspace) prompt.cursor--
                         redrawPrompt()
                     }
                     return
@@ -1212,17 +1230,16 @@ function Terminal() {
                 return
             }
 
-            if (runningRequest && data !== "\u0003" && data !== "\u000c") return 
+            if (runningRequest && data !== "\u0003" && data !== "\u000c") return  // ignore input while a request is running, except for ctrl+c (cancel) and ctrl+l (clear)
 
-            if (suppressNextWordDelete && (data === "\u0017" || data === "\u007f")) { 
+            if (suppressNextWordDelete && (data === "\u0017" || data === "\u007f")) { // ctrl+w or backspace
                 suppressNextWordDelete = false
                 return
             }
 
-            if (data.includes("\n")) {
+            if (data.includes("\n")) { // handle pasted input or multi-line input
                 const lines = data.split(/\r?\n/)
-                const first = `${input.buffer}${lines.shift() || ""}`.trim()
-                const commands = [first, ...lines.map(line => line.trim())].filter(Boolean)
+                const commands = [`${input.buffer}${lines.shift() || ""}`.trim(), ...lines.map(line => line.trim())].filter(Boolean)
                 input.buffer = ""
                 input.cursor = 0
                 commands.forEach(enqueueCommand)
@@ -1254,9 +1271,8 @@ function Terminal() {
                 }
 
                 const selection = terminal.getSelection()
-
                 if (selection) {
-                    navigator.clipboard.writeText(selection).catch(error => {console.error("Failed to copy terminal selection:", error)})
+                    navigator.clipboard.writeText(selection).catch(error => console.error("Failed to copy terminal selection:", error))
                     terminal.clearSelection()
                     return
                 }
@@ -1276,68 +1292,55 @@ function Terminal() {
             }
 
             if (data === "\u007f") { // backspace
-                if (input.cursor === 0) return
+                if (!input.cursor) return
                 input.buffer = input.buffer.slice(0, input.cursor - 1) + input.buffer.slice(input.cursor)
-                input.cursor -= 1
+                input.cursor--
                 redrawInput()
                 return
             }
 
-            if (data === "\u001b[D") { // left arrow
-                if (input.cursor > 0) {
-                    input.cursor -= 1
-                    terminal.write("\x1b[D")
-                }
-                return
-            }
-
-            if (data === "\u001b[C") { // right arrow
-                if (input.cursor < input.buffer.length) {
-                    input.cursor += 1
-                    terminal.write("\x1b[C")
+            if (data === "\u001b[D" || data === "\u001b[C") { // left arrow / right arrow
+                const direction = data.endsWith("D") ? -1 : 1
+                if (input.cursor + direction >= 0 && input.cursor + direction <= input.buffer.length) {
+                    input.cursor += direction
+                    terminal.write(data)
                 }
                 return
             }
 
             if (data === "\u001b[A") { // up arrow
                 if (input.historyIndex === input.history.length) input.draft = input.buffer
-                if (input.historyIndex > 0) {
-                    input.historyIndex -= 1
-                    setInput(input.history[input.historyIndex])
-                }
+                if (input.historyIndex > 0) setInput(input.history[--input.historyIndex])
                 return
             }
 
             if (data === "\u001b[B") { // down arrow
-                if (input.historyIndex < input.history.length - 1) {
-                    input.historyIndex += 1
-                    setInput(input.history[input.historyIndex])
-                } else if (input.historyIndex < input.history.length) {
+                if (input.historyIndex < input.history.length - 1) setInput(input.history[++input.historyIndex])
+                else if (input.historyIndex < input.history.length) {
                     input.historyIndex = input.history.length
                     setInput(input.draft)
                 }
                 return
             }
 
-            if (data.length > 1) { 
+            if (data.length > 1) {
                 for (const character of data) handleData(character)
                 return
             }
 
             if (data.length === 1 && data >= " " && data !== "\u007f") { 
-                input.buffer = input.buffer.slice(0, input.cursor) + data + input.buffer.slice(input.cursor) 
-                input.cursor += 1
+                input.buffer = input.buffer.slice(0, input.cursor) + data + input.buffer.slice(input.cursor)
+                input.cursor++
                 redrawInput()
             }
         }
 
         terminal.attachCustomKeyEventHandler(event => { // custom key handling for ctrl + key combinations
-
-            if (pendingPrompt && event.type === "keydown" && event.ctrlKey && ["Backspace", "ArrowLeft", "ArrowRight"].includes(event.key)) return true 
+            if (pendingPrompt && event.type === "keydown" && event.ctrlKey && ["Backspace", "ArrowLeft", "ArrowRight"].includes(event.key)) return true
 
             if (event.ctrlKey && event.key.toLowerCase() === "c") { // ctrl + c
                 if (event.type === "keydown" && terminal.hasSelection()) {
-                    navigator.clipboard.writeText(terminal.getSelection()).catch(error => { console.error("Failed to copy terminal selection:", error)})
+                    navigator.clipboard.writeText(terminal.getSelection()).catch(error => console.error("Failed to copy terminal selection:", error))
                     return false
                 }
                 return true
@@ -1350,14 +1353,8 @@ function Terminal() {
                 return false
             }
 
-
-            if (event.type === "keydown" && event.ctrlKey && event.key === "ArrowLeft") { // ctrl + left arrow
-                moveWord("left")
-                return false
-            }
-
-            if (event.type === "keydown" && event.ctrlKey && event.key === "ArrowRight") { // ctrl + right arrow
-                moveWord("right")
+            if (event.type === "keydown" && event.ctrlKey && ["ArrowLeft", "ArrowRight"].includes(event.key)) { // ctrl + left arrow / ctrl + right arrow
+                moveWord(event.key === "ArrowLeft" ? "left" : "right")
                 return false
             }
 
@@ -1383,7 +1380,6 @@ function Terminal() {
 
             return true
         })
-
 
         terminal.element?.addEventListener("contextmenu", async event => {
             event.preventDefault()

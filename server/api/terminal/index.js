@@ -6,8 +6,8 @@ const { handleControlApi } = require("../control")
 
 const terminalRateLimiter = createRateLimiter({
     windowMs: 60_000,
-    maxRequests: 20,
-    cooldownMs: 500
+    maxRequests: 60,
+    cooldownMs: 250
 })
 
 function handleTerminalApi({ req, res, url, context }) {

@@ -252,15 +252,25 @@ function runDeployScript(deployScript, env, onOutput) {
 
         child.stdout.on("data", handleChunk)
         child.stderr.on("data", handleChunk)
-        child.on("error", reject)
+        child.on("error", error => {
+            error.output = lines.join("")
+            error.stack = `${error.stack}\n\nDeployment output:\n${error.output}`
+            reject(error)
+        })
 
         child.on("close", code => {
+            const output = lines.join("")
+
             if (code === 0) {
-                resolve({ code, output: lines.join("") })
+                resolve({ code, output })
                 return
             }
-
-            reject(new Error(`deploy script exited with code ${code}`))
+            
+            const error = new Error(`deploy script exited with code ${code}`)
+            error.code = code
+            error.output = output
+            error.stack = `${error.stack}\n\nDeployment output:\n${output}`
+            reject(error)
         })
     })
 }

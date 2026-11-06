@@ -39,7 +39,7 @@ Slackzilla is a full-stack Slack bot with a React-based web dashboard, HTTP API,
 
 ## Architecture
 
-The backend uses Node's built-in `http` module rather than Express. API modules are explicit handlers imported and registered in `server/server.js`. Persistent runtime data is currently stored through the JSON-backed adapter in `server/database/store.js`; an external database is not required.
+The backend uses Node's built-in `http` module rather than Express. API modules are explicit handlers imported and registered in `server/server.js`. Persistent runtime data is currently stored through the JSON-backed adapter in `server/database/store.js`; an external database is not required. See [Architecture](docs/architecture.md) for details on the backend architecture, API endpoints, and command architecture.
 
 Check [docs](docs/docs.md) to see full navigation and overview of slackzilla
 
@@ -69,6 +69,36 @@ To run the project locally, clone the repository, install dependencies, and conf
 ```bash
 npm start
 ```
+
+### Slack Commands
+
+| Command        | Usage                                             | Description                                                                                                                                                                                            | Category      |
+| -------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `/sz-ping`     | (none)                                            | Checks if the bot is responsive                                                                                                                                                                        | Core          |
+| `/sz-help`     | (none)                                            | Displays all commands and their descriptions                                                                                                                                                           | Core          |
+| `/sz-info`     | (none)                                            | Displays info about the bot (version, author, etc.)                                                                                                                                                    | Core          |
+| `/sz-quote`    | (none)                                            | Displays a random quote                                                                                                                                                                                | Entertainment |
+| `/sz-joke`     | (none)                                            | Sends a random joke                                                                                                                                                                                    | Entertainment |
+| `/sz-fact`     | (none)                                            | Displays a fun fact                                                                                                                                                                                    | Entertainment |
+| `/sz-hug`      | (none)                                            | Sends a hug                                                                                                                                                                                            | Entertainment |
+| `/sz-meme`     | (none)                                            | Shows a random meme                                                                                                                                                                                    | Entertainment |
+| `/sz-echo`     | `<message>`                                       | Echoes the message you sent                                                                                                                                                                            | Core          |
+| `/sz-calc`     | `<expression>`                                    | Calculates a mathematical expression                                                                                                                                                                   | Utility       |
+| `/sz-roll`     | `<side> <n> <rolls> + <modifier>`                 | Rolls a dice                                                                                                                                                                                           | Utility       |
+| `/sz-base64`   | `<string>`                                        | Generates a Base64-encoded string                                                                                                                                                                      | Utility       |
+| `/sz-8ball`    | `<question>`                                      | Asks the magic 8-ball a question                                                                                                                                                                       | Entertainment |
+| `/sz-rps`      | `<rock\|1 /paper\|2 /scissors\|3>`                | Plays rock paper scissors with the bot                                                                                                                                                                 | Entertainment |
+| `/sz-uuid`     | (none)                                            | Generates a random UUID v4                                                                                                                                                                             | Utility       |
+| `/sz-token`    | `<length>` (default: `32`)                        | Generates a secure random token                                                                                                                                                                        | Utility       |
+| `/sz-random`   | `<min> <max>`                                     | Generates a random number between two numbers                                                                                                                                                          | Utility       |
+| `/sz-case`     | `<camel\|pascal\|snake\|kebab> <text>`            | Converts between text cases                                                                                                                                                                            | Utility       |
+| `/sz-unix`     | `<timestamp\|date>`                               | Converts between Unix timestamps and human-readable dates                                                                                                                                              | Utility       |
+| `/sz-count`    | `<text>`                                          | Counts characters, words and lines                                                                                                                                                                     | Utility       |
+| `/sz-hash`     | `<algorithm> <encrypt?> <iter?> <salt?> <string>` | Generates a hash (Default: `SHA-256`, Algorithms: `RSA-MD5`, `RSA-RIPEMD160`, `RSA-SHA1`, `RSA-SHA1-2`, `RSA-SHA224`, `RSA-SHA256`, `RSA-SHA3-224`, `RSA-SHA3-256`, `rand`, `pbkdf2`, `base64`, `hex`) | Utility       |
+| `/sz-decode`   | `<algorithm> <string>`                            | Decodes the following algorithms: `base64`, `hex`, `rand`                                                                                                                                              | Utility       |
+| `/sz-feedback` | `<message>`                                       | Sends feedback to the bot author                                                                                                                                                                       | Utility       |
+| `/sz-ask`      | `<question>`                                      | Asks a question to the bot                                                                                                                                                                             | Utility       |
+| `/sz-release`  | `<version>`                                       | Displays the latest release notes                                                                                                                                                                      | Utility       |
 
 ## Dashboard Pages
 

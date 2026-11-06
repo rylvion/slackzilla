@@ -120,6 +120,72 @@ body::after {
     font-size: 12px;
 }
 
+.deployment-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 64px;
+    padding: 12px 24px;
+    border: 1px solid var(--border-bright);
+    background: var(--green-faint);
+    color: var(--text);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.deployment-banner--success {
+    border-color: var(--green);
+}
+
+.deployment-banner--failed {
+    border-color: var(--red);
+    background: rgba(255, 77, 77, 0.08);
+}
+
+.deployment-banner--failed .deployment-banner__indicator,
+.deployment-banner--failed strong {
+    color: var(--red);
+}
+
+.deployment-banner--failed div span {
+    overflow-wrap: anywhere;
+}
+
+.deployment-banner__indicator {
+    display: inline-flex;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    color: var(--green);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 32px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.deployment-banner strong,
+.deployment-banner span {
+    display: block;
+}
+
+.deployment-banner strong {
+    color: var(--green);
+}
+
+.deployment-banner div span {
+    margin-top: 4px;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.deployment-banner > div {
+    min-width: 0;
+}
+
 .sidebar {
     position: fixed;
     top: 56px;
@@ -132,6 +198,22 @@ body::after {
 
     z-index: 50;
     transition: width 160ms ease;
+}
+
+body.deployment-banner-visible .header {
+    top: var(--deployment-banner-height);
+}
+
+body.deployment-banner-visible .sidebar {
+    top: calc(56px + var(--deployment-banner-height));
+}
+
+body.deployment-banner-visible .main-content {
+    padding-top: calc(56px + var(--deployment-banner-height));
+}
+
+body.deployment-banner-visible .main-content::before {
+    inset: calc(56px + var(--deployment-banner-height)) 0 0;
 }
 
 .sidebar--collapsed {
@@ -277,7 +359,7 @@ body::after {
 
 .internal-links {
     position: sticky;
-    top: 56px;
+    top: var(--internal-sidebar-top, 56px);
     display: flex;
     gap: 4px;
     margin-bottom: 12px;
@@ -286,6 +368,10 @@ body::after {
     padding-left: 28px;
     z-index: 10;
     padding-top: 8px;
+}
+
+body.deployment-banner-visible .internal-links {
+    --internal-sidebar-top: calc(56px + var(--deployment-banner-height));
 }
 
 .internal-links a {
@@ -663,6 +749,21 @@ a:focus-visible {
 
     .header {
         position: static;
+    }
+
+    body.deployment-banner-visible .header,
+    body.deployment-banner-visible .sidebar,
+    body.deployment-banner-visible .main-content {
+        top: auto;
+        padding-top: 0;
+    }
+
+    body.deployment-banner-visible .main-content::before {
+        inset: 0;
+    }
+
+    body.deployment-banner-visible .internal-links {
+        --internal-sidebar-top: 0;
     }
 
     .content {

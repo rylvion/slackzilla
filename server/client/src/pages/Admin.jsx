@@ -197,6 +197,12 @@ function Admin() {
                         <span>branch: {summary?.runtimeConfig?.deployBranch || "unknown"}</span>
                         <span>deployment: {adminStatus.deploymentStatus || "unknown"}</span>
                     </div>
+                    {adminStatus.deploymentStatus === "failed" && adminStatus.deploymentBannerError && (
+                        <div className="admin-deployment-error">
+                            <h3>Deployment error stack</h3>
+                            <pre>{adminStatus.deploymentBannerError}</pre>
+                        </div>
+                    )}
                 </div>
             </section>
 

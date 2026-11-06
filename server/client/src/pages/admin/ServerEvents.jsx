@@ -94,7 +94,7 @@ function ServerEvents() {
         <PageShell title="Server Events" description="Full authenticated server event history">
             <section className="panel server-events-page">
                 <div className="panel-header">
-                    <div><h1>Server Events</h1><p className="panel-description">Critical responses are pinned above normal traffic. Similar events are bundled together.</p></div>
+                    <div><h1>Server Events</h1><p className="panel-description">Filter, Manage, Delete and Analyse server events. View <Link to="/admin/errors">error logs</Link> to see detailed error information.</p></div>
                     <span className="panel-subtitle">{events.reduce((total, group) => total + group.count, 0)} recorded</span>
                 </div>
                 <div className="panel-body">

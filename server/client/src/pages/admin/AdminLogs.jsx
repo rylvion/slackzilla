@@ -32,9 +32,7 @@ function AdminLogs() {
         } finally { setBusy("") }
     }
 
-    useEffect(() => {
-        if (lines.length && wasAtBottomRef.current) requestAnimationFrame(() => scrollToBottom(containerRef.current, false))
-    }, [lines])
+    useEffect(() => { if (lines.length && wasAtBottomRef.current) requestAnimationFrame(() => scrollToBottom(containerRef.current, false))}, [lines])
 
     const filteredLines = useMemo(() => {
         if (!query) return lines

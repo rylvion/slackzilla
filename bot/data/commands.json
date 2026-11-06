@@ -166,7 +166,7 @@
         "description": "generates a hash of a string, default: sha256",
         "category": "utility",
         "file": "hasher.js",
-        "usage_hint": "<algorithm> <string>"
+        "usage_hint": "<algorithm> <iter?> <salt?> <string>"
     },
 
     "decode": {

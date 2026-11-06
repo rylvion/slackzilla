@@ -68,7 +68,7 @@ const toolDefinitions = [
         type: "function",
         function: {
             name: "getReleaseInfo",
-            description: "Get the current version and release notes from package.json and release-history.json. Use for version and release questions.",
+            description: "Get the current version and release notes from package.json and release-history.json. Use for version and release questions. Format: v0.9.Y-beta or v1.0.0-release",
             parameters: {
                 type: "object",
                 properties: {

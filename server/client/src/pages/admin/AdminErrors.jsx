@@ -22,9 +22,7 @@ function AdminErrors() {
     const [message, setMessage] = useState("")
     const [busy, setBusy] = useState(false)
 
-    function refresh() {
-        return getJson("/api/admin/errors").then(result => setErrors(result.errors || []))
-    }
+    const refresh = () => getJson("/api/admin/errors").then(result => setErrors(result.errors || []))
 
     useEffect(() => {
         refresh().catch(error => setMessage(error.message))
@@ -54,11 +52,8 @@ function AdminErrors() {
             })
             setSelected(new Set())
             await refresh()
-        } catch (requestError) {
-            setMessage(requestError.message)
-        } finally {
-            setBusy(false)
-        }
+        } catch (requestError) {  setMessage(requestError.message)}
+        finally {setBusy(false)}
     }
 
     function toggleGroup(id) {

@@ -2,7 +2,7 @@ const crypto = require("crypto")
 const { log } = require("../utils/logger")
 
 function getHelp() {
-    const algorithms = "base64, hex, rand, pbkdf2"
+    const algorithms = "base64, hex, rand"
 
     return (
         "🔓 *decode command help*\n" +

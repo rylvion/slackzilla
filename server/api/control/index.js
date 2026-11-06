@@ -131,23 +131,63 @@ function handleControlApi({ req, res, url, context }) {
                 }
 
                 if (action === "redeploy") {
-                    const result = await context.runDeployScript(context.deployScript, process.env, chunk => {
-                        context.store.appendLogChunk(chunk)
+                    const queuedState = context.saveDeploymentState({
+                        status: "queued",
+                        lastDeploymentResult: "queued",
+                        bannerStatus: "updating",
+                        bannerVersion: null,
+                        bannerVisibleUntil: null
                     })
 
-                    const state = context.saveDeploymentState({
-                        status: "success",
-                        lastDeploymentAt: new Date().toISOString(),
-                        lastDeploymentCommit: context.store.readDeploymentState().lastDeploymentCommit,
-                        lastDeploymentOutput: result.output.split(/\r?\n/).filter(Boolean),
-                        lastDeploymentResult: "success"
-                    })
-
+                    context.scheduleDeploymentBannerExpiry()
                     context.refreshAndBroadcastStatus()
-                    context.broadcast(context.adminClients, "deploy", state)
-                    context.broadcast(context.adminClients, "summary", context.buildAdminSummary())
-                    context.sendOk(res, { state })
-                    return true
+                    context.broadcast(context.adminClients, "deploy", queuedState)
+
+                    try {
+                        const result = await context.runDeployScript(context.deployScript, process.env, chunk => context.store.appendLogChunk(chunk))
+
+                        const state = context.saveDeploymentState({
+                            status: "success",
+                            lastDeploymentAt: new Date().toISOString(),
+                            lastDeploymentCommit: context.store.readDeploymentState().lastDeploymentCommit,
+                            lastDeploymentOutput: result.output.split(/\r?\n/).filter(Boolean),
+                            lastDeploymentResult: "success",
+                            bannerStatus: "success",
+                            bannerVersion: context.currentVersion,
+                            bannerVisibleUntil: new Date(Date.now() + 30000).toISOString()
+                        })
+
+                        context.scheduleDeploymentBannerExpiry()
+                        context.refreshAndBroadcastStatus()
+                        context.broadcast(context.adminClients, "deploy", state)
+                        context.broadcast(context.adminClients, "summary", context.buildAdminSummary())
+                        context.sendOk(res, { state })
+                        return true
+
+                    } catch (error) {
+                        const state = context.saveDeploymentState({
+                            status: "failed",
+                            lastDeploymentAt: new Date().toISOString(),
+                            lastDeploymentOutput: error.output
+                                ? error.output.split(/\r?\n/).filter(Boolean)
+                                : [error.message],
+                            lastDeploymentResult: "failed",
+                            bannerStatus: "failed",
+                            bannerVersion: null,
+                            bannerError: error.stack || error.output?.trim() || error.message,
+                            bannerVisibleUntil: new Date(Date.now() + 30000).toISOString()
+                        })
+
+                        context.scheduleDeploymentBannerExpiry()
+                        context.refreshAndBroadcastStatus()
+                        context.broadcast(context.adminClients, "deploy", state)
+                        context.broadcast(context.adminClients, "summary", context.buildAdminSummary())
+
+                        res.writeHead(500, { "Content-Type": "application/json" })
+                        res.end(JSON.stringify({ error: error.message, state }))
+
+                        return true
+                    }
                 }
 
                 if (["start", "stop", "restart"].includes(action)) {

@@ -10,6 +10,7 @@ import {
 import { Suspense } from "react"
 import routes from "./components/utils/routes"
 import { SessionProvider, useSession } from "./components/utils/api"
+import DeploymentBanner from "./components/DeploymentBanner"
 import './css/init.css'
 import isDebugMode from "./components/utils/debug"
 
@@ -54,6 +55,7 @@ function App() {
         <SessionProvider>
             <BrowserRouter>
                 <Suspense fallback={<Loading />}>
+                    <DeploymentBanner />
                     <Routes>
                         {renderRoutes(routes)}
                     </Routes>

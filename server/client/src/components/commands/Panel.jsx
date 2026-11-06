@@ -48,7 +48,7 @@ function Panel({
         <div className="command-explorer">
             <header className="command-explorer-header">
                 <div>
-                    <div className="command-eyebrow">slackzilla@repo:-$ cmds --help</div>
+                    <div className="command-eyebrow">slackzilla@repo:-$ commands --list</div>
                     <h2>Command explorer<span className="command-title-dot">.</span></h2>
                     <p>Browse, inspect and execute available slash commands.</p>
                 </div>

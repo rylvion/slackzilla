@@ -25,7 +25,11 @@ const defaultDeployment = {
     lastDeploymentAt: null,
     lastDeploymentCommit: null,
     lastDeploymentOutput: [],
-    lastDeploymentResult: null
+    lastDeploymentResult: null,
+    bannerStatus: "idle",
+    bannerVersion: null,
+    bannerError: null,
+    bannerVisibleUntil: null
 }
 
 const defaultBotState = {

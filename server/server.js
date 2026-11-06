@@ -26,6 +26,7 @@ const { handleReleaseApi } = require("./api/release")
 const { handleAskApi } = require("./api/ask")
 const { handleSessionApi } = require("./api/session")
 const { handleTerminalApi } = require("./api/terminal")
+const { getReleaseInfo } = require("./lib/release-info")
 
 const port = Number(process.env.PORT || 9000)
 const projectDir = process.env.PROJECT_DIR || process.cwd()
@@ -35,7 +36,7 @@ const botServiceName = process.env.SERVICE_NAME || "slackzilla"
 const webhookServiceName = process.env.WEBHOOK_SERVICE_NAME || "slackzilla-webhook"
 const deployScript = path.join(__dirname, "deploy.sh")
 const cookieSecure = String(process.env.COOKIE_SECURE || "false").toLowerCase() === "true"
-
+let deploymentBannerTimer = null
 const runtimeConfig = {
     port,
     projectDir,
@@ -45,6 +46,8 @@ const runtimeConfig = {
     cookieSecure,
     webhookPath: "/webhook"
 }
+
+
 
 function validateEnvVar(name, value) {
     if (!value) {
@@ -124,6 +127,12 @@ function normaliseStatus(snapshot) {
         lastDeploymentAt: deployment.lastDeploymentAt,
         lastDeploymentCommit: deployment.lastDeploymentCommit,
         lastDeploymentResult: deployment.lastDeploymentResult,
+        deploymentBannerStatus: deployment.bannerVisibleUntil && new Date(deployment.bannerVisibleUntil).getTime() <= Date.now()
+            ? "idle"
+            : deployment.bannerStatus,
+        deploymentBannerVersion: deployment.bannerVersion,
+        deploymentBannerError: deployment.bannerError,
+        deploymentBannerVisibleUntil: deployment.bannerVisibleUntil,
         systemTotalMemory: snapshot.systemTotalMemory,
         systemFreeMemory: snapshot.systemFreeMemory,
         memoryUsedPercent,
@@ -426,6 +435,29 @@ function handleStatic(req, res, pathname) {
     return true
 }
 
+function scheduleDeploymentBannerExpiry() {
+    clearTimeout(deploymentBannerTimer)
+
+    const deployment = store.readDeploymentState()
+
+    if (!deployment.bannerVisibleUntil || deployment.bannerStatus === "updating") return
+
+    const expiresAt = new Date(deployment.bannerVisibleUntil).getTime()
+    const remaining = expiresAt - Date.now()
+
+    if (remaining <= 0) {
+        refreshAndBroadcastStatus()
+        return
+    }
+
+    deploymentBannerTimer = setTimeout(() => {
+        refreshAndBroadcastStatus()
+        deploymentBannerTimer = null
+    }, remaining + 50)
+
+    deploymentBannerTimer.unref?.()
+}
+
 function handleWebhook(req, res, url) {
     if (url.pathname !== "/webhook") { return false }
 
@@ -482,11 +514,15 @@ function handleWebhook(req, res, url) {
         const deployment = store.saveDeploymentState({
             status: "queued",
             lastDeploymentCommit: payload.after || null,
-            lastDeploymentResult: "queued"
+            lastDeploymentResult: "queued",
+            bannerStatus: "updating",
+            bannerVersion: null,
+            bannerVisibleUntil: null
         })
 
         sendText(res, 202, `Accepted deploy for ${branchRef}\n`)
         broadcast(adminClients, "deploy", deployment)
+        refreshAndBroadcastStatus()
 
         try {
             const result = await runDeployScript(deployScript, process.env, chunk => { store.appendLogChunk(chunk) })
@@ -496,22 +532,33 @@ function handleWebhook(req, res, url) {
                 lastDeploymentAt: new Date().toISOString(),
                 lastDeploymentCommit: payload.after || null,
                 lastDeploymentOutput: result.output.split(/\r?\n/).filter(Boolean),
-                lastDeploymentResult: "success"
+                lastDeploymentResult: "success",
+                bannerStatus: "success",
+                bannerVersion: getReleaseInfo().currentVersion,
+                bannerVisibleUntil: new Date(Date.now() + 30000).toISOString()
             })
 
             broadcast(adminClients, "deploy", state)
+            scheduleDeploymentBannerExpiry()
             refreshAndBroadcastStatus()
         } catch (error) {
             const state = store.saveDeploymentState({
                 status: "failed",
                 lastDeploymentAt: new Date().toISOString(),
                 lastDeploymentCommit: payload.after || null,
-                lastDeploymentOutput: [error.message],
-                lastDeploymentResult: "failed"
+                lastDeploymentOutput: error.output
+                    ? error.output.split(/\r?\n/).filter(Boolean)
+                    : [error.message],
+                lastDeploymentResult: "failed",
+                bannerStatus: "failed",
+                bannerVersion: null,
+                bannerError: error.stack || error.output?.trim() || error.message,
+                bannerVisibleUntil: new Date(Date.now() + 30000).toISOString() 
             })
 
             broadcast(adminClients, "deploy", state)
             store.appendLogChunk(`deployment failed: ${error.message}\n`)
+            scheduleDeploymentBannerExpiry()
             refreshAndBroadcastStatus()
         }
     })
@@ -551,10 +598,12 @@ const context = {
     renderStatusPayload,
     buildAdminSummary,
     refreshAndBroadcastStatus,
+    scheduleDeploymentBannerExpiry,
     refreshAndBroadcastLogs,
     runDeployScript,
     runSystemctl,
-    saveDeploymentState
+    saveDeploymentState,
+    currentVersion: getReleaseInfo().currentVersion
 }
 
 async function handleApi(req, res, url) {

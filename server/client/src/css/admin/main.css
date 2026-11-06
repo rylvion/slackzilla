@@ -30,6 +30,31 @@
     color: #315342;
 }
 
+.admin-deployment-error {
+    margin-top: 16px;
+    border: 1px solid rgba(255, 77, 77, 0.45);
+    background: rgba(255, 77, 77, 0.06);
+}
+
+.admin-deployment-error h3 {
+    margin: 0;
+    padding: 10px 12px;
+    color: #ff7b7b;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+}
+
+.admin-deployment-error pre {
+    max-height: 360px;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    color: #ffbaba;
+    font: 0.72rem/1.5 var(--font-mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 .admin-columns {
     display: grid;
     grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
