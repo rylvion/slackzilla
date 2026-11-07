@@ -34,7 +34,7 @@
 - [Stardance Devlogs](https://stardance.hackclub.com/projects/4967) - Hack Club devlogs
 - [Repository](https://github.com/rylvion/slackzilla) - Source code
 - [Hosted dashboard](https://rylvion.hackclub.app/) - live React dashboard and bot interface.
-- [Slackzilla Server](https://app.slack.com/client/E09V59WQY1E/C0B8NGLD7K2) - help channel for Slackzilla bot and dashboard.
+- [Slackzilla Server](https://app.slack.com/client/E09V59WQY1E/C0CFLJA4YUB) - help channel for Slackzilla bot and dashboard.
 
 ## about slackzilla
 

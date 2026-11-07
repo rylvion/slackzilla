@@ -9,7 +9,7 @@
 ![Vite](https://img.shields.io/badge/Vite-Frontend-646CFF?logo=vite&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-Backend-339933?logo=nodedotjs&logoColor=white)
 
-Slackzilla is a full-stack Slack bot with a React-based web dashboard, HTTP API, server telemetry, administrative controls, and a repository-aware AI assistant. It also supports automated GitHub deployments, feedback management, and modular slash commands.
+Slackzilla is a full-stack Slack bot with a React-based web dashboard, HTTP API, server telemetry, administrative controls, and a repository-aware AI assistant. It also supports automated GitHub webhook deployments, feedback management, and modular slash commands, and an embedded xterm.js terminal
 
 ## Features
 
@@ -72,7 +72,7 @@ npm start
 
 ### Slack Commands
 
-![Slack Commands](https://img.shields.io/badge/Slack%20Commands-25-blueviolet)
+[![Slack Commands](https://img.shields.io/badge/Slack%20Commands-25-blueviolet)](https://rylvion.hackclub.app/commands)
 ![Core](https://img.shields.io/badge/Core-4-blue)
 ![Entertainment](https://img.shields.io/badge/Entertainment-7-orange)
 ![Utility](https://img.shields.io/badge/Utility-14-green)
@@ -286,7 +286,7 @@ no need for credits, but if your using this code in a project, i'd love to see w
 
 ## Contributing
 
-Contributions are NOT accepted. if you have any issues, bugs or feature requests, please open an issue on the repository or reach out to me on the [Slackzilla Server](https://app.slack.com/client/E09V59WQY1E/C0B8NGLD7K2) and ill try to help you out.
+Contributions are NOT accepted. if you have any issues, bugs or feature requests, please open an issue on the repository or reach out to me on the [Slackzilla Server](https://app.slack.com/client/E09V59WQY1E/C0CFLJA4YUB) and ill try to help you out.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/rylvion/slackzilla/output/github-contribution-grid-snake-dark.svg">
