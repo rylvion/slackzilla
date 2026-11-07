@@ -80,10 +80,8 @@ body::after {
 }
 
 .header {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
 
     height: 56px;
 
@@ -188,7 +186,7 @@ body::after {
 
 .sidebar {
     position: fixed;
-    top: 56px;
+    top: calc(56px + var(--deployment-banner-scroll-offset, 0px));
     left: 0;
     bottom: 0;
     width: var(--sidebar-width, 220px);
@@ -200,20 +198,8 @@ body::after {
     transition: width 160ms ease;
 }
 
-body.deployment-banner-visible .header {
-    top: var(--deployment-banner-height);
-}
-
 body.deployment-banner-visible .sidebar {
-    top: calc(56px + var(--deployment-banner-height));
-}
-
-body.deployment-banner-visible .main-content {
-    padding-top: calc(56px + var(--deployment-banner-height));
-}
-
-body.deployment-banner-visible .main-content::before {
-    inset: calc(56px + var(--deployment-banner-height)) 0 0;
+    top: calc(56px + var(--deployment-banner-scroll-offset));
 }
 
 .sidebar--collapsed {
@@ -359,7 +345,7 @@ body.deployment-banner-visible .main-content::before {
 
 .internal-links {
     position: sticky;
-    top: var(--internal-sidebar-top, 56px);
+    top: calc(56px + var(--deployment-banner-scroll-offset, 0px));
     display: flex;
     gap: 4px;
     margin-bottom: 12px;
@@ -368,10 +354,6 @@ body.deployment-banner-visible .main-content::before {
     padding-left: 28px;
     z-index: 10;
     padding-top: 8px;
-}
-
-body.deployment-banner-visible .internal-links {
-    --internal-sidebar-top: calc(56px + var(--deployment-banner-height));
 }
 
 .internal-links a {
@@ -405,7 +387,6 @@ body.deployment-banner-visible .internal-links {
 .main-content {
     position: relative;
     margin-left: var(--sidebar-width, 220px);
-    padding-top: 56px;
     min-height: 100vh;
     overflow: hidden;
     background:
@@ -419,7 +400,7 @@ body.deployment-banner-visible .internal-links {
 .main-content::before {
     content: "";
     position: absolute;
-    inset: 56px 0 0;
+    inset: 0;
     pointer-events: none;
     background: repeating-linear-gradient(
         0deg,
@@ -743,7 +724,6 @@ a:focus-visible {
 
     .main-content {
         margin-left: 0;
-        padding-top: 0;
         border-left: 0;
     }
 
@@ -751,19 +731,9 @@ a:focus-visible {
         position: static;
     }
 
-    body.deployment-banner-visible .header,
-    body.deployment-banner-visible .sidebar,
-    body.deployment-banner-visible .main-content {
+    .header {
+        position: static;
         top: auto;
-        padding-top: 0;
-    }
-
-    body.deployment-banner-visible .main-content::before {
-        inset: 0;
-    }
-
-    body.deployment-banner-visible .internal-links {
-        --internal-sidebar-top: 0;
     }
 
     .content {

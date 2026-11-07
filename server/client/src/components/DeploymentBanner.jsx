@@ -24,15 +24,26 @@ function DeploymentBanner() {
         document.body.classList.add("deployment-banner-visible")
         updateHeight()
 
+        const updateScrollOffset = () => {
+            const bannerHeight = bannerRef.current?.getBoundingClientRect().height || 0
+            const offset = Math.max(0, bannerHeight - window.scrollY)
+            document.documentElement.style.setProperty("--deployment-banner-scroll-offset", `${offset}px`)
+        }
+
+        updateScrollOffset()
+        window.addEventListener("scroll", updateScrollOffset, { passive: true })
+
         const observer = typeof ResizeObserver === "function"
-            ? new ResizeObserver(updateHeight)
+            ? new ResizeObserver(() => {updateHeight(); updateScrollOffset()})
             : null
         observer?.observe(bannerRef.current)
 
         return () => {
             observer?.disconnect()
+            window.removeEventListener("scroll", updateScrollOffset)
             document.body.classList.remove("deployment-banner-visible")
             document.documentElement.style.removeProperty("--deployment-banner-height")
+            document.documentElement.style.removeProperty("--deployment-banner-scroll-offset")
         }
     }, [visible])
 
