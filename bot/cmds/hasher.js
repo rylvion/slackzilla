@@ -132,11 +132,16 @@ module.exports = (app, meta) => {
         const algorithm = normaliseAlgorithm(parsed.algorithm)
         const value = parsed.value
 
-        if (algorithm === "rand") {
-            const size = parseInt(value)
+       if (algorithm === "rand") {
+            const size = Number(value || 32)
+            
+            if (!Number.isInteger(size) || size < 1 || size > 1024) {
+                await respond("❌ rand size must be between 1 and 1024 bytes")
+                return
+            }
             const buf = crypto.randomBytes(size)
             const hex = buf.toString("hex")
-            await respond(`rand-${size}:\n\`${hex}\``)
+            await respond(hex)
             return
         }
 
