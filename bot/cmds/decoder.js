@@ -2,19 +2,19 @@ const crypto = require("crypto")
 const { log } = require("../utils/logger")
 
 function getHelp() {
-    const algorithms = "base64, hex, rand"
+    const algorithms = "base64, hex, rand, pbkdf2"
 
-    return (
-        "🔓 *decode command help*\n" +
-        "> *Usage:*\n" +
-        "> `/sz-decode <algorithm> <text>` - decodes text using the chosen algorithm\n\n" +
-        "> *Examples:*\n" +
-        "> `/sz-decode base64 aGVsbG8gd29ybGQ=`\n" +
-        "> `/sz-decode hex 68656c6c6f`\n" +
-        "> `/sz-decode pbkdf2 pbkdf2$sha512$600000$salt$abcdef...`\n\n" +
-        `> *Supported algorithms:* ${algorithms}`,
-        "> *Note:* If you want more algorithms, please use /sz-feedback to request them"
-    )
+    return `🔓 *decode command help*
+> *Usage:*
+> \`/sz-decode <algorithm> <text>\` - decodes text using the chosen algorithm
+
+> *Examples:*
+> \`/sz-decode base64 aGVsbG8gd29ybGQ=\`
+> \`/sz-decode hex 68656c6c6f\`
+> \`/sz-decode pbkdf2 pbkdf2$sha512$600000$salt$abcdef...\`
+
+> *Supported algorithms:* ${algorithms}
+> *Note:* If you want more algorithms, please use /sz-feedback to request them`
 }
 
 function normaliseAlgorithm(algo) {
