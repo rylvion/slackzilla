@@ -17,23 +17,27 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         const text = command.text?.trim()
+        
+        const cmd = {
+            ...command,
+            user_name: ["Terminal User", "API user", "RAG tool"].includes(command.user_name)? command.user_name : "Anonymous User",
+            user_id: ["terminal-user", "api-user", "rag-tool"].includes(command.user_id) ? command.user_id: "anonymous-user"
+        }
 
         if (text?.toLowerCase() === "help") {
-            log.success("{user} viewed {cmd} help", command)
+            log.success("{user} viewed {cmd} help", cmd)
 
             await respond(getHelp())
             return
         }
 
         if (!text) {
-            log.error("{user} used {cmd} with no text", command)
+            log.error("{user} used {cmd} with no text", cmd)
             await respond("❌ send me some feedback first")
             return
         }
-
+        
         try {
             const feedback = {
                 id: crypto.randomUUID(),
@@ -45,10 +49,10 @@ module.exports = (app, meta) => {
             }
 
             addFeedback(feedback)
-            log.success("{user} submitted feedback via {cmd}", command)
+            log.success("{user} submitted feedback via {cmd}", cmd)
             await respond(`✅ thanks for the feedback. i saved it with id ${feedback.id}`)
         } catch (error) {
-            log.error("{user} failed to submit feedback via {cmd}: {0}", command, error)
+            log.error("{user} failed to submit feedback via {cmd}: {0}", cmd, error)
             await respond("❌ failed to submit feedback. please try again later.")
         }
     })
