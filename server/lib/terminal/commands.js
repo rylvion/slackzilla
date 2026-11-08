@@ -167,7 +167,7 @@ function executeApi(args) {
             error.statusCode = 404
             throw error
         }
-        return { routes: matches }
+        return { inspect: true, routes: matches }
     }
     const error = new Error("api supports: list, inspect <path>")
     error.code = "USAGE_ERROR"

@@ -145,6 +145,13 @@ test("executes a registered RAG tool through the terminal", async () => {
     await assert.rejects(() => executeCommand("rag", ["inspect", "not-a-tool"], contextFor({})), /unknown RAG tool/)
 })
 
+test("returns complete route metadata for API inspection", async () => {
+    const target = listRoutes()[0]
+    const result = await executeCommand("api", ["inspect", target.path], contextFor({}))
+    assert.equal(result.inspect, true)
+    assert.deepEqual(result.routes, listRoutes().filter(route => route.path === target.path))
+})
+
 test("lists Slack command metadata and derives virtual directory entries", async () => {
     const list = await executeCommand("command", ["list"], contextFor({}))
     assert.ok(list.commands.length > 0)

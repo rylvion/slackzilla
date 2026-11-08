@@ -474,6 +474,7 @@ function Terminal() {
             return [
                 { name: ".", entry: "<DIR>" },
                 { name: "..", entry: "<DIR>" },
+                { name: "list", entry: "<CMD>", description: "list Slack commands" },
                 { name: "inspect", entry: "<DIR>", description: "inspect a Slack command" },
                 { name: "execute", entry: "<DIR>", description: "execute a Slack command" }
             ]
@@ -947,7 +948,6 @@ function Terminal() {
                     const isMutatingControl = commandName.toLowerCase() === "sudo" && controlArgs[0]?.toLowerCase() === "execute" && controlArgs[1]?.toLowerCase() !== "refresh"
                     let requestBody = { command: commandName, args: controlArgs }
                     if (isMutatingControl) {
-                        // Validate the control through the existing registry before collecting credentials.
                         await getJson("/api/terminal", {
                             method: "POST",
                             headers: {
@@ -971,8 +971,6 @@ function Terminal() {
                             },
                             body: JSON.stringify({ command: "sudo", args: ["reauth", controlArgs[1]], password })
                         })
-                        // Re-authentication and control execution are separate terminal requests.
-                        // Respect the terminal limiter's existing cooldown before sending the second phase.
                         await new Promise(resolve => setTimeout(resolve, 550))
                         requestBody = { command: commandName, args: controlArgs, reauthToken: reauth.reauthToken, confirmed: true }
                     }
@@ -1136,6 +1134,7 @@ function Terminal() {
             if (Array.isArray(data.commands) && data.commands.every(command => command.name && command.description)) return [colour("BACKEND COMMANDS", "purple"), "", ...data.commands.map(command => `  ${colour(command.name.padEnd(8), "cyan")} ${colour(command.entry || "<CMD>", "yellow")} ${colour(command.usage || "(usage unavailable)", "yellow")}  ${colour(command.description, "muted")}`)].join("\r\n")
             if (Array.isArray(data.commands))                   return data.commands.map(command => `  ${colour(command.id || command.name || "command", "cyan")} ${colour(command.description || command.cmd || "", "muted")}`).join("\r\n") || colour("no commands found", "muted")
             if (Array.isArray(data.responses))                  return data.responses.map(response => colour(typeof response === "string" ? response : response.text || JSON.stringify(response), "white")).join("\r\n") || colour("command returned no response", "muted")
+            if (data.inspect && Array.isArray(data.routes))     return colour(JSON.stringify(data.routes.length === 1 ? data.routes[0] : data.routes, null, 2), "white")
             if (Array.isArray(data.routes))                     return data.routes.map(route => `  ${colour(String(route.methods?.join(", ") || route.method || "GET").padEnd(10), "cyan")} ${colour(route.path || "unknown", "white")}`).join("\r\n") || colour("no routes found", "muted")
             if (Array.isArray(data.documents))                  return data.documents.map(document => `  ${colour(document, "white")}`).join("\r\n") || colour("no documents found", "muted")
             if (Array.isArray(data.controls))                   return [colour("ADMIN CONTROLS", "purple"), "", ...data.controls.map(control => `  ${colour(control.id, "cyan")} ${colour(control.mutating ? "[mutating]" : "[read-only]", control.mutating ? "yellow" : "green")} ${colour(control.description || "unavailable", "muted")}`)].join("\r\n")
@@ -1425,7 +1424,6 @@ function Terminal() {
             resizeObserver.disconnect()
             terminal.dispose()
         }
-    // The xterm instance must keep one listener while session identity changes.
     }, [mobile])
 
     return (
