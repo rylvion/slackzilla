@@ -1,9 +1,6 @@
 const { log } = require("../utils/logger")
 
 const rollDice = (sides = 6) => Math.floor(Math.random() * sides) + 1
-function rollDice(sides = 6) {
-    return Math.floor(Math.random() * sides) + 1
-}
 
 function parseRoll(input) {
     const match = input.match(/^(\d+)?d(\d+)([+-]\d+)?$/i)

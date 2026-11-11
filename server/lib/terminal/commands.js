@@ -325,12 +325,54 @@ async function executeRag(args, context) {
 
         const dependencies = require("../rag/rag").getDependencies(file.path, index)
         const dependants = require("../rag/rag").getDependants(file.path, index)
-        const sourceExcerpts = (file.chunks || []).map(chunk => ({
-            lines: `${chunk.start}-${chunk.end}`,
-            start: chunk.start,
-            end: chunk.end,
-            text: chunk.text
-        }))
+        const allChunks = file.chunks || []
+        const chunkSelector = args[2]
+        let selectedChunkNumbers = []
+
+        if (args.length > 3) throw new Error("Usage: rag analyse <file> [CHUNKS]")
+
+        if (chunkSelector) {
+            const requestedChunks = new Set()
+            const invalidChunks = []
+
+            for (const part of chunkSelector.split(",")) {
+                const match = part.match(/^(\d+)(?:-(\d+))?$/)
+
+                if (!match) {
+                    invalidChunks.push(part)
+                    continue
+                }
+
+                const start = Number(match[1])
+                const end = Number(match[2] || match[1])
+
+                if (start < 1 || end < start || start > allChunks.length) {
+                    invalidChunks.push(part)
+                    continue
+                }
+
+                if (end > allChunks.length) invalidChunks.push(part)
+
+                for (let i = start; i <= Math.min(end, allChunks.length); i++) requestedChunks.add(i)
+            }
+
+            selectedChunkNumbers = [...requestedChunks].sort((a, b) => a - b)
+            warnings = invalidChunks.length? [`Skipped invalid chunk selectors: ${invalidChunks.join(", ")}`]: []
+        }
+
+        const sourceExcerpts = selectedChunkNumbers.map(number => {
+            const chunk = allChunks[number - 1]
+
+            return {
+                chunk: number,
+                lines: `${chunk.start}-${chunk.end}`,
+                start: chunk.start,
+                end: chunk.end,
+                text: chunk.text
+            }
+        })
+
+
         const functions = file.code?.functions || []
         const routes = file.code?.routes || []
         const exports = file.code?.exports || []
@@ -352,6 +394,7 @@ async function executeRag(args, context) {
                 dependencies,
                 dependants,
                 sourceExcerpts,
+                warnings,
                 counts: {
                     imports: imports.length,
                     functions: functions.length,

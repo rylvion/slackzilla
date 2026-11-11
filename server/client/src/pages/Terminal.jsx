@@ -63,7 +63,7 @@ const serverUsage = {
     logs: ["logs", "logs --head N", "logs --tail N", "logs --start N --end N", "logs follow"],
     storage: ["storage", "cd storage", "storage/ session | local: dir | view KEY | delete KEY"],
     docs: ["docs list", "docs search TEXT [--sources N] [--no-verbose]"],
-    rag: ["rag status", "rag analyse FILE", "rag sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N]", "rag search TEXT", "rag tools", "rag inspect TOOL", "rag execute TOOL [JSON | --flag value... ]"],
+    rag: ["rag status", "rag analyse FILE [CHUNKS]", "rag sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N]", "rag search TEXT", "rag tools", "rag inspect TOOL", "rag execute TOOL [JSON | --flag value... ]"],
     command: ["command list", "command inspect ID", "command execute ID [arguments]"],
     sudo: ["sudo status", "sudo controls", "sudo inspect ID", "sudo execute refresh", "sudo logout"]
 }
@@ -1139,24 +1139,21 @@ function Terminal() {
                 lines.push(...items.map(render))
             }
 
+            if (analysis.warnings?.length) {
+                lines.push("", colour("WARNINGS", "purple"))
+                lines.push(...analysis.warnings.map(warning => `  ${colour(warning, "red")}`))
+            }
+
             const renderImport = item => {
                 const binding = [item.importedName, item.importedAs].filter(Boolean).join(" as ")
                 return `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(item.source || "unknown", "cyan")}${binding ? `  ${colour(binding, "white")}` : ""}`
             }
 
-            for (const [title, key] of [["BUILT-IN IMPORTS", "builtIn"], ["EXTERNAL IMPORTS", "external"], ["LOCAL IMPORTS", "local"]]) {
-                addSection(title, imports[key], renderImport)
-            }
+            for (const [title, key] of [["BUILT-IN IMPORTS", "builtIn"], ["EXTERNAL IMPORTS", "external"], ["LOCAL IMPORTS", "local"]]) addSection(title, imports[key], renderImport)
 
-            addSection("FUNCTIONS", analysis.functions, item =>
-                `  ${colour(String(item.line ?? "?").padStart(4), "muted")}-${colour(String(item.endLine ?? item.line ?? "?").padEnd(4), "muted")}  ${colour(item.name || "anonymous", "cyan")}${item.async ? colour("  async", "yellow") : ""}`
-            )
-            addSection("ROUTES", analysis.routes, item =>
-                `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(String(item.method || "GET").padEnd(8), "cyan")} ${colour(item.path || "unknown", "white")}`
-            )
-            addSection("RELEVANT SYMBOLS", analysis.relevantSymbols, item =>
-                `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(String(item.kind || "symbol").padEnd(10), "yellow")} ${colour(item.name || "anonymous", "cyan")}`
-            )
+            addSection("FUNCTIONS", analysis.functions, item => `  ${colour(String(item.line ?? "?").padStart(4), "muted")}-${colour(String(item.endLine ?? item.line ?? "?").padEnd(4), "muted")}  ${colour(item.name || "anonymous", "cyan")}${item.async ? colour("  async", "yellow") : ""}`)
+            addSection("ROUTES", analysis.routes, item => `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(String(item.method || "GET").padEnd(8), "cyan")} ${colour(item.path || "unknown", "white")}`)
+            addSection("RELEVANT SYMBOLS", analysis.relevantSymbols, item => `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(String(item.kind || "symbol").padEnd(10), "yellow")} ${colour(item.name || "anonymous", "cyan")}`)
             addSection("DEPENDENCIES", analysis.dependencies, item => `  ${colour(item, "white")}`)
             addSection("DEPENDANTS", analysis.dependants, item => `  ${colour(item, "white")}`)
 
