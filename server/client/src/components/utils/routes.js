@@ -3,23 +3,22 @@
     // this file is used by MainSidebar, Sitemap and App.jsx to define the routes and links in the application
     const routes = [
         // PUBLIC PAGES
-        { id: "dashboard", label: "Home", to: "/", description: "Live overview and bot activity", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Home"))},
-        { id: "status", label: "Uptime", to: "/status", description: "Host and process telemetry", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Status"))},
-        { id: "commands", label: "Commands", to: "/commands", description: "view available Slack commands", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Commands"))},
-        { id: "logs", label: "Logs", to: "/logs", description: "ANSI-aware live output viewer", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Logs"))},
-        { id: "terminal", label: "Terminal", to: "/terminal", description: "Local Slackzilla terminal", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Terminal"))},
-        { id: "api", label: "API", to: "/api", description: "Endpoint reference", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Api"))},
-        { id: "ai", label: "AI Assistant", to: "/ai", description: "Ask questions about Slackzilla", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Ai"))},
-        { id: "docs-search", label: "Docs Search", to: "/docs/search", description: "Search Slackzilla documentation", danger: false, api: false, hidden: true, admin: false, component: lazy(() => import("../../pages/DocsSearch"))},
-        { id: "docs", label: "Docs", to: "/docs", path: "/docs/*", description: "Operations and extension guide", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Docs"))},
-        { id: "sitemap", label: "Sitemap", to: "/sitemap", description: "Routes and machine surfaces", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Sitemap"))},
+        { id: "home", label: "Dashboard", to: "/", description: "live telemetry and metrics", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Status"))},
+        { id: "commands", label: "Commands", to: "/commands", description: "view and execute slack commands", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Commands"))},
+        { id: "logs", label: "Logs", to: "/logs", description: "live log stream", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Logs"))},
+        { id: "terminal", label: "Terminal", to: "/terminal", description: "embedded terminal", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Terminal"))},
+        { id: "api", label: "API", to: "/api", description: "lists all api endpoints", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Api"))},
+        { id: "ai", label: "AI Assistant", to: "/ai", description: "ask question to ai with codebase context", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Ai"))},
+        { id: "docs-search", label: "Docs Search", to: "/docs/search", description: "search docs", danger: false, api: false, hidden: true, admin: false, component: lazy(() => import("../../pages/DocsSearch"))},
+        { id: "docs", label: "Docs", to: "/docs", path: "/docs/*", description: "docs", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Docs"))},
+        { id: "sitemap", label: "Sitemap", to: "/sitemap", description: "shows all pages", danger: false, api: false, hidden: false, admin: false, component: lazy(() => import("../../pages/Sitemap"))},
     
         // admin pages
-        { id: "admin-login", label: "Admin", to: "/admin/login", description: "Login to the admin panel", danger: true, api: false, hidden: false, admin: true, component: lazy(() => import("../../pages/admin/Login"))},
-        { id: "admin", label: "Admin Dashboard", to: "/admin", description: "Manage, view, control administrative controls", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/Admin"))},
-        { id: "admin-events", label: "Server Events", to: "/admin/events", description: "Full authenticated server event history", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/ServerEvents"))},
-        { id: "admin-errors", label: "Server Errors", to: "/admin/errors", description: "Full authenticated server error debugger", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/AdminErrors"))},
-        { id: "admin-logs", label: "Admin Logs", to: "/admin/logs", description: "Authenticated log controls and viewer", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/admin/AdminLogs"))},
+        { id: "admin-login", label: "Admin", to: "/admin/login", description: "login to the admin panel", danger: true, api: false, hidden: false, admin: true, component: lazy(() => import("../../pages/admin/Login"))},
+        { id: "admin", label: "Admin Dashboard", to: "/admin", description: "manage, view and control admin actions", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/Admin"))},
+        { id: "admin-events", label: "Server Events", to: "/admin/events", description: "view and manage inbound requests", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/ServerEvents"))},
+        { id: "admin-errors", label: "Server Errors", to: "/admin/errors", description: "view and manage server errors", danger: true, api: false, hidden: true, admin: true, adminOnly: true, component: lazy(() => import("../../pages/admin/AdminErrors"))},
+        { id: "admin-logs", label: "Admin Logs", to: "/admin/logs", description: "manipulate logs at your own discretion", danger: true, api: false, hidden: true, admin: true, component: lazy(() => import("../../pages/admin/AdminLogs"))},
 
         // special pages
         {id: "not-found", label: "Not Found", to: "*", description: "404 page not found", danger: false, api: false, hidden: true, component: lazy(() => import("../../pages/NotFound"))}, // this is the catch-all route for 404 pages, it should always be last in the array
