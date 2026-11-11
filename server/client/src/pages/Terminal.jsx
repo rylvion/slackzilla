@@ -63,7 +63,7 @@ const serverUsage = {
     logs: ["logs", "logs --head N", "logs --tail N", "logs --start N --end N", "logs follow"],
     storage: ["storage", "cd storage", "storage/ session | local: dir | view KEY | delete KEY"],
     docs: ["docs list", "docs search TEXT [--sources N] [--no-verbose]"],
-    rag: ["rag status", "rag sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N]", "rag search TEXT", "rag tools", "rag inspect TOOL", "rag execute TOOL [JSON | --flag value... ]"],
+    rag: ["rag status", "rag analyse FILE", "rag sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N]", "rag search TEXT", "rag tools", "rag inspect TOOL", "rag execute TOOL [JSON | --flag value... ]"],
     command: ["command list", "command inspect ID", "command execute ID [arguments]"],
     sudo: ["sudo status", "sudo controls", "sudo inspect ID", "sudo execute refresh", "sudo logout"]
 }
@@ -496,6 +496,7 @@ function Terminal() {
                 { name: ".", entry: "<DIR>" },
                 { name: "..", entry: "<DIR>" },
                 { name: "status", entry: "<CMD>", description: "show RAG index status" },
+                { name: "analyse", entry: "<DIR>", description: "analyse an indexed repository file" },
                 { name: "sources", entry: "<CMD>", description: "list indexed source files" },
                 { name: "search", entry: "<CMD>", description: "search indexed source content" },
                 { name: "tools", entry: "<DIR>", description: "list executable RAG tools" },
@@ -674,8 +675,13 @@ function Terminal() {
                 }
                 if (context.family === "rag" && lowerCommand === "cd" && tokens[1]) {
                     const targetName = tokens[1].toLowerCase()
-                    if (["tools", "inspect", "execute"].includes(targetName)) {
-                        contextStack.push({ family: "rag", action: targetName, label: targetName, usage: targetName === "tools" ? "dir | exit" : `${targetName} TOOL${targetName === "execute" ? " [JSON]" : ""} | exit` })
+                    if (["analyse", "tools", "inspect", "execute"].includes(targetName)) {
+                        const usage = targetName === "analyse"
+                            ? "analyse FILE | exit"
+                            : targetName === "tools"
+                                ? "dir | exit"
+                                : `${targetName} TOOL${targetName === "execute" ? " [JSON]" : ""} | exit`
+                        contextStack.push({ family: "rag", action: targetName, label: targetName, usage })
                         writePrompt()
                         return
                     }
@@ -743,6 +749,19 @@ function Terminal() {
                     }
                     if (context.family === "rag" && context.action === "tools") {
                         writeDirectory(await ragToolDirectory())
+                        return
+                    }
+                    if (context.family === "rag" && context.action === "analyse") {
+                        const listing = await getJson("/api/terminal", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ command: "rag", args: ["sources", "--limit", "500"] })
+                        })
+                        writeDirectory([
+                            { name: ".", entry: "<DIR>" },
+                            { name: "..", entry: "<DIR>" },
+                            ...listing.data.sources.map(file => ({ name: file, entry: "<CMD>", description: "analyse indexed file" }))
+                        ])
                         return
                     }
                     if (context.family === "rag" && ["inspect", "execute"].includes(context.action)) {
@@ -832,7 +851,7 @@ function Terminal() {
                     contextStack.push({
                         family: targetName,
                         label: targetName,
-                        usage: targetName === "api" ? "dir | cd get | cd post | list | inspect <path> | help | exit" : targetName === "command" ? "dir | cd NAME | list | inspect [id] | execute | help | exit" : targetName === "logs" ? "dir | head N | tail N | follow | exit" : targetName === "rag" ? "dir | status | sources | search | tools | inspect TOOL | execute TOOL [JSON | --flag value...] | exit" : "dir | cd session | cd local | exit"
+                        usage: targetName === "api" ? "dir | cd get | cd post | list | inspect <path> | help | exit" : targetName === "command" ? "dir | cd NAME | list | inspect [id] | execute | help | exit" : targetName === "logs" ? "dir | head N | tail N | follow | exit" : targetName === "rag" ? "dir | status | analyse FILE | sources | search | tools | inspect TOOL | execute TOOL [JSON | --flag value...] | exit" : "dir | cd session | cd local | exit"
                     })
                     writePrompt()
                     return
@@ -850,7 +869,7 @@ function Terminal() {
                 contextStack.push({
                     family,
                     label: family,
-                    usage: family === "api" ? "dir | cd get | cd post | list | inspect <path> | help | exit" : family === "rag" ? "dir | status | sources | search | tools | inspect TOOL | execute TOOL [JSON | --flag value...] | exit" : "dir | cd NAME | list | inspect [id] | execute | help | exit"
+                    usage: family === "api" ? "dir | cd get | cd post | list | inspect <path> | help | exit" : family === "rag" ? "dir | status | analyse FILE | sources | search | tools | inspect TOOL | execute TOOL [JSON | --flag value...] | exit" : "dir | cd NAME | list | inspect [id] | execute | help | exit"
                 })
                 writePrompt()
                 return
@@ -1087,6 +1106,76 @@ function Terminal() {
             })
         }
 
+        function formatRagAnalysis(data) {
+            const analysis = data.analysis || {}
+            const imports = analysis.imports || {}
+            const counts = analysis.counts || {}
+            const lines = [
+                colour("RAG ANALYSIS", "purple"),
+                "",
+                `${colour("FILE", "purple")}  ${colour(data.file || "unknown", "cyan")}`,
+                `  ${colour("type", "muted")}      ${colour(data.type || "unknown", "white")}`,
+                `  ${colour("size", "muted")}      ${colour(data.size || "unknown", "white")}`,
+                `  ${colour("modified", "muted")}  ${colour(data.modified || "unknown", "white")}`,
+                "",
+                colour("SUMMARY", "purple"),
+                ...[
+                    ["imports", counts.imports],
+                    ["functions", counts.functions],
+                    ["routes", counts.routes],
+                    ["relevant symbols", counts.relevantSymbols],
+                    ["dependencies", counts.dependencies],
+                    ["dependants", counts.dependants],
+                    ["code excerpts", counts.sourceExcerpts]
+                ].map(([label, count]) => `  ${colour(label.padEnd(18), "muted")} ${colour(String(count ?? 0), "cyan")}`)
+            ]
+
+            const addSection = (title, items, render) => {
+                lines.push("", colour(title, "purple"))
+                if (!items?.length) {
+                    lines.push(`  ${colour("none", "muted")}`)
+                    return
+                }
+                lines.push(...items.map(render))
+            }
+
+            const renderImport = item => {
+                const binding = [item.importedName, item.importedAs].filter(Boolean).join(" as ")
+                return `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(item.source || "unknown", "cyan")}${binding ? `  ${colour(binding, "white")}` : ""}`
+            }
+
+            for (const [title, key] of [["BUILT-IN IMPORTS", "builtIn"], ["EXTERNAL IMPORTS", "external"], ["LOCAL IMPORTS", "local"]]) {
+                addSection(title, imports[key], renderImport)
+            }
+
+            addSection("FUNCTIONS", analysis.functions, item =>
+                `  ${colour(String(item.line ?? "?").padStart(4), "muted")}-${colour(String(item.endLine ?? item.line ?? "?").padEnd(4), "muted")}  ${colour(item.name || "anonymous", "cyan")}${item.async ? colour("  async", "yellow") : ""}`
+            )
+            addSection("ROUTES", analysis.routes, item =>
+                `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(String(item.method || "GET").padEnd(8), "cyan")} ${colour(item.path || "unknown", "white")}`
+            )
+            addSection("RELEVANT SYMBOLS", analysis.relevantSymbols, item =>
+                `  ${colour(String(item.line ?? "?").padStart(4), "muted")}  ${colour(String(item.kind || "symbol").padEnd(10), "yellow")} ${colour(item.name || "anonymous", "cyan")}`
+            )
+            addSection("DEPENDENCIES", analysis.dependencies, item => `  ${colour(item, "white")}`)
+            addSection("DEPENDANTS", analysis.dependants, item => `  ${colour(item, "white")}`)
+
+            lines.push("", colour("CODE EXCERPTS", "purple"))
+            if (!analysis.sourceExcerpts?.length) {
+                lines.push(`  ${colour("none", "muted")}`)
+            } else {
+                for (const excerpt of analysis.sourceExcerpts) {
+                    lines.push(`  ${colour(`LINES ${excerpt.lines}`, "cyan")}`)
+                    lines.push(...String(excerpt.text || "").split(/\r?\n/).map((line, index) =>
+                        `  ${colour(String((excerpt.start || 1) + index).padStart(4), "muted")}  ${colour(line, "white")}`
+                    ))
+                    lines.push("")
+                }
+            }
+
+            return lines.join("\r\n")
+        }
+
         function formatServerOutput(data) {
             if (!data || typeof data !== "object") return colour("request completed", "green")
 
@@ -1117,6 +1206,7 @@ function Terminal() {
                 ...data.directory.items.map(item => `  ${colour(item.entry || "<CMD>", "yellow")} ${colour(item.name, "cyan")}${item.description ? `  ${colour(item.description, "muted")}` : ""}`),
                 colour(`${data.directory.count} item${data.directory.count === 1 ? "" : "s"}`, "muted")
             ].join("\r\n")
+            if (data.analysis && data.file) return formatRagAnalysis(data)
             if (Array.isArray(data.entries)) return data.entries.map(entry => `  ${colour(String(entry.number).padStart(5), "muted")} ${colour(entry.text, "white")}`).join("\r\n") || colour("no log entries found", "muted")
             if (data.version) {
                 const lines = [

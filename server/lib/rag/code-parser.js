@@ -1,19 +1,26 @@
 const acorn = require("acorn")
+const acornJsx = require("acorn-jsx")
 const walk = require("acorn-walk")
 const fs = require("fs")
 const path = require("path")
+
+const parserWalkBase = {
+    ...walk.base,
+    JSXElement: () => {},
+    JSXFragment: () => {}
+}
 
 function parseJavaScript(content, options = {}) {
     let ast
 
     try {
-        ast = acorn.parse(content, {
+        ast = acorn.Parser.extend(acornJsx()).parse(content, {
             ecmaVersion: "latest",
             sourceType: "module",
             locations: true
         })
     } catch (moduleError) {
-        ast = acorn.parse(content, {
+        ast = acorn.Parser.extend(acornJsx()).parse(content, {
             ecmaVersion: "latest",
             sourceType: "script",
             locations: true
@@ -159,7 +166,7 @@ function parseJavaScript(content, options = {}) {
         IfStatement(node) {
             result.routes.push(...getPathRoutes(node.test, node.consequent))
         }
-    })
+    }, parserWalkBase)
 
     if (options.filePath && options.projectRoot) {
         result.pathReferences = extractPathReferences(
@@ -461,7 +468,7 @@ function inferRouteMethods(ast, result) {
         FunctionDeclaration: analyseFunction,
         FunctionExpression: analyseFunction,
         ArrowFunctionExpression: analyseFunction
-    })
+    }, parserWalkBase)
 }
 
 function getPathMethods(test, includeNegative = false) {

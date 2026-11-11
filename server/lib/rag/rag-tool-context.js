@@ -1,4 +1,5 @@
-const { listCommands, loadIndex } = require("./rag")
+const { loadIndex } = require("./rag")
+const { listCommands } = require("../command-runner")
 const { runCommand } = require("../command-runner")
 const { getReleaseInfo } = require("../release-info")
 const { executeCommand: executeTerminalCommand, getCommand: getTerminalCommand } = require("../terminal/commands")

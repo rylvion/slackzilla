@@ -3,7 +3,7 @@
   "version": "v1.0.0-release",
   "description": "slackatron mega 1x1x1x1 edition",
   "releaseNotes": {
-    "summary": "v1.0.0-release - Major dashboard and API improvements, expanded admin controls, smarter code parsing and RAG inference, dynamic documentation, request cancellation, rate limiting, and 26 new tests",
+    "summary": "v1.0.0-release - MAJOR dashboard & API improvements, expanded admin controls, dYnAmIc docs loading, rate limiting, AND A WHOLE EMBEDDED TERMINAL (also loads of new tests & bug fixes) ",
     "changes": [
       "*btw i was planning on 2 releases/devlog BUT i got carried away so itll be split into 2 parts",
       "==============================================================================================================================================================================",
@@ -26,7 +26,7 @@
       "added request cancellation to the AI page with a Stop button powered by AbortController",
       "overhauled Commands page styling, added filtering/sorting for commands, and made each command interactive with an attached execution action",
       "made `Docs.jsx` dynamically load documentation with search and navigation",
-      "made Not Found pages have an error stack trace.", 
+      "made Not Found pages have an error stack trace.",
       "",
       "============================================ CODE PARSER & RAG ============================================",
       "[code parser] added support for named CommonJS exports (e.g. `module.exports = { foo, bar }`)",
@@ -43,7 +43,7 @@
       "fixed `/api/routes` endpoints not returning the inferred HTTP method for `/api/session`",
       "added 429 rate-limit handling to `POST /api/commands` (15 requests/45sec, 0.5s db between eachh request) and `POST /api/ask` (10 requests/5min, 15s cooldown)",
       "moved /api/admin/server-events to /api/admin/events and moved the existing unused /api/admin/events SSE stream to /api/admin/summary/stream",
-      "added a new url query parameter `?level=critical|success` to `/api/admin/events`", 
+      "added a new url query parameter `?level=critical|success` to `/api/admin/events`",
       "",
       "============================================ DOCS & TESTING ============================================",
       "added 24 new tests for documentation functionality and 2 new tests for resolving routes (`/api/routes`)",
@@ -71,7 +71,6 @@
       "added terminal logout support through `sudo logout`",
       "added filtered status output for administrative terminal commands",
       "added terminal session history restoration and ANSI output preservation"
-
     ]
   },
   "main": "bot/bot.js",
@@ -167,6 +166,7 @@
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
     "acorn": "^8.18.0",
+    "acorn-jsx": "^5.3.2",
     "acorn-walk": "^8.3.5",
     "chart.js": "^4.5.1",
     "dompurify": "^3.4.16",

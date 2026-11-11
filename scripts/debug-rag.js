@@ -1,14 +1,9 @@
 require("dotenv").config({ path: "./bot/.env" })
-
-const { answerQuestion } = require("../server/lib/rag/rag")
+const { answerQuestion } = require("../server/lib/rag/ai")
 
 const useAi = process.argv.includes("--ai")
 
-const question = process.argv
-    .slice(2)
-    .filter(argument => argument !== "--ai")
-    .join(" ")
-    .trim()
+const question = process.argv.slice(2).filter(argument => argument !== "--ai").join(" ").trim()
 
 if (!question) {
     console.error('Usage: npm run rag -- [--ai] "your repository question"')
@@ -16,15 +11,7 @@ if (!question) {
 }
 
 const line = "═".repeat(100)
-
-const printSection = (title, value = "") => {
-    process.stderr.write(
-        `\n${line}\n` +
-        `${title}\n` +
-        `${line}\n` +
-        `${value}\n`
-    )
-}
+const printSection = (title, value = "") => process.stderr.write(`\n${line}\n` + `${title}\n` + `${line}\n` + `${value}\n`)
 
 const printObject = (object, fields = []) => {
     if (!object || typeof object !== "object") {
@@ -38,13 +25,8 @@ const printObject = (object, fields = []) => {
 
             if (value === undefined) continue
 
-            if (typeof value === "object") {
-                process.stderr.write(
-                    `${field}: ${JSON.stringify(value, null, 2)}\n`
-                )
-            } else {
-                process.stderr.write(`${field}: ${value}\n`)
-            }
+            if (typeof value === "object") process.stderr.write(`${field}: ${JSON.stringify(value, null, 2)}\n`)
+            else process.stderr.write(`${field}: ${value}\n`)
         }
 
         return
@@ -53,45 +35,26 @@ const printObject = (object, fields = []) => {
     process.stderr.write(`${JSON.stringify(object, null, 2)}\n`)
 }
 
-answerQuestion({
-    question,
-
-    onActivity: activity => {
+answerQuestion({question, onActivity: activity => {
         const type = activity.type || activity.event || "ACTIVITY"
-
         printSection(type.toUpperCase())
-
         printObject(activity, ["status", "message", "query", "sources", "count", "tokens", "contextTokens", "contextBudget" ])
     },
-
-    onToken: token => {
-        process.stdout.write(token)
-    }
+    onToken: token => process.stdout.write(token)
 }, useAi)
     .then(result => {
         process.stdout.write("\n")
-
         printSection("RETRIEVED SOURCES")
 
         if (!result.sources?.length) {
             process.stderr.write("No sources\n")
         } else {
             result.sources.forEach((source, index) => {
-                process.stderr.write(
-                    `\n[${index + 1}] ${source.file || source.path || "Unknown file"}\n`
-                )
+                process.stderr.write(`\n[${index + 1}] ${source.file || source.path || "Unknown file"}\n`)
 
-                if (source.lines) {
-                    process.stderr.write(`Lines: ${source.lines}\n`)
-                }
-
-                if (source.score !== undefined) {
-                    process.stderr.write(`Score: ${source.score}\n`)
-                }
-
-                if (source.content) {
-                    process.stderr.write(`\n${source.content}\n`)
-                }
+                if (source.lines) process.stderr.write(`Lines: ${source.lines}\n`)
+                if (source.score !== undefined) process.stderr.write(`Score: ${source.score}\n`)
+                if (source.content) process.stderr.write(`\n${source.content}\n`)
             })
         }
 
@@ -130,9 +93,7 @@ answerQuestion({
         }
 
         printValue(result.context)
-
         printSection("FINAL ANSWER", result.answer || "")
-
         printSection("SUMMARY")
 
         process.stderr.write(

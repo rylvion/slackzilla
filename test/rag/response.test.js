@@ -1,6 +1,7 @@
 const test = require("node:test")
 const assert = require("node:assert/strict")
-const { answerQuestion, buildAiFallback, readAiResponse, calculateScore } = require("../../server/lib/rag/rag")
+const { answerQuestion, buildAiFallback, readAiResponse } = require("../../server/lib/rag/ai")
+const { calculateScore } = require("../../server/lib/rag/rag")
 
 function streamResponse(payloads) {
     const body = payloads.map(payload => `data: ${JSON.stringify(payload)}\n\n`).join("") + "data: [DONE]\n\n"

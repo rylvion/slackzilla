@@ -642,7 +642,6 @@ function handleReactApp(req, res, pathname) {
 
     const browserRoutes = new Set([
         "/",
-        "/status",
         "/commands",
         "/logs",
         "/terminal",

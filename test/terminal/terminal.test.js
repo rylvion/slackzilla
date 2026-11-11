@@ -121,6 +121,24 @@ test("filters RAG sources by path search", async () => {
     assert.equal(result.search, "terminal")
 })
 
+test("analyses an indexed RAG file", async () => {
+    const result = await executeCommand("rag", ["analyse", "server/client/src/App.jsx"], contextFor({}))
+    assert.equal(result.file, "server/client/src/App.jsx")
+    assert.equal(result.type, "javascript")
+    assert.ok(result.analysis)
+    assert.ok(Array.isArray(result.analysis.imports.local))
+    assert.ok(Array.isArray(result.analysis.functions))
+    assert.ok(Array.isArray(result.analysis.routes))
+    assert.ok(Array.isArray(result.analysis.sourceExcerpts))
+    assert.equal(typeof result.size, "string")
+    assert.match(result.modified, /^\d{2}\/\d{2}\/\d{4}/)
+})
+
+test("resolves an unambiguous RAG filename", async () => {
+    const result = await executeCommand("rag", ["analyse", "server.js"], contextFor({}))
+    assert.equal(result.file, "server/server.js")
+})
+
 test("lists and inspects the registered RAG tools", async () => {
     const listed = await executeCommand("rag", ["tools"], contextFor({}))
     assert.ok(listed.tools.some(tool => tool.name === "runApiCommand"))

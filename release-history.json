@@ -129,7 +129,7 @@
         ]
     },
     "v1.0.0-release": {
-        "summary": "v1.0.0-release - Major dashboard and API improvements, expanded admin controls, smarter code parsing and RAG inference, dynamic documentation, request cancellation, rate limiting, and 26 new tests",
+        "summary": "v1.0.0-release - MAJOR dashboard & API improvements, expanded admin controls, dYnAmIc docs loading, rate limiting, AND A WHOLE EMBEDDED TERMINAL (also loads of new tests & bug fixes) ",
         "changes": [
             "*btw i was planning on 2 releases/devlog BUT i got carried away so itll be split into 2 parts",
             "==============================================================================================================================================================================",

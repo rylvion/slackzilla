@@ -1,5 +1,6 @@
 const fs = require("fs")
 const path = require("path")
+const { builtinModules } = require("module")
 const { getReleaseInfo, listReleaseVersions } = require("../release-info")
 const { listCommands: listSlackCommands, getCommand: getSlackCommand, runCommand } = require("../command-runner")
 const { listRoutes } = require("../../api/routes")
@@ -18,6 +19,18 @@ function requireArgument(args, index, label) {
         throw error
     }
     return value
+}
+
+function formatBytes(bytes) {
+    if (!Number.isFinite(Number(bytes)) || Number(bytes) < 0) return "unknown"
+    const units = ["B", "KB", "MB", "GB"]
+    let value = Number(bytes)
+    let unit = 0
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024
+        unit += 1
+    }
+    return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`
 }
 
 function redactLogLine(value) {
@@ -269,6 +282,88 @@ async function executeRag(args, context) {
             throw error
         }
     }
+    if (action === "analyse") {
+        const requestedPath = requireArgument(args, 1, "file path").replaceAll("\\", "/").replace(/^\.\/+/, "")
+        const requestedLower = requestedPath.toLowerCase()
+        const exactMatches = index.files.filter(item => item.path.toLowerCase() === requestedLower)
+        const fuzzyMatches = index.files.filter(item =>
+            path.basename(item.path).toLowerCase() === requestedLower ||
+            item.path.toLowerCase().endsWith(`/${requestedLower}`)
+        )
+        const matches = exactMatches.length ? exactMatches : fuzzyMatches
+
+        if (matches.length > 1) {
+            const error = new Error(`RAG file path is ambiguous: ${requestedPath}`)
+            error.code = "RAG_FILE_AMBIGUOUS"
+            error.statusCode = 400
+            throw error
+        }
+
+        const file = matches[0]
+        if (!file) {
+            const error = new Error(`RAG file not found: ${requestedPath}`)
+            error.code = "RAG_FILE_NOT_FOUND"
+            error.statusCode = 404
+            throw error
+        }
+
+        const imports = file.code?.imports || []
+        const groupedImports = {
+            builtIn: [],
+            external: [],
+            local: []
+        }
+        for (const item of imports) {
+            const source = String(item.source || "")
+            const group = source.startsWith(".")
+                ? "local"
+                : builtinModules.includes(source) || source.startsWith("node:")
+                    ? "builtIn"
+                    : "external"
+            groupedImports[group].push(item)
+        }
+
+        const dependencies = require("../rag/rag").getDependencies(file.path, index)
+        const dependants = require("../rag/rag").getDependants(file.path, index)
+        const sourceExcerpts = (file.chunks || []).map(chunk => ({
+            lines: `${chunk.start}-${chunk.end}`,
+            start: chunk.start,
+            end: chunk.end,
+            text: chunk.text
+        }))
+        const functions = file.code?.functions || []
+        const routes = file.code?.routes || []
+        const exports = file.code?.exports || []
+        const relevantSymbols = [
+            ...functions.map(symbol => ({ ...symbol, kind: symbol.type || "function" })),
+            ...exports.map(symbol => ({ ...symbol, kind: "export" }))
+        ]
+
+        return {
+            file: file.path,
+            type: file.type,
+            size: formatBytes(file.size),
+            modified: new Date(file.modified).toLocaleString("en-GB"),
+            analysis: {
+                imports: groupedImports,
+                functions,
+                routes,
+                relevantSymbols,
+                dependencies,
+                dependants,
+                sourceExcerpts,
+                counts: {
+                    imports: imports.length,
+                    functions: functions.length,
+                    routes: routes.length,
+                    relevantSymbols: relevantSymbols.length,
+                    dependencies: dependencies.length,
+                    dependants: dependants.length,
+                    sourceExcerpts: sourceExcerpts.length
+                }
+            }
+        }
+    }
     if (action === "status") return { version: index.version, generatedAt: index.generatedAt, files: index.files.length }
     if (action === "sources") {
         let limit = 100
@@ -319,7 +414,7 @@ async function executeRag(args, context) {
             }))
         }
     }
-    const error = new Error("rag supports: status, sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N], search <text>, tools, inspect <tool>, execute <tool> [JSON | --flag value...]")
+    const error = new Error("rag supports: status, analyse <file>, sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N], search <text>, tools, inspect <tool>, execute <tool> [JSON | --flag value...]")
     error.code = "USAGE_ERROR"
     error.statusCode = 400
     throw error
@@ -512,7 +607,7 @@ const commands = {
     },
     rag: {
         description: "inspect and search the local RAG index",
-        usage: "rag status | sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N] | search <text> | tools | inspect <tool> | execute <tool> [JSON | --flag value...]",
+        usage: "rag status | analyse <file> | sources [--type TYPE[,TYPE...]] [--search TEXT] [--limit N] | search <text> | tools | inspect <tool> | execute <tool> [JSON | --flag value...]",
         permission: PERMISSIONS.PUBLIC,
         execute: ({ args, context }) => executeRag(args, context)
     },

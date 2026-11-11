@@ -2,6 +2,21 @@ const test = require("node:test")
 const assert = require("node:assert/strict")
 const { parseJavaScript } = require("../../server/lib/rag/code-parser")
 
+test("parses JSX files as JavaScript", () => {
+    const result = parseJavaScript(`
+        import Panel from "./Panel.jsx"
+        export default function Dashboard() {
+            return <Panel title="Status" />
+        }
+    `)
+
+    assert.deepEqual(result.imports[0], {
+        source: "./Panel.jsx",
+        line: 2
+    })
+    assert.equal(result.functions[0].name, "Dashboard")
+})
+
 test("detects routes inside combined pathname and method conditions", () => {
     const source = `
         async function handler(req, res, url) {

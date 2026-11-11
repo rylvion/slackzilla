@@ -33,7 +33,6 @@ function printUsage(tools = { definitions: require("../server/lib/rag/rag-tools"
 
     for (const definition of tools.definitions) {
         const toolName = definition.function?.name
-
         if (!toolName) continue
 
         console.error(`  npm run rag:use-tool -- --${toolName}`)
@@ -68,9 +67,7 @@ async function main() {
     const ragContext = createRagToolContext(context)
     const tools = createRagTools(ragContext)
 
-    if (!tools.definitions.some(definition =>
-        definition.function?.name === toolName
-    )) {
+    if (!tools.definitions.some(definition => definition.function?.name === toolName)) {
         console.error(`Unknown RAG tool: ${toolName}`)
         console.error("")
         printUsage()
@@ -81,15 +78,11 @@ async function main() {
 
     if (toolName === "getCommands") {
         for (const key of ["id", "command", "description", "category", "usageHint", "fuzzy"]) {
-            if (options[key]) {
-                toolArgs[key] = options[key]
-            }
+            if (options[key]) toolArgs[key] = options[key]
         }
     }
 
-    if (toolName === "getReleaseInfo" && options.version) {
-        toolArgs.version = options.version
-    }
+    if (toolName === "getReleaseInfo" && options.version) toolArgs.version = options.version
 
     if (toolName === "runCommand") {
         if (!options.commandId) {
@@ -123,30 +116,18 @@ async function main() {
         }
     }
 
-    if (toolName === "getLogs" && options.limit) {
-        toolArgs.limit = Number(options.limit)
-    }
-    if (toolName === "getErrors" && options.includeStack) {
-        toolArgs.includeStack = options.includeStack === true || options.includeStack === "true"
-    }
+    if (toolName === "getLogs" && options.limit) toolArgs.limit = Number(options.limit)
+    if (toolName === "getErrors" && options.includeStack) toolArgs.includeStack = options.includeStack === true || options.includeStack === "true"
 
     console.log(`RAG Tool: ${toolName}`)
     console.log(`Arguments: ${JSON.stringify(toolArgs)}`)
     console.log("")
 
-    const result = await tools.execute(
-        toolName,
-        toolArgs,
-        activity => { console.log(`[${activity.type}] ${activity.status} - ${activity.message}`) }
-    )
+    const result = await tools.execute(toolName, toolArgs, activity => {console.log(`[${activity.type}] ${activity.status} - ${activity.message}`)} )
 
     console.log("")
     console.log("Result:")
-    console.log(util.inspect(result, {
-        depth: null,
-        colors: true,
-        compact: false
-    }))
+    console.log(util.inspect(result, {depth: null, colors: true, compact: false}))
 }
 
 main().catch(error => {

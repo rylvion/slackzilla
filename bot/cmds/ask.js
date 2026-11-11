@@ -1,18 +1,55 @@
 const { log } = require("../utils/logger")
-const { answerQuestion, listCommands } = require("../../server/lib/rag/rag")
+const { listCommands } = require("../../server/lib/command-runner")
+const { answerQuestion } = require("../../server/lib/rag/ai")
+const { createRagTools } = require("../../server/lib/rag/rag-tools")
+const { getReleaseInfo } = require("../../server/lib/release-info")
+const { runCommand } = require("../../server/lib/command-runner")
+const { loadIndex } = require("../../server/lib/rag/rag")
 
-function getHelp() {
-    return (
-        "🤖 *Slackzilla AI help*\n" +
-        "> *Usage:*\n" +
-        "> `/sz-ask <question>` - asks Slackzilla AI a question\n" +
-        "> `/sz-ask help` - shows this help message\n" +
-        "> *Examples:*\n" +
-        "> `/sz-ask how do I hash some text?`\n" +
-        "> `/sz-ask what does /sz-roll do?`\n" +
-        "> `/sz-ask what is Slackzilla?`\n"
-    )
+function createSlackRagTools() {
+    const port = process.env.PORT || 9000
+    const request = async ({ method = "GET", path, body: requestBody, headers = {} } = {}) => {
+        const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+            method,
+            headers: { Accept: "application/json", ...headers },
+            ...(requestBody === undefined ? {} : { body: JSON.stringify(requestBody) })
+        })
+        const body = await response.text()
+        let parsed = body
+        try { parsed = body ? JSON.parse(body) : null }
+        catch { /* preserve useful plain-text responses */ }
+        return { status: response.status, ok: response.ok, body: parsed }
+    }
+
+    return createRagTools({
+        getStatus: async () => (await request({ path: "/api/status" })).body,
+        getCommands: (args = {}) => {
+            const commands = listCommands().map(command => ({
+                id: command.id,
+                command: command.cmd,
+                description: command.description,
+                category: command.category,
+                usageHint: command.usage_hint
+            }))
+            const fuzzy = args.fuzzy?.toLowerCase()
+            if (args.id) return commands.find(command => command.id === args.id) || null
+            if (!fuzzy) return commands.map(command => command.id)
+            return commands.filter(command => Object.values(command).filter(Boolean).join(" ").toLowerCase().includes(fuzzy))
+        },
+        getReleaseInfo,
+        runCommand: (commandId, text) => runCommand(commandId, text, {
+            userId: "rag-slack-tool",
+            username: "RAG Slack tool",
+            channelId: "slack",
+            teamId: "slackzilla"
+        }),
+        runApiCommand: request,
+        getRoutes: () => loadIndex().files.flatMap(file => (file.code?.routes || []).map(route => ({ ...route, file: file.path })))
+    })
 }
+
+
+const getHelp = () => "asks a question to ai and returns an answer, e.g. `/sz-ask what is the status of slackzilla?` (it can also run tools you cant see them if your in slack)"
 
 function getUsage(result, activities) {
     if (result?.usage) return result.usage
@@ -49,7 +86,8 @@ module.exports = (app, meta) => {
                     userId: command.user_id,
                     username: command.user_name,
                     channelId: command.channel_id
-                }
+                },
+                tools: createSlackRagTools()
             })
 
             const usage = getUsage(result, result.activities)
