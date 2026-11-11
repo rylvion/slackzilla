@@ -39,11 +39,8 @@ function handleLogsApi({ req, res, url, context }) {
         }
     } catch (error) {
         context.recordServerError(error, `logs:${url.pathname}`)
-        if (!res.headersSent) {
-            context.sendError(res, 500, "LOG_RETRIEVAL_FAILED", `Failed to process ${url.pathname}: ${error.message}`)
-        } else if (!res.writableEnded && !res.destroyed) {
-            res.end()
-        }
+        if (!res.headersSent) context.sendError(res, 500, "LOG_RETRIEVAL_FAILED", `Failed to process ${url.pathname}: ${error.message}`)
+        else if (!res.writableEnded && !res.destroyed) res.end()
         return true
     }
 

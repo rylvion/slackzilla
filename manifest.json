@@ -74,7 +74,7 @@
         "command": "/sz-hash",
         "description": "generates a hash of a string, default: sha256",
         "should_escape": false,
-        "usage_hint": "<algorithm> <string>"
+        "usage_hint": "<algorithm> <encrypt?> <iters?> <salt?> <string>"
       },
       {
         "command": "/sz-help",

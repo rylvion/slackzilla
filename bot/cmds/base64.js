@@ -1,15 +1,5 @@
 const { log } = require("../utils/logger")
-
-function getHelp() {
-    return (
-        "🔐 *base64 command help*\n" +
-        "> *Usage:*\n" +
-        "> `/sz-base64 <text>` - encodes text into base64\n\n" +
-        "> *Examples:*\n" +
-        "> `/sz-base64 hello world`\n" +
-        "> `/sz-base64 Slackzilla is cool`"
-    )
-}
+const getHelp = () => "base64ify a text"
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {

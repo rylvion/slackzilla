@@ -1,4 +1,4 @@
-const { answerQuestion } = require("../../lib/rag/rag")
+const { answerQuestion } = require("../../lib/rag/ai")
 const { createRagTools } = require("../../lib/rag/rag-tools")
 const { createRagToolContext } = require("../../lib/rag/rag-tool-context")
 const { createRateLimiter } = require("../../lib/rate-limit")
@@ -46,9 +46,7 @@ function handleAskApi({ req, res, url, context }) {
     const session = context.auth.getSessionFromRequest(req)
     const isAdmin = Boolean(session)
     const rateLimiter = isAdmin ? adminAskRateLimiter : standardAskRateLimiter
-    const clientKey = isAdmin
-        ? `admin:${session.sessionId}`
-        : `ip:${context.auth.getRequestIp(req)}`
+    const clientKey = isAdmin? `admin:${session.sessionId}` : `ip:${context.auth.getRequestIp(req)}`
 
     const rateLimit = rateLimiter.check(clientKey)
 
@@ -62,17 +60,11 @@ function handleAskApi({ req, res, url, context }) {
         context.sendSseHeaders(res)
 
         const controller = new AbortController()
-        const handleDisconnect = () => {
-            if (!res.writableEnded) controller.abort()
-        }
+        const handleDisconnect = () => { if (!res.writableEnded) controller.abort()}
 
         res.on("close", handleDisconnect)
 
-        const send = (event, data) => {
-            if (!controller.signal.aborted && !res.writableEnded && !res.destroyed) {
-                context.sendSse(res, event, data)
-            }
-        }
+        const send = (event, data) => {if (!controller.signal.aborted && !res.writableEnded && !res.destroyed) context.sendSse(res, event, data)}
 
         try {
             const tools = createRagTools(createRagToolContext(context))

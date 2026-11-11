@@ -46,9 +46,10 @@ module.exports = (app, meta) => {
 
         log.success("{user} played rps via {cmd}: {0} vs {1} and {2}", command, playerChoice, botChoice, result)
 
-        await respond(`🪨📄✂️ **ROCK PAPER SCISSORS**
+        await respond(` 
+*ROCK PAPER SCISSORS* 🪨📄✂️
 you picked *${playerChoice}* ${icons[playerChoice]}
 i picked *${botChoice}* ${icons[botChoice]}
-THAT MEANS ${result == "lose" ? "you lost LMAOOOO, ggs" : result == "win" ? "you won!" : "it's a tie :thinking_face:"}: *${result}*`)
+THAT MEANS ${result == "lose" ? "you lost LMAOOOO, ggs" : result == "win" ? "you won!" : "it's a tie :thinking_face:"}*`)
     })
 }

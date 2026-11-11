@@ -1,17 +1,5 @@
 const { log } = require("../utils/logger")
-
-function getHelp() {
-    return (
-        "🔤 *case command help*\n" +
-        "> *Usage:*\n" +
-        "> `/sz-case <camel|pascal|snake|kebab> <text>` - converts text into a different case\n\n" +
-        "> *Examples:*\n" +
-        "> `/sz-case camel hello world`\n" +
-        "> `/sz-case pascal hello world`\n" +
-        "> `/sz-case snake hello world`\n" +
-        "> `/sz-case kebab hello world`"
-    )
-}
+const getHelp = () => "supports 4 cases: `camel`, `pascal`, `snake` and `kebab`"
 
 const splitWords = (text) => text.trim().split(/[^a-zA-Z0-9]+/).filter(Boolean)
 const toCamel = (words) => words.map((word, index) => index === 0 ? word.toLowerCase() : word[0].toUpperCase() + word.slice(1).toLowerCase()).join("")

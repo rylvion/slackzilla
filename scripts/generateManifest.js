@@ -26,27 +26,18 @@ function exitWithError(message) {
 }
 
 function assertRequiredString(value, label) {
-    if (typeof value !== 'string' || value.trim() === '') {
-        exitWithError(`required metadata missing: ${label}`)
-    }
+    if (typeof value !== 'string' || value.trim() === '')  exitWithError(`required metadata missing: ${label}`)
 }
 
 function assertRequiredBoolean(value, label) {
-    if (typeof value !== 'boolean') {
-        exitWithError(`required metadata missing: ${label}`)
-    }
+    if (typeof value !== 'boolean') exitWithError(`required metadata missing: ${label}`)
 }
 
 function getCommandEntrySchema(schema) {
-    if (!schema.patternProperties) {
-        exitWithError('schemas/command.schema.json is missing patternProperties')
-    }
+    if (!schema.patternProperties) exitWithError('schemas/command.schema.json is missing patternProperties')
 
     const pattern = Object.keys(schema.patternProperties)[0]
-
-    if (!pattern) {
-        exitWithError('schemas/command.schema.json has no command entry schema')
-    }
+    if (!pattern) exitWithError('schemas/command.schema.json has no command entry schema')
 
     return schema.patternProperties[pattern]
 }
@@ -55,15 +46,10 @@ function buildSlashCommands(commands, validateCommand) {
     const slashCommands = []
 
     for (const [name, command] of Object.entries(commands)) {
-        if (name === '$schema') {
-            continue
-        }
+        if (name === '$schema') continue
 
         if (!validateCommand(command)) {
-            const errors = (validateCommand.errors || [])
-                .map(error => `${error.instancePath || '/'} ${error.message}`)
-                .join('; ')
-
+            const errors = (validateCommand.errors || []).map(error => `${error.instancePath || '/'} ${error.message}`).join('; ')
             console.warn(`skipping malformed command "${name}": ${errors}`)
             continue
         }
@@ -74,16 +60,11 @@ function buildSlashCommands(commands, validateCommand) {
             should_escape: false
         }
 
-        if (command.usage_hint) {
-            slashCommand.usage_hint = command.usage_hint
-        }
-
+        if (command.usage_hint) slashCommand.usage_hint = command.usage_hint
         slashCommands.push(slashCommand)
     }
 
-    return slashCommands.sort((a, b) =>
-        a.command.localeCompare(b.command)
-    )
+    return slashCommands.sort((a, b) => a.command.localeCompare(b.command))
 }
 
 function buildManifest() {
@@ -91,34 +72,16 @@ function buildManifest() {
     assertRequiredString(meta.shortDesc, 'shortDesc')
     assertRequiredString(meta.longDesc, 'longDesc')
     assertRequiredString(meta.themeColor, 'themeColor')
-
     assertRequiredBoolean(meta.socketMode, 'socketMode')
+    assertRequiredString(meta.botUser?.displayName, 'botUser.displayName')
+    assertRequiredBoolean(meta.botUser?.alwaysOnline,'botUser.alwaysOnline')
 
-    assertRequiredString(
-        meta.botUser?.displayName,
-        'botUser.displayName'
-    )
+    if (!Array.isArray(meta.oauthScopes) || meta.oauthScopes.length === 0) exitWithError('required metadata missing: oauthScopes')
 
-    assertRequiredBoolean(
-        meta.botUser?.alwaysOnline,
-        'botUser.alwaysOnline'
-    )
-
-    if (!Array.isArray(meta.oauthScopes) || meta.oauthScopes.length === 0) {
-        exitWithError('required metadata missing: oauthScopes')
-    }
-
-    const ajv = new Ajv({
-        allErrors: true,
-        strict: false
-    })
-
+    const ajv = new Ajv({allErrors: true, strict: false})
     addFormats(ajv)
 
-    const validateCommand = ajv.compile(
-        getCommandEntrySchema(commandSchema)
-    )
-
+    const validateCommand = ajv.compile(getCommandEntrySchema(commandSchema))
     const validateManifest = ajv.compile(manifestSchema)
 
     const manifest = {
@@ -142,10 +105,7 @@ function buildManifest() {
         },
 
         oauth_config: {
-            scopes: {
-                bot: [...new Set(meta.oauthScopes)]
-            },
-
+            scopes: { bot: [...new Set(meta.oauthScopes)]},
             pkce_enabled: Boolean(meta.pkceEnabled)
         },
 
@@ -156,26 +116,16 @@ function buildManifest() {
         }
     }
 
-    if (typeof meta.settings?.tokenRotationEnabled === 'boolean') {
-        manifest.settings.token_rotation_enabled =
-            meta.settings.tokenRotationEnabled
-    }
+    if (typeof meta.settings?.tokenRotationEnabled === 'boolean') manifest.settings.token_rotation_enabled = meta.settings.tokenRotationEnabled
 
     if (Array.isArray(meta.settings?.eventSubscriptions?.bot_events) && meta.settings.eventSubscriptions.bot_events.length > 0) {
-        manifest.settings.event_subscriptions = {
-            bot_events: [...new Set(meta.settings.eventSubscriptions.bot_events)]
-        }
+        manifest.settings.event_subscriptions = { bot_events: [...new Set(meta.settings.eventSubscriptions.bot_events)] }
     }
 
     if (!validateManifest(manifest)) {
         console.error('manifest schema validation failed:')
 
-        for (const error of validateManifest.errors || []) {
-            console.error(
-                `- ${error.instancePath || '/'}: ${error.message}`
-            )
-        }
-
+        for (const error of validateManifest.errors || []) console.error(`- ${error.instancePath || '/'}: ${error.message}`)
         exitWithError('generated manifest failed schema validation')
     }
 
@@ -184,11 +134,7 @@ function buildManifest() {
 
 const manifest = buildManifest()
 
-fs.writeFileSync(
-    manifestPath,
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    'utf8'
-)
+fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
 
 console.log(`generated manifest.json with ${manifest.features.slash_commands.length} commands`)
 console.log(`manifest source version: ${packageJson.version}`)

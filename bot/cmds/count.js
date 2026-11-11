@@ -1,15 +1,6 @@
 const { log } = require("../utils/logger")
 
-function getHelp() {
-    return (
-        "🔢 *count command help*\n" +
-        "> *Usage:*\n" +
-        "> `/sz-count <text>` - counts characters, words, and lines\n\n" +
-        "> *Examples:*\n" +
-        "> `/sz-count hello world`\n" +
-        "> `/sz-count line one\nline two`"
-    )
-}
+const getHelp = () => "count characters, words, and lines in a text"
 
 const countWords = (text) => text.trim().split(/\s+/).filter(Boolean).length
 const countLines = (text) => text.split(/\r?\n/).length
@@ -42,7 +33,7 @@ module.exports = (app, meta) => {
 
         log.success("{user} counted text via {cmd}", command)
 
-        await respond(`🔢 counts:
+        await respond(`
 characters: ${characters}
 words: ${words}
 lines: ${lines}`)

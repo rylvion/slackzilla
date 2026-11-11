@@ -3,9 +3,6 @@ const { log, cyan } = require("../utils/logger")
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
-
-        log.info("{user} used {cmd}", command)
-
         try {
             const text = command.text?.trim()
 
@@ -15,9 +12,8 @@ module.exports = (app, meta) => {
                 return
             }
 
-            log.success("{user} echoed text via {cmd}: '{0}'", command, cyan(text))
-
-            await respond(`${text}`)
+            log.success("{user} echoed text via {cmd}", command)
+            await respond(text)
 
         } catch (err) {
             log.error("{user} failed {cmd}: {0}", command, err.message)

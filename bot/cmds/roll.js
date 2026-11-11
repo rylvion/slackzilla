@@ -1,5 +1,6 @@
 const { log } = require("../utils/logger")
 
+const rollDice = (sides = 6) => Math.floor(Math.random() * sides) + 1
 function rollDice(sides = 6) {
     return Math.floor(Math.random() * sides) + 1
 }
@@ -7,54 +8,35 @@ function rollDice(sides = 6) {
 function parseRoll(input) {
     const match = input.match(/^(\d+)?d(\d+)([+-]\d+)?$/i)
 
-    if (!match) {
-        return null
-    }
+    if (!match) return null
 
     const amount = Number(match[1]) || 1
     const sides = Number(match[2])
     const modifier = Number(match[3]) || 0
 
-    if (amount <= 0 || sides <= 0) {
-        return null
-    }
+    if (amount <= 0 || sides <= 0) return null
+    if (amount > 100 || sides > 1000) return null
 
-    if (amount > 100 || sides > 1000) {
-        return null
-    }
-
-    return {
-        amount,
-        sides,
-        modifier
-    }
+    return {amount, sides, modifier}
 }
 
 function rollExpression(amount, sides, modifier) {
     const rolls = Array.from({ length: amount }, () => rollDice(sides))
-
-
     const total = rolls.reduce((sum, value) => sum + value, 0) + modifier
 
-    return {
-        rolls,
-        total
-    }
+    return {rolls, total}
 }
 
 function getHelp() {
     return `
-> 🎲 *roll command help*
->  **Usage:**
 > \`/sz-roll\` - rolls a d6 (default)
 > \`/sz-roll 20\` - rolls a d20 (up to 20 sides)
-> \`/sz-roll 2d6\` - rolls two d6 dice
-> \`/sz-roll 2d20+5\` - rolls two d20 dice and add 5
-
-> **Examples:**
+> \`/sz-roll 2d6\` - rolls two d6 dice (2 sets of 6-sided dice)
+> \`/sz-roll 2d20+5\` - rolls two d20 dice and add 5 (2 sets of 20-sided dice with a +5 modifier)
+*Examples:*
 > • /sz-roll d8
 > • /sz-roll 3d10
-> • /sz-roll 1d20+10
+> • /sz-roll 5d20+10
 `
 }
 
@@ -73,39 +55,22 @@ module.exports = (app, meta) => {
 
         let expression = input
 
-        if (/^\d+$/.test(input)) {
-            expression = `1d${input}`
-        }
-
-        if (!expression.includes('d')) {
-            expression = '1d6'
-        }
+        if (/^\d+$/.test(input)) expression = `1d${input}`
+        if (!expression.includes('d')) expression = '1d6'
 
         const roll = parseRoll(expression)
 
         if (!roll) {
-            await respond('invalid roll format. Use `/sz-roll help` for examples.')
-
-            log.error(`invalid roll input: ${input}`)
+            await respond('invalid roll format. see `/sz-roll help` for examples.')
+            log.error(`invalid roll input:`)
             return
         }
 
-        const res = rollExpression(
-            roll.amount,
-            roll.sides,
-            roll.modifier
-        )
+        const res = rollExpression(roll.amount, roll.sides, roll.modifier)
+        const modifier = roll.modifier !== 0 ? ` ${roll.modifier > 0 ? '+' : ''}${roll.modifier}` : ''
 
-        const modifierText = roll.modifier !== 0
-            ? ` ${roll.modifier > 0 ? '+' : ''}${roll.modifier}`
-            : ''
+        await respond(`rolled \`${roll.amount}d${roll.sides}+${modifier}\`: [${res.rolls.join(', ')}] = *${res.total}*`)
 
-        await respond(
-            `🎲 rolled **${expression}**\n` +
-            `Rolls: ${res.rolls.join(', ')}${modifierText}\n` +
-            `Total: **${res.total}**`
-        )
-
-        log.success(`Rolled ${expression}: ${res.total}`)
+        log.success(`{user} rolled ${expression}: ${res.total} with {cmd}`, command)
     })
 }

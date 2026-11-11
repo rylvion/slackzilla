@@ -5,18 +5,8 @@ function getHelp() {
     const algorithms = crypto.getHashes().slice(0, 8).join(", ")
 
     return (
-        "🔑 *hash command help*\n" +
-        "> *Usage:*\n" +
-        "> `/sz-hash <algorithm> <text>` - hashes text with the chosen algorithm\n" +
-        "> `/sz-hash <text>` - defaults to sha256\n\n" +
-        "> *Examples:*\n" +
-        "> `/sz-hash sha256 hello world`\n" +
-        "> `/sz-hash hello world`\n" +
-        "> `/sz-hash rand 32`\n" +
-        "> `/sz-hash pbkdf2 sha512 600000 salt password` - pbkdf2 <algorithm> <iterations> <password>\n\n" +
-        "> `/sz-hash base64 hello world`\n" +
-        "> `/sz-hash hex hello world`\n" +
-        `> *Supported algorithms:* ${algorithms}, rand, pbkdf2, base64, hex`
+        `> Default: sha256, supported algorithms: ${algorithms}, rand, pbkdf2, base64, hex\n` +
+        "> `/sz-hash pbkdf2 sha512 600000 salt password` - pbkdf2 <algorithm> <iterations> <salt?> <password>"
     )
 }
 

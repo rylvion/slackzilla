@@ -23,13 +23,7 @@
         },
         "category": {
           "type": "string",
-          "enum": [
-            "core",
-            "utility",
-            "entertainment",
-            "fun",
-            "other"
-          ]
+          "enum": ["core", "utility", "entertainment", "fun", "other"]
         },
         "file": {
           "type": "string",

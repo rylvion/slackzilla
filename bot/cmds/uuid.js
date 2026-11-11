@@ -1,21 +1,10 @@
 const crypto = require("crypto")
 const { log } = require("../utils/logger")
 
-function getHelp() {
-    return (
-        "🆔 *uuid command help*\n" +
-        "> *Usage:*\n" +
-        "> `/sz-uuid` - generates a random uuid v4\n\n" +
-        "> *Examples:*\n" +
-        "> `/sz-uuid`\n" +
-        "> `/sz-uuid help`"
-    )
-}
+const getHelp = () => "generates a random uuid v4"
 
 function createUuid() {
-    if (typeof crypto.randomUUID === "function") {
-        return crypto.randomUUID()
-    }
+    if (typeof crypto.randomUUID === "function") return crypto.randomUUID()
 
     const bytes = crypto.randomBytes(16)
 
@@ -24,13 +13,7 @@ function createUuid() {
 
     const hex = bytes.toString("hex")
 
-    return [
-        hex.slice(0, 8),
-        hex.slice(8, 12),
-        hex.slice(12, 16),
-        hex.slice(16, 20),
-        hex.slice(20)
-    ].join("-")
+    return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join("-")
 }
 
 module.exports = (app, meta) => {
@@ -41,14 +24,9 @@ module.exports = (app, meta) => {
             await respond(getHelp())
             return
         }
+        
+        log.success("{user} generated a uuid via {cmd}", command)
+        await respond(createUuid())
 
-        try {
-            const uuid = createUuid()
-            log.success("{user} generated a uuid via {cmd}", command)
-            await respond(uuid)
-        } catch (error) {
-            log.error("{user} failed to generate a uuid via {cmd}: {error}", command, error)
-            await respond("❌ Failed to generate a uuid. Please try again later.")
-        }
     })
 }

@@ -21,10 +21,8 @@ function parseLength(param) {
     return length
 }
 
-function createToken(length) {
-    const byteLength = Math.ceil((length * 3) / 4) + 2
-    return crypto.randomBytes(byteLength).toString("base64url").slice(0, length)
-}
+
+const createToken = length => crypto.randomBytes(Math.ceil((length * 3) / 4)).toString("base64url").slice(0, length)
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {

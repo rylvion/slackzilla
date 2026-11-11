@@ -44,10 +44,7 @@ if (!releaseNotes) {
     process.exit(1)
 }
 
-if (
-    typeof releaseNotes.summary !== 'string' ||
-    !Array.isArray(releaseNotes.changes)
-) {
+if (typeof releaseNotes.summary !== 'string' || !Array.isArray(releaseNotes.changes)) {
     console.error(`Invalid releaseNotes format for ${version}`)
     process.exit(1)
 }
@@ -60,10 +57,7 @@ if (!existingRelease) {
         process.exit(1)
     }
 
-    releaseHistory[version] = {
-        summary: releaseNotes.summary,
-        changes: releaseNotes.changes
-    }
+    releaseHistory[version] = {summary: releaseNotes.summary, changes: releaseNotes.changes}
 
     writeJson(releaseHistoryPath, releaseHistory)
 
@@ -72,8 +66,7 @@ if (!existingRelease) {
 }
 
 const summaryChanged = existingRelease.summary !== releaseNotes.summary
-const changesChanged =
-    JSON.stringify(existingRelease.changes) !== JSON.stringify(releaseNotes.changes)
+const changesChanged = JSON.stringify(existingRelease.changes) !== JSON.stringify(releaseNotes.changes)
 
 if (!summaryChanged && !changesChanged) {
     console.log(`Release notes for ${version} are already up to date`)
@@ -91,5 +84,4 @@ releaseHistory[version] = {
 }
 
 writeJson(releaseHistoryPath, releaseHistory)
-
 console.log(`Updated release notes for ${version}`)

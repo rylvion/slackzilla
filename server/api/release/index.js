@@ -12,9 +12,7 @@ function handleReleaseApi({ req, res, url, context }) {
     const result = getReleaseInfo(requestedVersion)
 
     if (requestedVersion && !result.version) {
-        context.sendError(res, 404, "RELEASE_NOT_FOUND",  `No release information was found for version '${requestedVersion}'. Check the version identifier and ensure it exists in the release history.`, {
-            data: result
-        })
+        context.sendError(res, 404, "RELEASE_NOT_FOUND",  `No release information was found for version '${requestedVersion}'. Check the version identifier and ensure it exists in the release history.`, {data: result})
         return true
     }
 

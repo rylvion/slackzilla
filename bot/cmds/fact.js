@@ -20,9 +20,7 @@ module.exports = (app, meta) => {
             const data = await res.json()
 
             log.success("{user} used {cmd} to fetch a fact from API {0} ({1})", command, cyan(res.url), cyan(res.status))
-
-            const fact = data.text
-            await respond(`Did you know that ${fact}`)
+            await respond(`Did you know that ${data.text}`)
 
         } catch (err) {
             log.error("{user} failed {cmd}: {0}", command, err.message)

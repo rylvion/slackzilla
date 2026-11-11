@@ -25,12 +25,7 @@ const getTotalCategoryCount = () => Object.keys(categoryCounts).length
 
 const getDict = () => {
     const dict = {}
-
-    list.forEach(([name, data]) => {
-        const category = data.category || "other"
-        dict[name] = category
-    })
-
+    list.forEach(([name, data]) => {data[name] = data.category || "other"})
     return dict
 }
 
@@ -59,9 +54,7 @@ function buildStats() {
     return output
 }
 
-if (require.main === module) {
-    console.log(buildStats())
-}
+if (require.main === module) console.log(buildStats())
 
 module.exports = {
     buildStats,

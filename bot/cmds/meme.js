@@ -23,27 +23,12 @@ module.exports = (app, meta) => {
             const res = await fetchWithTimeout("https://meme-api.com/gimme")
             const data = await res.json()
 
-            log.success(
-                "{user} fetched meme from API {0} ({1})",
-                command,
-                cyan(res.url),
-                cyan(res.status)
-            )
+            log.success( "{user} fetched meme from API {0} ({1})", command, cyan(res.url), cyan(res.status))
 
             await respond({
                 blocks: [
-                    {
-                        type: "section",
-                        text: {
-                            type: "mrkdwn",
-                            text: `🤣 *${data.title}*`
-                        }
-                    },
-                    {
-                        type: "image",
-                        image_url: data.url,
-                        alt_text: data.title
-                    }
+                    {type: "section", text: {type: "mrkdwn", text: `🤣 *${data.title}*`}},
+                    { type: "image", image_url: data.url, alt_text: data.title}
                 ]
             })
 
@@ -54,10 +39,7 @@ module.exports = (app, meta) => {
                 blocks: [
                     {
                         type: "section",
-                        text: {
-                            type: "mrkdwn",
-                            text: `❌ couldn't fetch a meme right now\n\nHere's an excuse instead: *${excuses[Math.floor(Math.random() * excuses.length)]}*`
-                        }
+                        text: {type: "mrkdwn", text: `${excuses[Math.floor(Math.random() * excuses.length)]}`}
                     }
                 ]
             })

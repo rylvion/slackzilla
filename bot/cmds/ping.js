@@ -5,19 +5,14 @@ module.exports = (app, meta) => {
         const start = Date.now()
         await ack()
         const latency = Date.now() - start
-
-        log.info("{user} used {cmd}", command)
-
-        log.success(
-            "{user} pinged bot (latency: {0}ms)",
-            command,
-            latency
-        )
+        log.success("{user} pinged bot (latency: {0}ms)", command, latency)
 
         await respond(
-            `🏓 pong!
+`🏓 pong!
 latency: ${latency}ms
-user: <@${command.user_id}>`
+user: <@${command.user_id}>
+pls rate me 100 stars pls pls pretty please?? 
+`
         )
     })
 }

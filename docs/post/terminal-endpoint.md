@@ -6,12 +6,6 @@
 
 `POST /api/terminal` executes registered Slackzilla terminal commands and returns structured JSON responses. It powers the embedded browser terminal and supports command families such as `status`, `logs`, `rag`, `command` and `sudo`.
 
-This is **not a shell**. It cannot execute arbitrary operating-system commands, load arbitrary modules or access arbitrary files. Browser-only commands such as `dir`, `cd` and `storage` are virtual and handled separately by `Terminal.jsx`.
-
-## Request
-
-Requests use JSON with a command name and optional arguments:
-
 ```json
 {
   "command": "logs",
@@ -19,7 +13,7 @@ Requests use JSON with a command name and optional arguments:
 }
 ```
 
-The endpoint validates command names and arguments before execution. Commands must be registered in `server/lib/terminal/commands.js`.
+\*args are split by spaces (or whitespace) and passed to the command handler.
 
 ## Commands and permissions
 
@@ -74,5 +68,3 @@ The request passes through:
 5. `commands.js` executes the registered handler.
 
 Administrative actions are delegated to `server/api/control/index.js`, sharing the same implementation used by the dashboard.
-
-**Related files:** `server/lib/terminal/`, `server/api/terminal/`, `server/api/control/` and `web/src/Terminal.jsx`.

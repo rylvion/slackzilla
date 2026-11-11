@@ -4,16 +4,13 @@ const { log } = require("../utils/logger")
 function getHelp() {
     const algorithms = "base64, hex, rand, pbkdf2"
 
-    return `🔓 *decode command help*
-> *Usage:*
-> \`/sz-decode <algorithm> <text>\` - decodes text using the chosen algorithm
-
-> *Examples:*
+    return `
+> \`/sz-decode <algorithm> <input>\` - decodes input using the chosen algorithm
 > \`/sz-decode base64 aGVsbG8gd29ybGQ=\`
-> \`/sz-decode hex 68656c6c6f\`
+> \`/sz-decode hex 7774682061726520796f7520616374206465636f64696e6720747320726e\`
 > \`/sz-decode pbkdf2 pbkdf2$sha512$600000$salt$abcdef...\`
 
-> *Supported algorithms:* ${algorithms}
+> *supported algorithms:* ${algorithms}
 > *Note:* If you want more algorithms, please use /sz-feedback to request them`
 }
 
@@ -126,7 +123,7 @@ module.exports = (app, meta) => {
                     `• algorithm: \`${algo}\`\n` +
                     `• iterations: \`${iterations}\`\n` +
                     `• salt: \`${salt}\`\n` +
-                    `• password: \`${hex}\` (psst, cannot be reversed)\n`
+                    `• password: \`${hex}\` (psst, cannot be reversed hahhaa i scemmer)\n`
                 )
             } catch {
                 await respond("❌ invalid pbkdf2 hex output")

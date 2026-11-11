@@ -50,7 +50,7 @@ module.exports = (app, meta) => {
 
             addFeedback(feedback)
             log.success("{user} submitted feedback via {cmd}", cmd)
-            await respond(`✅ thanks for the feedback. i saved it with id ${feedback.id}`)
+            await respond(`✅ thanks for the feedback. i saved it with id \`${feedback.id}\`. Make sure to save it`)
         } catch (error) {
             log.error("{user} failed to submit feedback via {cmd}: {0}", cmd, error)
             await respond("❌ failed to submit feedback. please try again later.")

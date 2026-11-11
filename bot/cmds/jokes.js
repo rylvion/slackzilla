@@ -6,26 +6,15 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         try {
-            const res = await fetchWithTimeout(
-                "https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,religious,political,racist,sexist,explicit"
-            )
-
+            const res = await fetchWithTimeout("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,religious,political,racist,sexist,explicit")
             const data = await res.json()
-
-            if (data.error) {
-                throw new Error(`API returned error: ${JSON.stringify(data)}`)
-            }
+            if (data.error) throw new Error(`API returned error: ${JSON.stringify(data)}`)
 
             let joke
 
-            if (data.type === "single") {
-                joke = data.joke
-            } else {
-                joke = `${data.setup}\n\n${data.delivery}`
-            }
+            if (data.type === "single") joke = data.joke
+            else joke = `${data.setup}\n\n${data.delivery}`
 
             log.success("{user} fetched a joke", command)
 
@@ -33,12 +22,7 @@ module.exports = (app, meta) => {
 
         } catch (err) {
             await respond("❌ couldn't fetch a joke right now... the humour engine broke")
-
-            log.error(
-                "{user} failed {cmd}: {0}",
-                command,
-                err.message
-            )
+            log.error("{user} failed {cmd}: {0}", command, err.message)
         }
     })
 }

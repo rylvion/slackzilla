@@ -102,9 +102,9 @@ module.exports = (app, meta) => {
             log.success("{user} calculated expression via {cmd}: '{0}' = '{1}' (computed in {2} seconds)", command, cyan(expression), cyan(result), seconds)
 
             await respond(
-                `**Result:** \`${result}\`\n` +
-                `**Expression:** \`${expression}\`\n` +
-                `Computed within **${seconds}** *seconds*`
+                `*Result:* \`${result}\`\n` +
+                `*Expression:* \`${expression}\`\n` +
+                `Computed within \`${seconds}\` seconds`
             )
 
         } catch (err) {
