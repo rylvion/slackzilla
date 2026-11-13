@@ -557,7 +557,7 @@ function handleWebhook(req, res, url) {
             })
 
             broadcast(adminClients, "deploy", state)
-            store.appendLogChunk(`deployment failed: ${error.message}\n`)
+            store.appendLogChunk(`\x1b[31mdeployment failed: ${error.message}\x1b[0m\n`)
             scheduleDeploymentBannerExpiry()
             refreshAndBroadcastStatus()
         }
@@ -738,13 +738,13 @@ function startBackgroundTasks() {
     process.on("uncaughtException", error => {
         recordServerError(error, "uncaughtException")
         console.error("UNCAUGHT SERVER ERROR:", error)
-        store.appendLogChunk(`uncaught server error: ${error?.message || error}\n`)
+        store.appendLogChunk(`\x1b[31muncaught server error: ${error?.message || error}\x1b[0m\n`)
     })
     process.on("unhandledRejection", reason => {
         const error = reason instanceof Error ? reason : new Error(String(reason))
         recordServerError(error, "unhandledRejection")
         console.error("UNHANDLED SERVER REJECTION:", error)
-        store.appendLogChunk(`unhandled server rejection: ${error.message}\n`)
+        store.appendLogChunk(`\x1b[31munhandled server rejection: ${error.message}\x1b[0m\n`)
     })
     watchLogs()
     refreshAndBroadcastStatus()
@@ -762,16 +762,16 @@ function startServer() {
         Promise.resolve(handleRequest(req, res)).catch(error => {
             recordServerError(error, "request")
             console.error("DASHBOARD REQUEST FAILED:", error)
-            store.appendLogChunk(`dashboard request error: ${error.message || error}\n`)
+            store.appendLogChunk(`\x1b[31mdashboard request error: ${error.message || error}\x1b[0m\n`)
             sendText(res, 500, "Internal server error\n")
         })
     }).listen(port, () => {
-        const msg = `dashboard server listening on port ${port}\nVisit http${process.env.NODE_ENV === "production" ? "s" : ""}://${cookieSecure ? "https://rylvion.hackclub.app/" : "localhost"}:${port} in your browser to see the dashboard.\n`
+        const url = cookieSecure ? "https://rylvion.hackclub.app/" : `http://localhost:${port}`
+        const msg = `\x1b[36mDashboard server listening on port ${port}\x1b[0m\n\x1b[36mVisit ${url} in your browser to see the dashboard.\x1b[0m\n`
         console.log(msg)
         store.appendLogChunk(msg)
     })
 }
-
 if (require.main === module) {
     startBackgroundTasks()
     startServer()
