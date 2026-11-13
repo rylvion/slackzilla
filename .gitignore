@@ -15,9 +15,7 @@ server-errors.json
 .rag/
 .rag
 
-devlog12.md
-
-################### ADDED VIA REACT APP ####################
+################### ADDED AUTOMATICALLY VIA REACT APP ####################
 *.log
 npm-debug.log*
 yarn-debug.log*

@@ -96,7 +96,7 @@ the main focus was improving maintainability, debugging and the reliability of S
 
 **next devlog hint:** a terminal is coming.
 
-think less clicking through admin pages, more interacting with Slackzilla directly through a terminal interface. details in the NEXT devlog.
+think less clicking through interactive pages and more interacting with Slackzilla directly through a terminal interface. details in the NEXT devlog
 
 **＼(^o^)／**
 
@@ -117,8 +117,8 @@ think less clicking through admin pages, more interacting with Slackzilla direct
 <p align="right">
   <em>
     <b>
-      <a href="#">
-        visit non existent devlog 12 (coming soon)
+      <a href="devlog12.md">
+        visit devlog 12
       </a>
     </b>
   </em>
