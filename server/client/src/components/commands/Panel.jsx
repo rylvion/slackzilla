@@ -39,7 +39,7 @@ function Panel({commands, expandedId, argumentsById, busyIds, results, onCommand
         <div className="command-explorer">
             <header className="command-explorer-header">
                 <div>
-                    <div className="command-eyebrow">visit <a href="https://app.slack.com/client/E09V59WQY1E/C0CFLJA4YUB" target="_blank">the help server, to execute slack commands too!</a></div>
+                    <div className="command-eyebrow">visit <a href="https://app.slack.com/client/E09V59WQY1E/C0CFLJA4YUB" target="_blank">the help server</a>, to execute slack commands too!</div>
                     <h2>Command explorer<span className="command-title-dot">.</span></h2>
                     <p>Browse, inspect and execute available slash commands.</p>
                 </div>
