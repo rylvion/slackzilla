@@ -2,6 +2,12 @@
 set -e
 
 export FORCE_COLOR=1
+export npm_config_color=true
+export npm_config_foreground_scripts=true
+
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0=color.ui
+export GIT_CONFIG_VALUE_0=always
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -71,7 +77,8 @@ sudo systemctl restart nginx
 echo
 info "Scheduling webhook restart..."
 if command -v systemd-run >/dev/null 2>&1; then
-    systemd-run --unit="slackzilla-webhook-restart-$(date +%s)" --on-active=2s /bin/systemctl restart "$WEBHOOK_SERVICE_NAME" >/dev/null
+    systemd_output=$(systemd-run --unit="slackzilla-webhook-restart-$(date +%s)" --on-active=2s /bin/systemctl restart "$WEBHOOK_SERVICE_NAME")
+    echo -e "${GREEN}${systemd_output}${RESET}"
 else
     warning "systemd-run is required to restart $WEBHOOK_SERVICE_NAME safely"
     exit 1

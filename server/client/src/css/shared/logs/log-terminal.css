@@ -4,13 +4,7 @@
     overflow-y: auto;
     overflow-x: auto;
     padding: 14px 16px;
-    background:
-        radial-gradient(
-            ellipse at top left,
-            rgba(0, 255, 120, 0.025),
-            transparent 45%
-        ),
-        #020604;
+    background: radial-gradient( ellipse at top left, rgba(0, 255, 120, 0.025), transparent 45%), #020604;
     color: #a8cdb7;
     font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
     font-size: 0.75rem;
@@ -32,9 +26,10 @@
     height: 8px;
 }
 
-.terminal::-webkit-scrollbar-track { background: #020604; }
-.terminal::-webkit-scrollbar-thumb { background: rgba(0, 255, 120, 0.2); }
+.terminal::-webkit-scrollbar-track { background: #020604 }
+.terminal::-webkit-scrollbar-thumb { background: rgba(0, 255, 120, 0.2) }
 .terminal::-webkit-scrollbar-thumb:hover { background: rgba(0, 255, 120, 0.35) }
+
 .log-lines { position: relative; }
 
 .log-lines::before {
@@ -74,34 +69,31 @@
     white-space: pre-wrap;
 }
 
-.log-line:hover {
-    background: rgba(0, 255, 120, 0.025);
-}
+.log-line:hover { background: rgba(0, 255, 120, 0.025)}
 
+.ansi-red { color: #ff5f56}
+.ansi-green {color: #00ff78; text-shadow: 0 0 3px rgba(0, 255, 120, 0.15)}
+.ansi-yellow { color: #f5d76e}
+.ansi-cyan {color: #62e6e6; text-shadow: 0 0 3px rgba(98, 230, 230, 0.15)}
+.ansi-muted {color: #50665a}
 
-.ansi-red {
-    color: #ff5f56;
-    text-shadow: 0 0 5px rgba(255, 95, 86, 0.25);
-}
+.ansi-black { color: #000 }
+.ansi-blue { color: #60a5fa }
+.ansi-magenta { color: #e879f9 }
+.ansi-white { color: #e5e7eb }
 
-.ansi-green {
-    color: #00ff78;
-    text-shadow: 0 0 5px rgba(0, 255, 120, 0.25);
-}
+.ansi-red-bright { color: #fca5a5 }
+.ansi-green-bright { color: #86efac }
+.ansi-yellow-bright { color: #fde047 }
+.ansi-blue-bright { color: #93c5fd }
+.ansi-magenta-bright { color: #f0abfc }
+.ansi-cyan-bright { color: #67e8f9 }
+.ansi-white-bright { color: #fff }
 
-.ansi-yellow {
-    color: #f5d76e;
-    text-shadow: 0 0 5px rgba(245, 215, 110, 0.2);
-}
-
-.ansi-cyan {
-    color: #62e6e6;
-    text-shadow: 0 0 5px rgba(98, 230, 230, 0.2);
-}
-
-.ansi-muted {
-    color: #50665a;
-}
+.ansi-bold { font-weight: 700 }
+.ansi-dim { opacity: 0.6 }
+.ansi-italic { font-style: italic }
+.ansi-underline { text-decoration: underline }
 
 .terminal > .muted {
     color: #50665a;
@@ -114,7 +106,6 @@
     margin-left: 5px;
     color: #00ff78;
 }
-
 
 @media (max-width: 700px) {
     .terminal {
