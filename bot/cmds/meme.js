@@ -15,10 +15,8 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         try {
-            log.info("{user} is fetching API: {cmd}", command)
+            log.info("{user} is fetching API from {0} with {cmd}", command, cyan("https://meme-api.com/gimme"))
 
             const res = await fetchWithTimeout("https://meme-api.com/gimme")
             const data = await res.json()

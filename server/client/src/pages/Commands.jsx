@@ -18,12 +18,8 @@ function Commands() {
         let active = true
 
         getJson("/api/commands")
-            .then(data => {
-                if (active) setCommands(data.commands || [])
-            })
-            .catch(error => {
-                if (active) setLoadError(error.message)
-            })
+            .then(data => { if (active) setCommands(data.commands || []) })
+            .catch(error => { if (active) setLoadError(error.message)})
 
         return () => { active = false }
     }, [])
@@ -33,10 +29,7 @@ function Commands() {
 
         busyRef.current.add(command.id)
         setBusyIds([...busyRef.current])
-        setResults(previous => ({
-            ...previous,
-            [command.id]: { loading: true, error: "", response: null }
-        }))
+        setResults(previous => ({...previous, [command.id]: { loading: true, error: "", response: null }}))
 
         try {
             const data = await getJson(`/api/commands/${encodeURIComponent(command.id)}`, {
@@ -45,15 +38,9 @@ function Commands() {
                 body: JSON.stringify({ text })
             })
 
-            setResults(previous => ({
-                ...previous,
-                [command.id]: { loading: false, error: "", response: data }
-            }))
+            setResults(previous => ({...previous, [command.id]: { loading: false, error: "", response: data }}))
         } catch (error) {
-            setResults(previous => ({
-                ...previous,
-                [command.id]: { loading: false, error: error.message, response: null }
-            }))
+            setResults(previous => ({...previous, [command.id]: { loading: false, error: error.message, response: null }}))
         } finally {
             busyRef.current.delete(command.id)
             setBusyIds([...busyRef.current])
@@ -72,9 +59,7 @@ function Commands() {
         setExpandedId(current => current === command.id ? "" : command.id)
     }
 
-    function handleArgumentsChange(commandId, value) {
-        setArgumentsById(previous => ({ ...previous, [commandId]: value }))
-    }
+    const handleArgumentsChange = (commandId, value) => setArgumentsById(previous => ({ ...previous, [commandId]: value }))
 
     function handleArgumentsSubmit(event, command) {
         event.preventDefault()

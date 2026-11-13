@@ -11,15 +11,10 @@ function Status() {
     const { telemetry, connected: telemetryConnected } = useTelemetryStream()
     const samples = telemetry.telemetryHistory || []
 
-    const internalLinks = [
-        { id: "overview", label: "Overview" },
-        { id: "resources", label: "Resources" },
-        { id: "network", label: "Network" },
-    ]
 
     return (
         <>
-            <PageShell title="Uptime" description="Slackzilla system and bot telemetry" links={internalLinks}>
+            <PageShell title="Uptime" description="Slackzilla system and bot telemetry">
                 <section id="overview" className="panel">
                     <div className="panel-header">
                         <h1>Runtime Telemetry</h1>

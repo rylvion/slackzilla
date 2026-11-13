@@ -9,8 +9,6 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
-
         const text = command.text ?? ""
 
         if (text.trim().toLowerCase() === "help") {

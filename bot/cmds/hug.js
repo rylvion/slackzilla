@@ -17,6 +17,6 @@ module.exports = (app, meta) => {
 
         await respond(`${hugArt}\n<@${command.user_id}> gets a giant Slackzilla hug! 🤗`)
 
-        log.info("{user} used {cmd}", command)
+        log.success("{user} used {cmd}", command)
     })
 }

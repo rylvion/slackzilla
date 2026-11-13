@@ -28,7 +28,6 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
         const length = parseLength(command.text?.trim())
 
         if (command.text?.trim().toLowerCase() === "help") {

@@ -46,7 +46,7 @@ module.exports = (app, meta) => {
         if (input === 'help') {
             await respond({ text: getHelp() })
 
-            log.info('Displayed roll command help')
+            log.success('Displayed roll command help')
             return
         }
 

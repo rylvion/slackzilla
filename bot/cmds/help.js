@@ -35,7 +35,7 @@ module.exports = (app, meta) => {
 
         msg += "\ntry one, worst case an inf while loop happens and ill explode or smth idk"
 
-        log.info("{user} viewed command list using {cmd}", command)
+        log.success("{user} viewed command list using {cmd}", command)
 
         await respond(msg)
         await respond(`\n\n\`\`\`${buildStats()}\`\`\``)

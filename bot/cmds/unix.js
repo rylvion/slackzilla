@@ -20,7 +20,6 @@ module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
         const unix = command.text?.trim()
 
         if (unix?.toLowerCase() === "help") {
@@ -31,7 +30,7 @@ module.exports = (app, meta) => {
         }
 
         if (!unix) {
-            log.error("{user} used {cmd} with no text", command)
+            log.error("{user} used {cmd} with no params", command)
 
             await respond("❌ give me a unix timestamp or a date string")
             return

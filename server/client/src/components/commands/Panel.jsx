@@ -8,16 +8,7 @@ function formatResponse(response) {
     return response.responses.map(item => typeof item === "string" ? item : JSON.stringify(item, null, 2)).join("\n")
 }
 
-function Panel({
-    commands,
-    expandedId,
-    argumentsById,
-    busyIds,
-    results,
-    onCommandClick,
-    onArgumentsChange,
-    onArgumentsSubmit
-}) {
+function Panel({commands, expandedId, argumentsById, busyIds, results, onCommandClick, onArgumentsChange, onArgumentsSubmit}) {
     const [search, setSearch] = useState("")
     const [category, setCategory] = useState("all")
 
@@ -48,7 +39,7 @@ function Panel({
         <div className="command-explorer">
             <header className="command-explorer-header">
                 <div>
-                    <div className="command-eyebrow">slackzilla@repo:-$ command --list</div>
+                    <div className="command-eyebrow">visit <a href="https://app.slack.com/client/E09V59WQY1E/C0CFLJA4YUB" target="_blank">the help server, to execute slack commands too!</a></div>
                     <h2>Command explorer<span className="command-title-dot">.</span></h2>
                     <p>Browse, inspect and execute available slash commands.</p>
                 </div>
@@ -63,19 +54,8 @@ function Panel({
                     <span className="command-field-label">SEARCH</span>
                     <span className="command-search-field">
                         <span className="command-search-prefix">$</span>
-                        <input
-                            id="command-search"
-                            type="search"
-                            value={search}
-                            onChange={event => setSearch(event.target.value)}
-                            placeholder="Find a command..."
-                            autoComplete="off"
-                        />
-                        {search && (
-                            <button className="command-clear-search" type="button" onClick={() => setSearch("")} aria-label="Clear search">
-                                ×
-                            </button>
-                        )}
+                        <input id="command-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Find a command..." autoComplete="off"/>
+                        {search && <button className="command-clear-search" type="button" onClick={() => setSearch("")} aria-label="Clear search">×</button>}
                     </span>
                 </label>
 
@@ -83,9 +63,7 @@ function Panel({
                     <span className="command-field-label">CATEGORY</span>
                     <select id="command-category" value={category} onChange={event => setCategory(event.target.value)}>
                         <option value="all">All categories</option>
-                        {categories.map(item => (
-                            <option key={item} value={item}>{item}</option>
-                        ))}
+                        {categories.map(item => <option key={item} value={item}>{item}</option>)}
                     </select>
                 </label>
             </div>
@@ -108,23 +86,14 @@ function Panel({
                         return (
                             <article className={`command-item${expanded ? " is-expanded" : ""}`} key={command.id}>
                                 <div className="command-item-main">
-                                    <button
-                                        className="command-item-info"
-                                        type="button"
-                                        onClick={() => onCommandClick(command)}
-                                        disabled={busy}
-                                        aria-expanded={Boolean(usageHint && expanded)}
-                                    >
+                                    <button className="command-item-info" type="button" onClick={() => onCommandClick(command)} disabled={busy} aria-expanded={Boolean(usageHint && expanded)}>
                                         <span className="command-index">{String(index + 1).padStart(2, "0")}</span>
                                         <span className="command-info-content">
                                             <span className="command-name">{commandName.slice(1)}</span>
                                             <span className="command-description">{command.description || "No description available."}</span>
                                             <span className="command-metadata">
                                                 <span className="command-category">{commandCategory}</span>
-                                                {usageHint
-                                                    ? <span className="command-usage"><span>USAGE</span> {usageHint}</span>
-                                                    :  <span className="command-usage command-no-args">NO ARGUMENTS</span>
-                                                }
+                                                {usageHint? <span className="command-usage"><span>USAGE</span> {usageHint}</span> : <span className="command-usage command-no-args">NO ARGUMENTS</span>}
                                             </span>
                                         </span>
                                     </button>
@@ -136,12 +105,7 @@ function Panel({
                                                 <span className="command-action-icon">{expanded ? "−" : "+"}</span>
                                             </button>
                                         ) : (
-                                            <button
-                                                className="command-action-button command-action-run"
-                                                type="button"
-                                                onClick={() => onCommandClick(command)}
-                                                disabled={busy}
-                                            >
+                                            <button className="command-action-button command-action-run" type="button" onClick={() => onCommandClick(command)} disabled={busy}>
                                                 <span>{busy ? "Running" : "Run"}</span>
                                                 <span className="command-action-icon">{busy ? "…" : "↗"}</span>
                                             </button>

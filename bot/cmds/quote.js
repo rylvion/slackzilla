@@ -1,17 +1,16 @@
-const { log } = require("../utils/logger.js")
+const { log, cyan } = require("../utils/logger.js")
 const { fetchWithTimeout } = require("../utils/fetcher.js")
 
 module.exports = (app, meta) => {
     app.command(meta.cmd, async ({ ack, respond, command }) => {
         await ack()
 
-        log.info("{user} used {cmd}", command)
 
         try {
             const res = await fetchWithTimeout("https://zenquotes.io/api/random")
             const data = await res.json()
 
-            log.success("{user} fetched a quote ({0})", command, data[0].q)
+            log.success("{user} fetched a quote ({0}) from {1}", command, data[0].q, cyan("https://zenquotes.io/api/random"))
 
             await respond(`"${data[0].q}" - ${data[0].a}`)
 
