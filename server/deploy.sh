@@ -2,12 +2,14 @@
 set -e
 
 export FORCE_COLOR=1
-export npm_config_color=true
+export npm_config_color=always
 export npm_config_foreground_scripts=true
 
-export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_COUNT=2
 export GIT_CONFIG_KEY_0=color.ui
 export GIT_CONFIG_VALUE_0=always
+export GIT_CONFIG_KEY_1=color.remote
+export GIT_CONFIG_VALUE_1=always
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

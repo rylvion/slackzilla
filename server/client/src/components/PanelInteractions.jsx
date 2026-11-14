@@ -62,6 +62,7 @@ function PanelInteractions({ pathname }) {
                         interactionTarget.dataset.panelY = String(y)
                         interactionTarget.style.transform = `translate(${x}px, ${y}px)`
                     } else {
+                        interactionTarget.style.flex = "none"
                         interactionTarget.style.width = `${Math.max(320, start.width + event.clientX - start.clientX)}px`
                         interactionTarget.style.height = `${Math.max(180, start.height + event.clientY - start.clientY)}px`
                     }

@@ -438,7 +438,6 @@ body.deployment-banner-visible .sidebar {
 
 .panel--has-interactions {
     touch-action: none;
-    resize: both;
     min-width: 320px;
     min-height: 180px;
 }

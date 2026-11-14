@@ -1,7 +1,7 @@
 
 function ansiLine({ number, text, highlightLine, highlighted, onCtrlClick }, index) {
     // eslint-disable-next-line no-control-regex
-    const tokens = String(text).split(/(\u001b\[[0-9;]*m)/g)
+    const tokens = String(text).split(/(\u001b\[[0-?]*[ -/]*[@-~])/g)
     const parts = []
 
     const colours = {
