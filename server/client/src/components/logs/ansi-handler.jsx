@@ -63,6 +63,35 @@ function ansiLine({ number, text, highlightLine, highlighted, onCtrlClick }, ind
         } else if (token) parts.push(<span className={getClasses()} key={`${index}-${tokenIndex}`}>{token}</span>)
     })
 
+    // eslint-disable-next-line no-control-regex
+    const plain = String(text).replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "")
+    const logColours = [
+        { match: /^npm WARN\b/i, colour: "ansi-orange" },
+        { match: /^npm ERR!/i, colour: "ansi-red" },
+        { match: /^npm notice\b/i, colour: "ansi-cyan" },
+        { match: /^npm info\b/i, colour: "ansi-muted" },
+        { match: /^added \d+ packages?/i, colour: "ansi-green" },
+        { match: /^\d+ packages are looking for funding/i, colour: "ansi-muted" },
+        { match: /^\d+ vulnerabilities? /i, colour: "ansi-orange" },
+        { match: /^To address /i, colour: "ansi-muted" },
+        { match: /^npm audit fix --force/i, colour: "ansi-red" },
+        { match: /^npm audit fix/i, colour: "ansi-cyan" },
+        { match: /^Run `?npm audit/i, colour: "ansi-muted" },
+        { match: /^> slackzilla@/i, colour: "ansi-cyan" },
+        { match: /^> vite build/i, colour: "ansi-blue" },
+        { match: /^vite v[\d.]+/i, colour: "ansi-cyan" },
+        { match: /^transforming\.\.\./i, colour: "ansi-muted" },
+        { match: /^rendering chunks\.\.\./i, colour: "ansi-muted" },
+        { match: /^computing gzip size\.\.\./i, colour: "ansi-muted" },
+        { match: /^From https:\/\/github\.com\//i, colour: "ansi-cyan" },
+        { match: /^\s*\* branch\b/i, colour: "ansi-blue" },
+        { match: /^HEAD is now at\b/i, colour: "ansi-green" },
+        { match: /^Running timer as unit:/i, colour: "ansi-green" },
+        { match: /^Will run service as unit:/i, colour: "ansi-green" }
+    ]
+    //eslint-disable-next-line no-control-regex    
+    const hasAnsiColours = tokens.some(token => /^\u001b\[([0-9;]*)m$/.test(token))
+    const logColour = logColours.find(item => item.match.test(plain))?.colour
     const lineClasses = ["log-line", highlightLine === number ? "highlight" : "", highlighted ? "new-log" : ""].filter(Boolean).join(" ")
 
     return (
@@ -71,9 +100,9 @@ function ansiLine({ number, text, highlightLine, highlighted, onCtrlClick }, ind
             onCtrlClick?.(number)
         }}>
             <span className="log-line-number">{number}</span>
-            <span className="log-line-text">{parts}</span>
+            <span className="log-line-text">{logColour && !hasAnsiColours ? <span className={logColour}>{plain}</span> : parts}</span>
         </div>
-    )
+    )   
 }
 
 export default ansiLine

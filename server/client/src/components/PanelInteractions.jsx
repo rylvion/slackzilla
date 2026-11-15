@@ -1,4 +1,3 @@
-
 import { useEffect } from "react"
 
 let nextPanelZIndex = 1001
@@ -22,22 +21,14 @@ function PanelInteractions({ pathname }) {
 
             panels.forEach((panel, index) => {
                 const isErrorBoundary = panel.matches(".error-boundary, .error_boundary")
-                const interactionTarget = isErrorBoundary
-                    ? panel.querySelector(".error-boundary__content, .error_boundary__content")
-                    : panel
-
+                const interactionTarget = isErrorBoundary? panel.querySelector(".error-boundary__content, .error_boundary__content"): panel
                 if (!interactionTarget) return
 
                 const id = interactionTarget.dataset.panelId || `${window.location.pathname}:panel-${index}`
                 interactionTarget.dataset.panelId = id
 
-                const dragSurface = isErrorBoundary
-                    ? interactionTarget.querySelector(".error-boundary__header, .error_boundary__header")
-                    : panel.querySelector(".panel-header")
-
-                const resizeContainer = isErrorBoundary
-                    ? interactionTarget.querySelector(".error-boundary__body, .error_boundary__body") || interactionTarget
-                    : interactionTarget
+                const dragSurface = isErrorBoundary? interactionTarget.querySelector(".error-boundary__header, .error_boundary__header"): panel.querySelector(".panel-header")
+                const resizeContainer = isErrorBoundary? interactionTarget.querySelector(".error-boundary__body, .error_boundary__body") || interactionTarget: interactionTarget
 
                 if (!dragSurface) return
 

@@ -433,13 +433,16 @@ body.deployment-banner-visible .sidebar {
 }
 
 .panel--interactive {
+    position: absolute;
     touch-action: none;
 }
 
 .panel--has-interactions {
+    position: absolute;
     touch-action: none;
     min-width: 320px;
     min-height: 180px;
+    margin: 0;
 }
 
 .panel--has-interactions .panel-header {
@@ -449,7 +452,6 @@ body.deployment-banner-visible .sidebar {
 
 .panel--is-moving,
 .panel--is-resizing {
-    position: relative;
     z-index: 1000 !important;
     box-shadow:
         0 0 0 1px var(--green),
@@ -457,14 +459,16 @@ body.deployment-banner-visible .sidebar {
 }
 
 .panel-resize-handle {
-    position: absolute;
+    display: block !important;
+    position: absolute !important;
     right: 4px;
     bottom: 4px;
-    z-index: 3;
+    z-index: 10;
     width: 12px;
     height: 12px;
-    border-right: 2px solid var(--green-dark);
-    border-bottom: 2px solid var(--green-dark);
+    box-sizing: border-box;
+    border-right: 2px solid var(--green-dark) !important;
+    border-bottom: 2px solid var(--green-dark) !important;
     cursor: nwse-resize;
 }
 

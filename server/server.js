@@ -37,17 +37,7 @@ const webhookServiceName = process.env.WEBHOOK_SERVICE_NAME || "slackzilla-webho
 const deployScript = path.join(__dirname, "deploy.sh")
 const cookieSecure = String(process.env.COOKIE_SECURE || "false").toLowerCase() === "true"
 let deploymentBannerTimer = null
-const runtimeConfig = {
-    port,
-    projectDir,
-    deployBranch,
-    botServiceName,
-    webhookServiceName,
-    cookieSecure,
-    webhookPath: "/webhook"
-}
-
-
+const runtimeConfig = {port, projectDir, deployBranch, botServiceName, webhookServiceName, cookieSecure, webhookPath: "/webhook"}
 
 function validateEnvVar(name, value) {
     if (!value) {
@@ -87,26 +77,15 @@ function formatDuration(seconds) {
     const minutes = Math.floor((total % 3600) / 60)
     const secs = total % 60
 
-    return [
-        days > 0 ? `${days}d` : null,
-        hours > 0 || days > 0 ? `${hours}h` : null,
-        `${minutes}m`,
-        `${secs}s`
-    ].filter(Boolean).join(" ")
+    return [days > 0 ? `${days}d` : null, hours > 0 || days > 0 ? `${hours}h` : null, `${minutes}m`, `${secs}s`].filter(Boolean).join(" ")
 }
 
 function normaliseStatus(snapshot) {
     const deployment = store.readDeploymentState()
     const botMetrics = store.getBotMetrics()
-    const systemUsedMemory = snapshot.systemTotalMemory !== null && snapshot.systemFreeMemory !== null
-        ? snapshot.systemTotalMemory - snapshot.systemFreeMemory
-        : null
-    const memoryUsedPercent = snapshot.systemTotalMemory && systemUsedMemory !== null
-        ? (systemUsedMemory / snapshot.systemTotalMemory) * 100
-        : null
-    const diskUsedPercent = snapshot.disk.total
-        ? (snapshot.disk.used / snapshot.disk.total) * 100
-        : null
+    const systemUsedMemory = snapshot.systemTotalMemory !== null && snapshot.systemFreeMemory !== null? snapshot.systemTotalMemory - snapshot.systemFreeMemory : null
+    const memoryUsedPercent = snapshot.systemTotalMemory && systemUsedMemory !== null? (systemUsedMemory / snapshot.systemTotalMemory) * 100 : null
+    const diskUsedPercent = snapshot.disk.total? (snapshot.disk.used / snapshot.disk.total) * 100: null
     
     return {
         botOnline: snapshot.botOnline,
@@ -127,9 +106,7 @@ function normaliseStatus(snapshot) {
         lastDeploymentAt: deployment.lastDeploymentAt,
         lastDeploymentCommit: deployment.lastDeploymentCommit,
         lastDeploymentResult: deployment.lastDeploymentResult,
-        deploymentBannerStatus: deployment.bannerVisibleUntil && new Date(deployment.bannerVisibleUntil).getTime() <= Date.now()
-            ? "idle"
-            : deployment.bannerStatus,
+        deploymentBannerStatus: deployment.bannerVisibleUntil && new Date(deployment.bannerVisibleUntil).getTime() <= Date.now()? "idle": deployment.bannerStatus,
         deploymentBannerVersion: deployment.bannerVersion,
         deploymentBannerError: deployment.bannerError,
         deploymentBannerVisibleUntil: deployment.bannerVisibleUntil,
@@ -314,10 +291,7 @@ function refreshAndBroadcastStatus() {
     const { telemetryHistory, ...statusSnapshot } = status
     broadcast(statusClients, "status", statusSnapshot)
     broadcast(adminClients, "status", statusSnapshot)
-    broadcast(statusClients, "summary", {
-        commandStats: store.getBotMetrics().commandStats.slice(0, 8),
-        recentActivity: store.getBotMetrics().recentActivity
-    })
+    broadcast(statusClients, "summary", {commandStats: store.getBotMetrics().commandStats.slice(0, 8), recentActivity: store.getBotMetrics().recentActivity})
     broadcast(adminClients, "summary", buildAdminSummary())
     return status
 }
@@ -346,16 +320,11 @@ function watchLogs() {
         const buffer = Buffer.allocUnsafe(current.size - start)
         const fd = fs.openSync(store.logFile, "r")
 
-        try {
-            fs.readSync(fd, buffer, 0, buffer.length, start)
-        } finally {
-            fs.closeSync(fd)
-        }
+        try {fs.readSync(fd, buffer, 0, buffer.length, start)}
+        finally {fs.closeSync(fd)}
 
         const content = buffer.toString("utf8")
-        for (const line of splitLogLines(content)) {
-            broadcast(logClients, "log", { line })
-        }
+        for (const line of splitLogLines(content)) broadcast(logClients, "log", { line })
     })
 }
 
@@ -437,9 +406,7 @@ function handleStatic(req, res, pathname) {
 
 function scheduleDeploymentBannerExpiry() {
     clearTimeout(deploymentBannerTimer)
-
     const deployment = store.readDeploymentState()
-
     if (!deployment.bannerVisibleUntil || deployment.bannerStatus === "updating") return
 
     const expiresAt = new Date(deployment.bannerVisibleUntil).getTime()
@@ -546,9 +513,7 @@ function handleWebhook(req, res, url) {
                 status: "failed",
                 lastDeploymentAt: new Date().toISOString(),
                 lastDeploymentCommit: payload.after || null,
-                lastDeploymentOutput: error.output
-                    ? error.output.split(/\r?\n/).filter(Boolean)
-                    : [error.message],
+                lastDeploymentOutput: error.output? error.output.split(/\r?\n/).filter(Boolean): [error.message],
                 lastDeploymentResult: "failed",
                 bannerStatus: "failed",
                 bannerVersion: null,
@@ -625,43 +590,17 @@ async function handleApi(req, res, url) {
 
 function handleReactApp(req, res, pathname) {
     if (req.method !== "GET") return false
-
-    if (
-        pathname.startsWith("/api/") ||
-        pathname === "/webhook" ||
-        pathname.startsWith("/public/") ||
-        pathname.startsWith("/assets/")
-    ) {
-        return false
-    }
+    if (pathname.startsWith("/api/") || pathname === "/webhook" || pathname.startsWith("/public/") || pathname.startsWith("/assets/")) return false
 
     if (pathname === "/admin" || pathname === "/admin/events" || pathname === "/admin/errors" || pathname === "/admin/logs" || pathname === "/admin/feedback") {
         const session = auth.requireSession(req, res)
         if (!session) return true
     }
 
-    const browserRoutes = new Set([
-        "/",
-        "/commands",
-        "/logs",
-        "/terminal",
-        "/api",
-        "/ai",
-        "/docs",
-        "/sitemap",
-        "/admin",
-        "/admin/events",
-        "/admin/errors",
-        "/admin/logs",
-        "/admin/login"
-    ])
-    const statusCode = browserRoutes.has(pathname) || pathname.startsWith("/docs/") ? 200 : 404
+    const index = path.join(__dirname, "client", "dist", "index.html")
 
-    const distRoot = path.join(__dirname, "client", "dist")
-    const indexPath = path.join(distRoot, "index.html")
-
-    if (!fs.existsSync(indexPath)) {return false}
-    sendText(res, statusCode, fs.readFileSync(indexPath), "text/html; charset=utf-8" )
+    if (!fs.existsSync(index)) {return false}
+    sendText(res, 200, fs.readFileSync(index), "text/html; charset=utf-8" )
 
     return true
 }
@@ -686,14 +625,8 @@ async function handleAdminLogin(req, res, url) {
     const result = auth.login(req, res, String(body.password || ""))
 
     if (!result.ok) {
-        if (result.status === 429 && Number.isFinite(result.retryAfter)) {
-            res.setHeader("Retry-After", String(result.retryAfter))
-        }
-
-        sendJson(res, result.status || 401, {
-            ok: false,
-            error: result.message
-        })
+        if (result.status === 429 && Number.isFinite(result.retryAfter)) res.setHeader("Retry-After", String(result.retryAfter))
+        sendJson(res, result.status || 401, {ok: false, error: result.message})
         return true
     }
 
@@ -767,7 +700,7 @@ function startServer() {
         })
     }).listen(port, () => {
         const url = cookieSecure ? "https://rylvion.hackclub.app/" : `http://localhost:${port}`
-        const msg = `\x1b[36mDashboard server listening on port ${port}\x1b[0m\n\x1b[36mVisit ${url} in your browser to see the dashboard.\x1b[0m\n`
+        const msg = `\x1b[35mDashboard server listening on port ${port}\x1b[0m\n\x1b[35mVisit ${url} in your browser to see the dashboard.\x1b[0m\n`
         console.log(msg)
         store.appendLogChunk(msg)
     })
